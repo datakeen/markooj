@@ -1,0 +1,30 @@
+# dependencies and build output
+node_modules/
+design/node_modules/
+dist/
+out/
+
+# bundled tools are fetched by `npm run fetch-tools` (pandoc.exe is over GitHub's 100 MB file limit);
+# their GPL sources by `node scripts/fetch-tools.js --with-source`
+vendor/
+vendor-src/
+
+# smoke tests and scratch output
+smoke-out/
+smoke-*/
+scratch/
+*.log
+npm-debug.log*
+
+# notes for the maintainer only
+private/
+
+# editors and OS files
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# local Claude Code settings
+.claude/
+

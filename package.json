@@ -1,0 +1,276 @@
+{
+  "name": "markooj",
+  "productName": "Markooj",
+  "version": "1.1.0",
+  "description": "A calm, Word-like Markdown editor and viewer for researchers.",
+  "homepage": "https://datakeen.github.io/markooj/",
+  "bugs": {
+    "url": "https://github.com/datakeen/markooj/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/datakeen/markooj.git"
+  },
+  "main": "main.js",
+  "license": "AGPL-3.0-or-later",
+  "author": "Ahmed Bilal",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke smoke-out",
+    "smoke:report": "node scripts/smoke.js",
+    "fetch-tools": "node scripts/fetch-tools.js",
+    "pack": "node scripts/fetch-tools.js --notices && electron-builder --win --dir",
+    "dist": "node scripts/fetch-tools.js --with-source && electron-builder --win nsis zip --publish never",
+    "dist:win": "node scripts/fetch-tools.js --platform=win32 && electron-builder --win nsis zip --x64 --publish never",
+    "dist:mac": "node scripts/fetch-tools.js --platform=darwin --arch=arm64 && node scripts/fetch-tools.js --platform=darwin --arch=x64 && electron-builder --mac dmg --arm64 --x64 --publish never",
+    "dist:mac:arm64": "node scripts/fetch-tools.js --platform=darwin --arch=arm64 && electron-builder --mac dmg --arm64 --publish never",
+    "dist:mac:x64": "node scripts/fetch-tools.js --platform=darwin --arch=x64 && electron-builder --mac dmg --x64 --publish never",
+    "dist:linux": "node scripts/fetch-tools.js --platform=linux --arch=x64 && electron-builder --linux AppImage deb tar.gz --x64 --publish never",
+    "icon": "electron build/make-icon.js",
+    "notices": "node scripts/fetch-tools.js --notices",
+    "images": "electron scripts/make-store-images.js"
+  },
+  "build": {
+    "appId": "app.markooj",
+    "productName": "Markooj",
+    "copyright": "Copyright © 2026 Ahmed Bilal and contributors",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "main-langpacks.js",
+      "main-addins.js",
+      "package.json",
+      "src/**",
+      "addons/**",
+      "build/icon.png",
+      "data/**",
+      "fonts/**",
+      "docs/help/**",
+      "CHANGELOG.md",
+      "!**/*.map",
+      "!**/*.d.ts",
+      "!**/*.d.mts",
+      "!**/{test,tests,__tests__,example,examples,.github,.vscode}/**",
+      "!node_modules/pdfjs-dist/{legacy,web,image_decoders,types}/**",
+      "!node_modules/{cytoscape,cytoscape-fcose,cytoscape-cose-bilkent,elkjs,@mermaid-js,chevrotain,@chevrotain,dagre-d3-es,lodash-es,roughjs}/**",
+      "!node_modules/mermaid/dist/**/*.d.ts",
+      "!node_modules/mermaid/dist/mermaid.js",
+      "!node_modules/mermaid/dist/*.mjs",
+      "!node_modules/mermaid/dist/chunks/**",
+      "!node_modules/@napi-rs/**",
+      "!node_modules/harper.js/dist/binaryInlined.js",
+      "!node_modules/harper.js/dist/slimBinaryInlined.js",
+      "!node_modules/harper.js/dist/slimBinary.js",
+      "!node_modules/harper.js/dist/harper_wasm_slim_bg.wasm",
+      "!node_modules/@fontsource/**",
+      "!node_modules/wordnet-db/**",
+      "!vendor/**",
+      "!vendor-src/**",
+      "!private/**",
+      "!design/**",
+      "!smoke-out*/**",
+      "!dist/**"
+    ],
+    "extraResources": [
+      {
+        "from": "licenses",
+        "to": "licenses"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      },
+      {
+        "from": "csl",
+        "to": "csl"
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "md",
+          "markdown",
+          "mdown",
+          "mkd",
+          "mkdn",
+          "mdwn",
+          "mdx",
+          "rmd",
+          "qmd"
+        ],
+        "name": "Markdown Document",
+        "description": "Markdown document",
+        "role": "Editor"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "vendor/win32",
+          "to": "vendor"
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-${version}-win-${arch}-portable.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "darkModeSupport": true,
+      "minimumSystemVersion": "12.0",
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "vendor/darwin-${arch}",
+          "to": "vendor"
+        }
+      ]
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "title": "${productName} ${version}",
+      "writeUpdateInfo": false
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Office",
+      "icon": "build/icon.png",
+      "executableName": "markooj",
+      "maintainer": "Ahmed Bilal",
+      "vendor": "Ahmed Bilal",
+      "synopsis": "A calm, Word-like Markdown editor and viewer for researchers",
+      "description": "Markooj is a Word-like Markdown editor and viewer for researchers. It edits Markdown in Word, Inline, Simple and Read modes, with equations, citations, cross-references, diagrams, a writing assistant and exports to PDF, DOCX, ODT, HTML, EPUB, LaTeX and DjVu. Pandoc is included; install djvulibre-bin and pdf2djvu for DjVu files.",
+      "mimeTypes": [
+        "text/markdown",
+        "text/x-markdown"
+      ],
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "vendor/linux-${arch}",
+          "to": "vendor"
+        }
+      ]
+    },
+    "appImage": {
+      "artifactName": "${productName}-${version}-linux-x86_64.${ext}"
+    },
+    "deb": {
+      "artifactName": "${productName}-${version}-linux-amd64.${ext}",
+      "recommends": [
+        "djvulibre-bin",
+        "pdf2djvu"
+      ],
+      "packageCategory": "editors",
+      "priority": "optional"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Markooj",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "artifactName": "${productName}-${version}-win-${arch}-setup.${ext}"
+    },
+    "artifactBuildCompleted": "build/portable-zip.js"
+  },
+  "dependencies": {
+    "@fontsource/noto-naskh-arabic": "^5.3.0",
+    "@fontsource/noto-nastaliq-urdu": "^5.3.0",
+    "@fontsource/vazirmatn": "^5.3.0",
+    "dictionary-en": "^4.0.0",
+    "dictionary-en-gb": "^3.0.0",
+    "dictionary-fa": "^2.0.0",
+    "dompurify": "^3.4.18",
+    "harper.js": "^3.2.0",
+    "highlight.js": "^11.12.0",
+    "html-to-docx": "^1.8.0",
+    "jszip": "^3.10.2",
+    "katex": "^0.19.1",
+    "mammoth": "^1.13.0",
+    "markdown-it": "^15.0.3",
+    "markdown-it-abbr": "^2.0.0",
+    "markdown-it-anchor": "^10.1.0",
+    "markdown-it-container": "^4.0.0",
+    "markdown-it-deflist": "^4.0.0",
+    "markdown-it-emoji": "^3.1.0",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-mark": "^4.0.0",
+    "markdown-it-sub": "^2.0.0",
+    "markdown-it-sup": "^2.0.0",
+    "markdown-it-task-lists": "^2.1.1",
+    "mathlive": "^0.111.4",
+    "mermaid": "^12.3.0",
+    "nspell": "^2.1.5",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.5.438",
+    "pyodide": "^314.0.8",
+    "turndown": "^7.2.5",
+    "turndown-plugin-gfm": "^1.0.2",
+    "wordnet-db": "^3.1.14",
+    "write-good": "^1.0.8",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0"
+  }
+}

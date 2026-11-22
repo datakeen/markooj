@@ -1,0 +1,90 @@
+/* Markooj — languages: right-to-left text (Urdu, Arabic, Persian), bundled OFL fonts, Options → Language.
+   Owner: languages (src/lang.js). Fonts live in ../fonts (copied from @fontsource, SIL OFL 1.1). */
+
+/* Arabic-script faces only: Latin letters in the same paragraph fall through to the document font. */
+@font-face{font-family:'Noto Nastaliq Urdu';font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/noto-nastaliq-urdu-arabic-400-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200D,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Noto Nastaliq Urdu';font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/noto-nastaliq-urdu-arabic-700-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200D,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Noto Naskh Arabic';font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/noto-naskh-arabic-arabic-400-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200D,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Noto Naskh Arabic';font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/noto-naskh-arabic-arabic-700-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200D,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Vazirmatn';font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/vazirmatn-arabic-400-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200D,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Vazirmatn';font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/vazirmatn-arabic-700-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200D,U+FB50-FDFF,U+FE70-FEFC}
+
+:root{
+  --mk-font-ur:'Noto Nastaliq Urdu';
+  --mk-font-ar:'Noto Naskh Arabic';
+  --mk-font-fa:'Vazirmatn';
+  --mk-lh-ur:2.15; --mk-lh-ar:1.85; --mk-lh-fa:1.8;
+}
+
+/* ---------- script fonts (lang.js marks blocks with data-mk-script) ---------- */
+.mk-page [data-mk-script="ur"]{font-family:var(--mk-font-ur),var(--mk-base-font,var(--doc-font,serif));line-height:var(--mk-lh-ur)}
+.mk-page [data-mk-script="ar"]{font-family:var(--mk-font-ar),var(--mk-base-font,var(--doc-font,serif));line-height:var(--mk-lh-ar)}
+.mk-page [data-mk-script="fa"]{font-family:var(--mk-font-fa),var(--mk-base-font,var(--doc-font,serif));line-height:var(--mk-lh-fa)}
+/* headings keep their size; Nastaliq needs room above and below */
+.mk-page :is(h1,h2,h3,h4,h5,h6)[data-mk-script="ur"]{line-height:1.9}
+
+/* ---------- right-to-left blocks: mirror what the page draws on the left ---------- */
+.mk-page :is(ul,ol):dir(rtl){padding-left:0;padding-right:1.6em}
+.mk-page ul.contains-task-list:dir(rtl){padding-right:.4em}
+.mk-page .task-list-item:dir(rtl){padding-left:0;padding-right:1.6em}
+.mk-page .task-list-item:dir(rtl) input[type=checkbox]{left:auto;right:0}
+.mk-page blockquote:dir(rtl){padding:2px 16px 2px 0;border-left:0;border-right:3px solid var(--line-2)}
+.mk-page :is(th,td):dir(rtl){text-align:start}
+.mk-page .callout:dir(rtl),.mk-page .mk-abstract:dir(rtl),
+.mk-page :is(div.note,div.tip,div.warning,div.important,div.caution,div.info,div.abstract):dir(rtl){border-right:3px solid var(--cc,var(--accent));border-left:0}
+.mk-page dd:dir(rtl){margin:0 1.4em 8px 0}
+.mk-page section.footnotes ol:dir(rtl){padding-left:0;padding-right:1.4em}
+.mk-page .mk-bibliography li:dir(rtl){padding-left:0;padding-right:1.8em}
+/* math, code and diagrams always read left to right, also inside an Urdu sentence */
+.mk-page :is(.katex,.mk-math,code,kbd,pre,pre.mermaid,.mk-xref){direction:ltr;unicode-bidi:isolate}
+.mk-page pre{text-align:left}
+/* a direction block written as ::: {dir="rtl"} has no box of its own */
+.mk-page div[data-mk-dir]{margin:0;padding:0;border:0;background:none}
+/* Word mode shows a faint marker in the margin so people can see the paragraph direction is set */
+body:not(.mode-read) .mk-page div[data-mk-dir]{position:relative}
+body:not(.mode-read) .mk-page div[data-mk-dir]::before{content:"";position:absolute;inset-block:2px;inset-inline-start:-14px;width:2px;border-radius:2px;background:var(--accent);opacity:.18;pointer-events:none}
+body.mode-read .mk-page div[data-mk-dir]::before,.mk-export-stage div[data-mk-dir]::before{display:none}
+
+/* ---------- Simple mode source and Inline mode raw text: each line takes its own direction ---------- */
+.mk-src-ta,.mk-src-mirror .ln,.mk-il-edit{unicode-bidi:plaintext;text-align:start}
+/* the code font has no (or broken) Arabic letters: Arabic script in the source uses Vazirmatn, which joins letters
+   without the ligature features the source view turns off; Latin text keeps the code font */
+@font-face{font-family:'Markooj Source Arabic';font-style:normal;font-weight:400;src:url(../fonts/vazirmatn-arabic-400-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Markooj Source Arabic';font-style:normal;font-weight:700;src:url(../fonts/vazirmatn-arabic-700-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+FB50-FDFF,U+FE70-FEFC}
+.mk-simple .mk-src-inner{font-family:'Markooj Source Arabic',var(--mono)}
+
+/* ---------- Options → Language ---------- */
+.mk-lang .lang-list{display:flex;flex-direction:column}
+.mk-lang .lang-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:.5px solid var(--line)}
+.mk-lang .lang-item:last-child{border-bottom:0}
+.mk-lang .lang-badge{flex:none;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font:600 12px var(--font);letter-spacing:.02em}
+.mk-lang .lang-badge.rtl{font-family:var(--mk-font-ar),var(--font);font-size:15px}
+.mk-lang .lang-main{flex:1;min-width:0}
+.mk-lang .lang-main b{display:block;font-weight:500;font-size:13px}
+.mk-lang .lang-main b .nat{font-weight:400;color:var(--text-2);margin-inline-start:6px}
+.mk-lang .lang-main small{display:block;color:var(--text-3);font-size:11.5px;margin-top:2px;line-height:1.4}
+.mk-lang .lang-acts{flex:none;display:flex;gap:8px;align-items:center}
+.mk-lang .lang-item[data-code="ur"] .nat,.mk-lang .lang-item[data-code="pnb"] .nat{font-family:var(--mk-font-ur),var(--font)}
+.mk-lang .lang-item[data-code="ar"] .nat{font-family:var(--mk-font-ar),var(--font)}
+.mk-lang .lang-item[data-code="fa"] .nat{font-family:var(--mk-font-fa),var(--font)}
+.mk-lang .lang-words{color:var(--text-2)}
+.mk-lang .lang-help{color:var(--accent);text-decoration:none;border-radius:4px}
+.mk-lang .lang-help:hover{text-decoration:underline}
+.mk-lang .lang-credits{color:var(--text-3)}
+.mk-lang .lang-credits-h{color:var(--text-2);font-weight:600}
+.mk-lang .lang-src{color:var(--accent);text-decoration:none;border-radius:4px}
+.mk-lang .lang-src:hover{text-decoration:underline}
+.mk-lang .lang-src:focus-visible,.mk-lang .lang-help:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.mk-lang .lang-tag{font-size:11px;color:var(--text-2);background:var(--hover,rgba(0,0,0,.05));border-radius:6px;padding:3px 7px}
+.mk-lang .lang-empty{color:var(--text-3);font-size:12.5px;padding:12px 0}
+.mk-lang .lang-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0 2px}
+.mk-lang .lang-head h4{font:600 12.5px var(--font);margin:0;color:var(--text)}
+.mk-lang .lang-err{color:var(--danger,#d70015);font-size:12px;padding:8px 0}
+.mk-lang .lang-busy{opacity:.55;pointer-events:none}
+.mk-lang .lang-sample{font-size:15px;color:var(--text-2);white-space:nowrap}
+.mk-lang .lang-sample[data-mk-script="ur"]{font-family:var(--mk-font-ur),var(--font);line-height:2}
+.mk-lang .lang-sample[data-mk-script="ar"]{font-family:var(--mk-font-ar),var(--font)}
+.mk-lang .lang-sample[data-mk-script="fa"]{font-family:var(--mk-font-fa),var(--font)}
+
+/* status-bar language picker: names in their own script */
+.mk-lang-menu-native{margin-inline-start:auto;color:var(--text-3);font-size:12px}

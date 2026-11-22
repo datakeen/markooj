@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Markooj logo (design/mock.html .logo, scaled from 26px to a 452px tile). build/icon.png and icon.ico are drawn by make-icon.js. -->
+  <defs>
+    <linearGradient id="g" x1="0.213" y1="0.0" x2="0.787" y2="1.0"><stop offset="0" stop-color="#4f9bff"/><stop offset="1" stop-color="#0a52e0"/></linearGradient>
+    <filter id="s" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="15" stdDeviation="14" flood-color="#0a52e0" flood-opacity=".35"/></filter>
+    <clipPath id="c"><rect x="31" y="31" width="450" height="450" rx="121"/></clipPath>
+  </defs>
+  <rect x="31" y="31" width="450" height="450" rx="121" fill="url(#g)" filter="url(#s)"/>
+  <path clip-path="url(#c)" fill="#fff" fill-opacity=".4" fill-rule="evenodd" d="M0 0H512V512H0Z M152 39.7H360A121 121 0 0 1 481 160.7V368.7A121 121 0 0 1 360 489.7H152A121 121 0 0 1 31 368.7V160.7A121 121 0 0 1 152 39.7Z"/>
+  <text x="256" y="256" dy=".35em" text-anchor="middle" fill="#fff" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif" font-weight="700" font-size="242">M</text>
+</svg>

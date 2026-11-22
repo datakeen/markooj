@@ -1,0 +1,62 @@
+name: Publish website
+run-name: "Publish website · ${{ github.ref_name }}"
+
+# Publishes the site/ folder to https://datakeen.github.io/markooj/ whenever something under site/ changes on main
+# (or press "Run workflow"). One-time setup on GitHub: Settings → Pages → Build and deployment → Source: GitHub Actions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# one deployment at a time; a newer push waits instead of cancelling one that is half done
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Prepare the site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Copy site/ and add .nojekyll
+        run: |
+          test -f site/index.html || { echo "::error::site/index.html is missing"; exit 1; }
+          mkdir -p _site
+          cp -R site/. _site/
+          touch _site/.nojekyll
+          du -sh _site
+          find _site -type f | sort | head -100
+
+      - name: Set up Pages
+        uses: actions/configure-pages@v5
+
+      # v3 keeps dotfiles such as .nojekyll in the artifact (v4 leaves hidden files out)
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

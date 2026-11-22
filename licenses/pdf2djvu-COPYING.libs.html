@@ -1,0 +1,800 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Docutils 0.16: http://docutils.sourceforge.net/" />
+<title>COPYING.libs.txt</title>
+<style type="text/css">
+
+/*
+:Author: David Goodger (goodger@python.org)
+:Id: $Id: html4css1.css 7952 2016-07-26 18:15:59Z milde $
+:Copyright: This stylesheet has been placed in the public domain.
+
+Default cascading style sheet for the HTML output of Docutils.
+
+See http://docutils.sf.net/docs/howto/html-stylesheets.html for how to
+customize this style sheet.
+*/
+
+/* used to remove borders from tables and images */
+.borderless, table.borderless td, table.borderless th {
+  border: 0 }
+
+table.borderless td, table.borderless th {
+  /* Override padding for "table.docutils td" with "! important".
+     The right padding separates the table cells. */
+  padding: 0 0.5em 0 0 ! important }
+
+.first {
+  /* Override more specific margin styles with "! important". */
+  margin-top: 0 ! important }
+
+.last, .with-subtitle {
+  margin-bottom: 0 ! important }
+
+.hidden {
+  display: none }
+
+.subscript {
+  vertical-align: sub;
+  font-size: smaller }
+
+.superscript {
+  vertical-align: super;
+  font-size: smaller }
+
+a.toc-backref {
+  text-decoration: none ;
+  color: black }
+
+blockquote.epigraph {
+  margin: 2em 5em ; }
+
+dl.docutils dd {
+  margin-bottom: 0.5em }
+
+object[type="image/svg+xml"], object[type="application/x-shockwave-flash"] {
+  overflow: hidden;
+}
+
+/* Uncomment (and remove this text!) to get bold-faced definition list terms
+dl.docutils dt {
+  font-weight: bold }
+*/
+
+div.abstract {
+  margin: 2em 5em }
+
+div.abstract p.topic-title {
+  font-weight: bold ;
+  text-align: center }
+
+div.admonition, div.attention, div.caution, div.danger, div.error,
+div.hint, div.important, div.note, div.tip, div.warning {
+  margin: 2em ;
+  border: medium outset ;
+  padding: 1em }
+
+div.admonition p.admonition-title, div.hint p.admonition-title,
+div.important p.admonition-title, div.note p.admonition-title,
+div.tip p.admonition-title {
+  font-weight: bold ;
+  font-family: sans-serif }
+
+div.attention p.admonition-title, div.caution p.admonition-title,
+div.danger p.admonition-title, div.error p.admonition-title,
+div.warning p.admonition-title, .code .error {
+  color: red ;
+  font-weight: bold ;
+  font-family: sans-serif }
+
+/* Uncomment (and remove this text!) to get reduced vertical space in
+   compound paragraphs.
+div.compound .compound-first, div.compound .compound-middle {
+  margin-bottom: 0.5em }
+
+div.compound .compound-last, div.compound .compound-middle {
+  margin-top: 0.5em }
+*/
+
+div.dedication {
+  margin: 2em 5em ;
+  text-align: center ;
+  font-style: italic }
+
+div.dedication p.topic-title {
+  font-weight: bold ;
+  font-style: normal }
+
+div.figure {
+  margin-left: 2em ;
+  margin-right: 2em }
+
+div.footer, div.header {
+  clear: both;
+  font-size: smaller }
+
+div.line-block {
+  display: block ;
+  margin-top: 1em ;
+  margin-bottom: 1em }
+
+div.line-block div.line-block {
+  margin-top: 0 ;
+  margin-bottom: 0 ;
+  margin-left: 1.5em }
+
+div.sidebar {
+  margin: 0 0 0.5em 1em ;
+  border: medium outset ;
+  padding: 1em ;
+  background-color: #ffffee ;
+  width: 40% ;
+  float: right ;
+  clear: right }
+
+div.sidebar p.rubric {
+  font-family: sans-serif ;
+  font-size: medium }
+
+div.system-messages {
+  margin: 5em }
+
+div.system-messages h1 {
+  color: red }
+
+div.system-message {
+  border: medium outset ;
+  padding: 1em }
+
+div.system-message p.system-message-title {
+  color: red ;
+  font-weight: bold }
+
+div.topic {
+  margin: 2em }
+
+h1.section-subtitle, h2.section-subtitle, h3.section-subtitle,
+h4.section-subtitle, h5.section-subtitle, h6.section-subtitle {
+  margin-top: 0.4em }
+
+h1.title {
+  text-align: center }
+
+h2.subtitle {
+  text-align: center }
+
+hr.docutils {
+  width: 75% }
+
+img.align-left, .figure.align-left, object.align-left, table.align-left {
+  clear: left ;
+  float: left ;
+  margin-right: 1em }
+
+img.align-right, .figure.align-right, object.align-right, table.align-right {
+  clear: right ;
+  float: right ;
+  margin-left: 1em }
+
+img.align-center, .figure.align-center, object.align-center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+table.align-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.align-left {
+  text-align: left }
+
+.align-center {
+  clear: both ;
+  text-align: center }
+
+.align-right {
+  text-align: right }
+
+/* reset inner alignment in figures */
+div.align-right {
+  text-align: inherit }
+
+/* div.align-center * { */
+/*   text-align: left } */
+
+.align-top    {
+  vertical-align: top }
+
+.align-middle {
+  vertical-align: middle }
+
+.align-bottom {
+  vertical-align: bottom }
+
+ol.simple, ul.simple {
+  margin-bottom: 1em }
+
+ol.arabic {
+  list-style: decimal }
+
+ol.loweralpha {
+  list-style: lower-alpha }
+
+ol.upperalpha {
+  list-style: upper-alpha }
+
+ol.lowerroman {
+  list-style: lower-roman }
+
+ol.upperroman {
+  list-style: upper-roman }
+
+p.attribution {
+  text-align: right ;
+  margin-left: 50% }
+
+p.caption {
+  font-style: italic }
+
+p.credits {
+  font-style: italic ;
+  font-size: smaller }
+
+p.label {
+  white-space: nowrap }
+
+p.rubric {
+  font-weight: bold ;
+  font-size: larger ;
+  color: maroon ;
+  text-align: center }
+
+p.sidebar-title {
+  font-family: sans-serif ;
+  font-weight: bold ;
+  font-size: larger }
+
+p.sidebar-subtitle {
+  font-family: sans-serif ;
+  font-weight: bold }
+
+p.topic-title {
+  font-weight: bold }
+
+pre.address {
+  margin-bottom: 0 ;
+  margin-top: 0 ;
+  font: inherit }
+
+pre.literal-block, pre.doctest-block, pre.math, pre.code {
+  margin-left: 2em ;
+  margin-right: 2em }
+
+pre.code .ln { color: grey; } /* line numbers */
+pre.code, code { background-color: #eeeeee }
+pre.code .comment, code .comment { color: #5C6576 }
+pre.code .keyword, code .keyword { color: #3B0D06; font-weight: bold }
+pre.code .literal.string, code .literal.string { color: #0C5404 }
+pre.code .name.builtin, code .name.builtin { color: #352B84 }
+pre.code .deleted, code .deleted { background-color: #DEB0A1}
+pre.code .inserted, code .inserted { background-color: #A3D289}
+
+span.classifier {
+  font-family: sans-serif ;
+  font-style: oblique }
+
+span.classifier-delimiter {
+  font-family: sans-serif ;
+  font-weight: bold }
+
+span.interpreted {
+  font-family: sans-serif }
+
+span.option {
+  white-space: nowrap }
+
+span.pre {
+  white-space: pre }
+
+span.problematic {
+  color: red }
+
+span.section-subtitle {
+  /* font-size relative to parent (h1..h6 element) */
+  font-size: 80% }
+
+table.citation {
+  border-left: solid 1px gray;
+  margin-left: 1px }
+
+table.docinfo {
+  margin: 2em 4em }
+
+table.docutils {
+  margin-top: 0.5em ;
+  margin-bottom: 0.5em }
+
+table.footnote {
+  border-left: solid 1px black;
+  margin-left: 1px }
+
+table.docutils td, table.docutils th,
+table.docinfo td, table.docinfo th {
+  padding-left: 0.5em ;
+  padding-right: 0.5em ;
+  vertical-align: top }
+
+table.docutils th.field-name, table.docinfo th.docinfo-name {
+  font-weight: bold ;
+  text-align: left ;
+  white-space: nowrap ;
+  padding-left: 0 }
+
+/* "booktabs" style (no vertical lines) */
+table.docutils.booktabs {
+  border: 0px;
+  border-top: 2px solid;
+  border-bottom: 2px solid;
+  border-collapse: collapse;
+}
+table.docutils.booktabs * {
+  border: 0px;
+}
+table.docutils.booktabs th {
+  border-bottom: thin solid;
+  text-align: left;
+}
+
+h1 tt.docutils, h2 tt.docutils, h3 tt.docutils,
+h4 tt.docutils, h5 tt.docutils, h6 tt.docutils {
+  font-size: 100% }
+
+ul.auto-toc {
+  list-style-type: none }
+
+</style>
+</head>
+<body>
+<div class="document">
+
+
+<div class="section" id="libdjvulibre-dll">
+<h1>libdjvulibre-*.dll</h1>
+<div class="line-block">
+<div class="line">Copyright © 1999-2001 LizardTech, Inc.</div>
+<div class="line">Copyright © 2001 AT&amp;T</div>
+<div class="line">Copyright © 2002 Yann Le Cun</div>
+<div class="line">Copyright © 2002-2008 Leon Bottou</div>
+<div class="line">Copyright © 2005 Ilya Mezhirov</div>
+</div>
+<p>This software is subject to, and may be distributed under, the GNU General
+Public License, either Version 2 of the license, or (at your option) any later
+version.</p>
+<p>This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.</p>
+</div>
+<div class="section" id="libpoppler-dll">
+<h1>libpoppler-*.dll</h1>
+<div class="line-block">
+<div class="line">Copyright © 1996-2011 Glyph &amp; Cog, LLC</div>
+<div class="line">Copyright © 2005-2022 <a class="reference external" href="https://poppler.freedesktop.org">The Poppler Developers</a></div>
+</div>
+<p>Xpdf is licensed under the GNU General Public License (GPL), version 2
+or 3.</p>
+<p>Changes made under the Poppler project are licensed under GPL version 2 or
+later.</p>
+</div>
+<div class="section" id="libfreetype-dll">
+<h1>libfreetype*.dll</h1>
+<div class="line-block">
+<div class="line">Copyright © 1990-1998 The Open Group</div>
+<div class="line">Copyright © 1995-2002 Jean-loup Gailly</div>
+<div class="line">Copyright © 1995-2002 Mark Adler</div>
+<div class="line">Copyright © 1996-2022 Just van Rossum</div>
+<div class="line">Copyright © 1996-2022 Robert Wilhelm</div>
+<div class="line">Copyright © 1996-2022 Werner Lemberg</div>
+<div class="line">Copyright © 1996-2022 David Turner</div>
+<div class="line">Copyright © 2000 Computing Research Labs, New Mexico State University</div>
+<div class="line">Copyright © 2000-2012 Francesco Zappa Nardelli</div>
+<div class="line">Copyright © 2002-2022 Roberto Alameda</div>
+<div class="line">Copyright © 2003 Huw D M Davies</div>
+<div class="line">Copyright © 2003-2022 Masatake YAMATO</div>
+<div class="line">Copyright © 2003-2022 Redhat K.K.</div>
+<div class="line">Copyright © 2004-2022 George Williams</div>
+<div class="line">Copyright © 2004-2022 Albert Chin-A-Young</div>
+<div class="line">Copyright © 2004-2022 suzuki toshiya</div>
+<div class="line">Copyright © 2005-2022 Detlef Würkner</div>
+<div class="line">Copyright © 2007 Dmitry Timoshkov</div>
+<div class="line">Copyright © 2007-2022 Rahul Bhalerao</div>
+<div class="line">Copyright © 2007-2022 Derek Clegg</div>
+<div class="line">Copyright © 2007-2022 Michael Toftdal</div>
+<div class="line">Copyright © 2007-2014 Adobe Systems Incorporated.</div>
+<div class="line">Copyright © 2009-2022 Mickey Gabel</div>
+<div class="line">Copyright © 2009-2022 Oran Agra</div>
+<div class="line">Copyright © 2010-2022 Joel Klinghed</div>
+<div class="line">Copyright © 2012 Intel Corporation</div>
+<div class="line">Copyright © 2013-2022 Google, Inc.</div>
+<div class="line">Copyright © 2018-2022 Nikhil Ramakrishnan</div>
+<div class="line">Copyright © 2018-2022 Armin Hasitzka</div>
+<div class="line">Copyright © 2018-2022 Dominik Röttsches</div>
+<div class="line">Copyright © 2019 Oliver Nightingale</div>
+<div class="line">Copyright © 2019-2020 by Nikhil Ramakrishnan</div>
+<div class="line">Copyright © 2019 Sony Interactive Entertainment Inc.</div>
+<div class="line">Copyright © 2019 nyorain</div>
+<div class="line">Copyright © 2022 Moazin Khatti</div>
+</div>
+<p>The FreeType 2 font engine is copyrighted work and cannot be used legally
+without a software license. In order to make this project usable to a vast
+majority of developers, we distribute it under two mutually exclusive
+open-source licenses.</p>
+<p>This means that <em>you</em> must choose <em>one</em> of the two licenses described below,
+then obey all its terms and conditions when using FreeType 2 in any of your
+projects or products.</p>
+<ul>
+<li><p class="first">The FreeType License, found in the file ‘FTL.TXT’, which is similar to the
+original BSD license <em>with</em> an advertising clause that forces you to
+explicitly cite the FreeType project in your product's documentation. All
+details are in the license file. This license is suited to products which
+don't use the GNU General Public License.</p>
+<p>Note that this license is compatible to the GNU General Public License
+version 3, but not version 2.</p>
+</li>
+<li><p class="first">The GNU General Public License version 2, found in ‘GPLv2.TXT’ (any later
+version can be used also), for programs which already use the GPL. Note
+that the FTL is incompatible with GPLv2 due to its advertisement clause.</p>
+</li>
+</ul>
+<p>The contributed BDF and PCF drivers come with a license similar to that of the
+X Window System. It is compatible to the above two licenses.</p>
+<p>The gzip module uses the zlib license which too is compatible to the above two
+licenses.</p>
+</div>
+<div class="section" id="libfontconfig-dll">
+<h1>libfontconfig-*.dll</h1>
+<div class="line-block">
+<div class="line">Copyright © 2000-2007 Keith Packard</div>
+<div class="line">Copyright © 2005 Patrick Lam</div>
+<div class="line">Copyright © 2009 Roozbeh Pournader</div>
+<div class="line">Copyright © 2008-2009 Red Hat, Inc.</div>
+<div class="line">Copyright © 2008 Danilo Šegan</div>
+<div class="line">Copyright © 2011-2016 Akira TAGOH</div>
+<div class="line">Copyright © 2012 Google, Inc.</div>
+</div>
+<p>Permission to use, copy, modify, distribute, and sell this software and its
+documentation for any purpose is hereby granted without fee, provided that the
+above copyright notice appear in all copies and that both that copyright notice
+and this permission notice appear in supporting documentation, and that the
+name of the author(s) not be used in advertising or publicity pertaining to
+distribution of the software without specific, written prior permission. The
+authors make no representations about the suitability of this software for any
+purpose. It is provided “as is” without express or implied warranty.</p>
+<p>THE AUTHOR(S) DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL THE
+AUTHOR(S) BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY
+DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.</p>
+</div>
+<div class="section" id="libjpeg-dll">
+<h1>libjpeg-*.dll</h1>
+<p>This software is copyright © 1991-2009, Thomas G. Lane.
+All Rights Reserved except as specified below.</p>
+<p>Permission is hereby granted to use, copy, modify, and distribute this
+software (or portions thereof) for any purpose, without fee, subject to these
+conditions:</p>
+<p>1) If any part of the source code for this software is distributed, then the
+README file must be included, with this copyright and no-warranty notice
+unaltered; and any additions, deletions, or changes to the original files must
+be clearly indicated in accompanying documentation.</p>
+<p>2) If only executable code is distributed, then the accompanying
+documentation must state that “this software is based in part on the work of
+the Independent JPEG Group”.</p>
+<p>3) Permission for use of this software is granted only if the user accepts full
+responsibility for any undesirable consequences; the authors accept NO
+LIABILITY for damages of any kind.</p>
+<p>These conditions apply to any software derived from or based on the IJG code,
+not just to the unmodified library. If you use our work, you ought to
+acknowledge us.</p>
+<p>Permission is NOT granted for the use of any IJG author's name or company name
+in advertising or publicity relating to this software or products derived from
+it. This software may be referred to only as “the Independent JPEG Group's
+software”.</p>
+<p>We specifically permit and encourage the use of this software as the basis of
+commercial products, provided that all warranty or liability claims are assumed
+by the product vendor.</p>
+</div>
+<div class="section" id="libopenjp2-dll">
+<h1>libopenjp2.dll</h1>
+<p>The copyright in this software is being made available under the 2-clauses
+BSD License, included below. This software may be subject to other third
+party and contributor rights, including patent rights, and no such rights
+are granted under this license.</p>
+<div class="line-block">
+<div class="line">Copyright © 2002-2014, Universite catholique de Louvain (UCL), Belgium</div>
+<div class="line">Copyright © 2002-2014, Professor Benoit Macq</div>
+<div class="line">Copyright © 2003-2014, Antonin Descampe</div>
+<div class="line">Copyright © 2003-2009, Francois-Olivier Devaux</div>
+<div class="line">Copyright © 2005, Herve Drolon, FreeImage Team</div>
+<div class="line">Copyright © 2002-2003, Yannick Verschueren</div>
+<div class="line">Copyright © 2001-2003, David Janssens</div>
+<div class="line">Copyright © 2011-2012, Centre National d'Etudes Spatiales (CNES), France</div>
+<div class="line">Copyright © 2012, CS Systemes d'Information, France</div>
+<div class="line">Copyright © 2006-2015 Mathieu Malaterre &lt;<a class="reference external" href="mailto:mathieu.malaterre&#64;gmail.com">mathieu.malaterre&#64;gmail.com</a>&gt;</div>
+<div class="line">Copyright © 2015 Matthieu Darbois</div>
+<div class="line">Copyright © 2016 Even Rouault</div>
+<div class="line">Copyright © 2017 IntoPIX SA</div>
+<div class="line">Copyright © 2021 Aous Naman</div>
+<div class="line">Copyright © 2021 Kakadu Software Pty Ltd, Australia</div>
+<div class="line">Copyright © 2021 The University of New South Wales, Australia</div>
+</div>
+<p>All rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:</p>
+<ol class="arabic simple">
+<li>Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.</li>
+<li>Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.</li>
+</ol>
+<p>THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ‘AS IS’
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.</p>
+</div>
+<div class="section" id="libexpat-dll">
+<h1>libexpat-*.dll</h1>
+<div class="line-block">
+<div class="line">Copyright © 1998-2000 Thai Open Source Software Center Ltd and Clark Cooper</div>
+<div class="line">Copyright © 2001-2022 Expat maintainers.</div>
+</div>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the “Software”), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:</p>
+<p>The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.</p>
+<p>THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</p>
+</div>
+<div class="section" id="libexiv2-dll">
+<h1>libexiv2-*.dll</h1>
+<p>Copyright © 2004-2022 Exiv2 authors</p>
+<p>Exiv2 is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.</p>
+<p>Exiv2 is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.</p>
+</div>
+<div class="section" id="libgraphicsmagick-dll">
+<h1>libGraphicsMagick*.dll</h1>
+<ol class="arabic">
+<li><p class="first">In November 2002, the GraphicsMagick Group created GraphicsMagick from
+ImageMagick Studio's ImageMagick and applied the “MIT” style license:</p>
+<p>Copyright © 2002-2020 GraphicsMagick Group</p>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:</p>
+<p>The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.</p>
+<p>THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</p>
+</li>
+<li><p class="first">In October 1999, ImageMagick Studio assumed the responsibility for the
+development of ImageMagick (forking from the distribution by E. I. du Pont de
+Nemours and Company) and applied a new license:</p>
+<p>Copyright © 2002 ImageMagick Studio, a non-profit organization dedicated to
+making software imaging solutions freely available.</p>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (“ImageMagick”), to deal
+in ImageMagick without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of ImageMagick, and to permit persons to whom the ImageMagick is
+furnished to do so, subject to the following conditions:</p>
+<p>The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of ImageMagick.</p>
+<p>The software is provided “as is”, without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose and noninfringement.  In no event shall
+ImageMagick Studio be liable for any claim, damages or other liability,
+whether in an action of contract, tort or otherwise, arising from, out of or
+in connection with ImageMagick or the use or other dealings in ImageMagick.</p>
+<p>Except as contained in this notice, the name of the ImageMagick Studio shall
+not be used in advertising or otherwise to promote the sale, use or other
+dealings in ImageMagick without prior written authorization from the
+ImageMagick Studio.</p>
+</li>
+<li><p class="first">From 1991 to October 1999 (through ImageMagick 4.2.9), ImageMagick was
+developed and distributed by E. I. du Pont de Nemours and Company:</p>
+<p>Copyright © 1999 E. I. du Pont de Nemours and Company</p>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (“ImageMagick”), to deal
+in ImageMagick without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of ImageMagick, and to permit persons to whom the ImageMagick is
+furnished to do so, subject to the following conditions:</p>
+<p>The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of ImageMagick.</p>
+<p>The software is provided “as is”, without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose and noninfringement.  In no event shall E.
+I. du Pont de Nemours and Company be liable for any claim, damages or other
+liability, whether in an action of contract, tort or otherwise, arising from,
+out of or in connection with ImageMagick or the use or other dealings in
+ImageMagick.</p>
+<p>Except as contained in this notice, the name of the E. I. du Pont de Nemours
+and Company shall not be used in advertising or otherwise to promote the
+sale, use or other dealings in ImageMagick without prior written
+authorization from the E. I. du Pont de Nemours and Company.</p>
+</li>
+<li><p class="first">The GraphicsMagick <tt class="docutils literal">Base64Decode()</tt> and <tt class="docutils literal">Base64Encode()</tt> functions are
+based on source code obtained from OpenSSH. This source code is distributed
+under the following license:</p>
+<p>Copyright © 2000 Markus Friedl.  All rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:</p>
+<ol class="arabic simple">
+<li>Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.</li>
+<li>Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.</li>
+</ol>
+<p>THIS SOFTWARE IS PROVIDED BY THE AUTHOR “AS IS” AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+</li>
+<li><p class="first">Many of the pattern images in coders/logo.c are derived from XFig, which is
+distributed under the following license:</p>
+<div class="line-block">
+<div class="line">Copyright © 1985-1988 by Supoj Sutanthavibul</div>
+<div class="line">Parts Copyright © 1989-2000 by Brian V. Smith</div>
+<div class="line">Parts Copyright © 1991 by Paul King</div>
+</div>
+<p>Any party obtaining a copy of these files is granted, free of charge, a full
+and unrestricted irrevocable, world-wide, paid up, royalty-free, nonexclusive
+right and license to deal in this software and documentation files (the
+“Software”), including without limitation the rights to use, copy, modify,
+merge, publish, distribute, sublicense, and/or sell copies of the Software,
+and to permit persons who receive copies from any such party to do so, with
+the only requirement being that this copyright notice remain intact.</p>
+</li>
+<li><p class="first">The documentation for the composition operators is copied from the rlecomp
+manual page, which is authored by Rod Bogart and John W.  Peterson. Rlecomp
+is part of the Utah Raster Toolkit distributed by the University of Michigan
+and the University of Utah. The copyright for this manual page is as follows:</p>
+<p>Copyright © 1986, University of Utah</p>
+<p>This software is copyrighted as noted below. It may be freely copied,
+modified, and redistributed, provided that the copyright notice is preserved
+on all copies.</p>
+<p>There is no warranty or other guarantee of fitness for this software, it is
+provided solely “as is”. Bug reports or fixes may be sent to the author, who
+may or may not act on them as he desires.</p>
+<p>You may not include this software in a program or other software product
+without supplying the source, or without informing the end-user that the
+source is available for no extra charge.</p>
+<p>If you modify this software, you should include a notice giving the name of
+the person performing the modification, the date of modification, and the
+reason for such modification.</p>
+</li>
+<li><p class="first">The source code comprising <tt class="docutils literal">magick_endian.c</tt> is originally derived from
+libtiff which has the following license:</p>
+<div class="line-block">
+<div class="line">Copyright © 1988-1997 Sam Leffler</div>
+<div class="line">Copyright © 1991-1997 Silicon Graphics, Inc.</div>
+</div>
+<p>Permission to use, copy, modify, distribute, and sell this software and its
+documentation for any purpose is hereby granted without fee, provided that
+(i) the above copyright notices and this permission notice appear in all
+copies of the software and related documentation, and (ii) the names of Sam
+Leffler and Silicon Graphics may not be used in any advertising or publicity
+relating to the software without the specific, prior written permission of
+Sam Leffler and Silicon Graphics.</p>
+<p>THE SOFTWARE IS PROVIDED “AS-IS” AND WITHOUT WARRANTY OF ANY KIND, EXPRESS,
+IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF
+MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.</p>
+<p>IN NO EVENT SHALL SAM LEFFLER OR SILICON GRAPHICS BE LIABLE FOR ANY SPECIAL,
+INCIDENTAL, INDIRECT OR CONSEQUENTIAL DAMAGES OF ANY KIND, OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER OR NOT
+ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF LIABILITY, ARISING
+OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.</p>
+</li>
+<li><p class="first">The C++ API known as “Magick++”, and which resides in the Magick++ directory,
+is distributed under the following license:</p>
+<p>Copyright © 1999-2012 Bob Friesenhahn &lt;<a class="reference external" href="mailto:bfriesen&#64;simple.dallas.tx.us">bfriesen&#64;simple.dallas.tx.us</a>&gt;</p>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (“Magick++”), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to
+do so, subject to the following conditions:</p>
+<p>The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.</p>
+<p>THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</p>
+</li>
+<li><p class="first">The GraphicsMagick <tt class="docutils literal">HaldClutImagePixels()</tt> function in <tt class="docutils literal">magick/hclut.c</tt>
+is based on source code from the <a class="reference external" href="http://www.quelsolaar.com/technology/clut.html">HaldCLUT</a> package by Eskil Steenberg which
+is distributed under the following license:</p>
+<p>Copyright © 2005 Eskil Steenberg.  All rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:</p>
+<ol class="arabic simple">
+<li>Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.</li>
+<li>Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.</li>
+</ol>
+<p>THIS SOFTWARE IS PROVIDED BY THE AUTHOR “AS IS” AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="libintl-dll">
+<h1>libintl-*.dll</h1>
+<p>Copyright © 1995-2016 Free Software Foundation, Inc.</p>
+<p>This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation; either version 2.1 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Public License for more details.</p>
+<!-- vim:ft=rst -->
+</div>
+</div>
+</body>
+</html>

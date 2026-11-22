@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markooj — Design Mock</title>
+<link rel="stylesheet" href="../node_modules/katex/dist/katex.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="../node_modules/katex/dist/katex.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';s.onload=()=>window.renderMath&&renderMath();document.head.appendChild(s)"></script>
+<style>
+:root{
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+  --serif: "Charter", "Iowan Old Style", "Cambria", "Georgia", serif;
+  --mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+  --accent:#0a66ff; --accent-2:#3d8bff; --accent-soft:rgba(10,102,255,.10); --accent-ring:rgba(10,102,255,.28);
+  --bg:#f5f5f7; --chrome:rgba(251,251,253,.86); --chrome-solid:#fbfbfd; --surface:#ffffff;
+  --canvas:#e9e9ee; --line:rgba(0,0,0,.08); --line-2:rgba(0,0,0,.12);
+  --text:#1d1d1f; --text-2:#6e6e73; --text-3:#a1a1a6;
+  --hover:rgba(0,0,0,.05); --press:rgba(0,0,0,.09);
+  --page-shadow:0 1px 2px rgba(0,0,0,.06), 0 8px 28px rgba(0,0,0,.08);
+  --pop-shadow:0 12px 40px rgba(0,0,0,.16), 0 0 0 .5px rgba(0,0,0,.08);
+  --r:8px; --r-lg:12px;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --green:#28a745; --orange:#ff9f0a; --purple:#8e5cf7;
+}
+:root[data-theme="dark"]{
+  --accent:#3d8bff; --accent-2:#62a0ff; --accent-soft:rgba(61,139,255,.16); --accent-ring:rgba(61,139,255,.35);
+  --bg:#1c1c1e; --chrome:rgba(36,36,38,.86); --chrome-solid:#242426; --surface:#2c2c2e;
+  --canvas:#161618; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.13);
+  --text:#f5f5f7; --text-2:#a1a1a6; --text-3:#6e6e73;
+  --hover:rgba(255,255,255,.07); --press:rgba(255,255,255,.12);
+  --page-shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.45);
+  --pop-shadow:0 14px 44px rgba(0,0,0,.55), 0 0 0 .5px rgba(255,255,255,.1);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:13px/1.4 var(--font);color:var(--text);background:var(--bg);overflow:hidden;-webkit-font-smoothing:antialiased;transition:background .3s var(--ease),color .3s var(--ease)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:default}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.app{display:grid;grid-template-rows:auto auto auto 1fr auto;height:100vh}
+
+/* ---------- title bar ---------- */
+.titlebar{height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--chrome);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+.logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(145deg,#4f9bff,#0a52e0);display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px;box-shadow:0 1px 2px rgba(10,82,224,.4),inset 0 .5px 0 rgba(255,255,255,.4)}
+.qa{display:flex;gap:2px;margin-left:6px}
+.btn-ghost{height:28px;min-width:28px;padding:0 6px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;gap:6px;color:var(--text-2);transition:background .15s,color .15s,transform .12s var(--ease)}
+.btn-ghost:hover{background:var(--hover);color:var(--text)}
+.btn-ghost:active{background:var(--press);transform:scale(.94)}
+.doc-title{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px}
+@media (max-width:1180px){.doc-title{display:none}.search{width:170px}}
+.doc-title small{font-weight:400;color:var(--text-3)}
+.saved-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(40,167,69,.15)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.search{height:28px;width:220px;border-radius:8px;background:var(--hover);display:flex;align-items:center;gap:6px;padding:0 9px;color:var(--text-3);transition:width .3s var(--ease),box-shadow .2s,background .2s}
+.search:focus-within{width:300px;background:var(--surface);box-shadow:0 0 0 3px var(--accent-ring)}
+.search input{border:0;outline:0;background:none;font:inherit;color:var(--text);width:100%}
+.search kbd{font:11px var(--font);color:var(--text-3);border:.5px solid var(--line-2);border-radius:4px;padding:0 4px}
+
+/* segmented control */
+.seg{position:relative;display:inline-flex;background:var(--hover);border-radius:8px;padding:2px}
+.seg button{position:relative;z-index:1;height:24px;padding:0 12px;border-radius:6px;font-weight:500;font-size:12px;color:var(--text-2);transition:color .2s}
+.seg button.on{color:var(--text)}
+.seg .thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04);transition:left .32s var(--ease),width .32s var(--ease)}
+.avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#ff9f0a,#ff375f);color:#fff;display:grid;place-items:center;font-weight:600;font-size:11px}
+
+/* ---------- ribbon ---------- */
+.ribbon{background:var(--chrome);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line);transition:max-height .35s var(--ease),opacity .25s;overflow:hidden;max-height:200px}
+.rtabs{position:relative;display:flex;gap:2px;padding:4px 10px 0}
+.rtab{height:30px;padding:0 13px;border-radius:7px 7px 0 0;color:var(--text-2);font-weight:500;transition:color .15s,background .15s}
+.rtab:hover{color:var(--text);background:var(--hover)}
+.rtab.on{color:var(--accent)}
+.rtab.file{color:#fff;background:var(--accent);border-radius:7px;height:26px;margin:2px 6px 2px 0}
+.rtab.file:hover{background:var(--accent-2)}
+.rtabs .ink{position:absolute;bottom:0;height:2.5px;border-radius:2px;background:var(--accent);transition:left .35s var(--ease),width .35s var(--ease)}
+.rbody{height:96px;padding:8px 10px;display:flex;gap:4px;position:relative}
+.panel{display:none;gap:4px;animation:fadeUp .28s var(--ease)}
+.panel.on{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.group{display:flex;flex-direction:column;padding:0 8px;border-right:.5px solid var(--line)}
+.group:last-child{border-right:0}
+.group .gbody{flex:1;display:flex;gap:3px;align-items:center}
+.group .glabel{font-size:10.5px;color:var(--text-3);text-align:center;padding-top:3px;letter-spacing:.02em}
+.col{display:flex;flex-direction:column;gap:3px}
+.row{display:flex;gap:2px;align-items:center}
+.big{width:58px;height:62px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:11px;color:var(--text);transition:background .15s,transform .12s var(--ease)}
+.big svg.i{width:24px;height:24px;stroke-width:1.4;color:var(--accent)}
+.big:hover{background:var(--hover)}
+.big:active{background:var(--press);transform:scale(.95)}
+.ib{width:28px;height:27px;border-radius:6px;display:grid;place-items:center;color:var(--text);transition:background .15s,color .15s,transform .1s var(--ease)}
+.ib:hover{background:var(--hover)}
+.ib:active{background:var(--press);transform:scale(.92)}
+.ib.on{background:var(--accent-soft);color:var(--accent)}
+.ib b,.ib i,.ib u,.ib s{font:600 14px var(--serif)}
+.sep{width:.5px;height:18px;background:var(--line-2);margin:0 3px}
+.select{height:27px;border-radius:6px;border:.5px solid var(--line-2);background:var(--surface);display:inline-flex;align-items:center;justify-content:space-between;gap:6px;padding:0 6px 0 9px;font-size:12px;transition:border-color .15s,box-shadow .15s}
+.select:hover{border-color:var(--accent)}
+.select svg.i{width:12px;height:12px;color:var(--text-3)}
+.swatch{position:relative}
+.swatch::after{content:"";position:absolute;left:7px;right:7px;bottom:4px;height:3px;border-radius:2px;background:var(--c)}
+
+/* styles gallery */
+.gallery{display:flex;gap:4px;padding:2px;border-radius:9px;border:.5px solid var(--line)}
+.sty{width:76px;height:58px;border-radius:7px;background:var(--surface);border:.5px solid var(--line);padding:6px 8px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;transition:border-color .15s,box-shadow .2s,transform .15s var(--ease)}
+.sty:hover{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);transform:translateY(-1px)}
+.sty.on{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent)}
+.sty .p{font-family:var(--serif);color:var(--text);white-space:nowrap;overflow:hidden}
+.sty .n{font-size:10px;color:var(--text-3)}
+
+/* ---------- doc tabs ---------- */
+.dtabs{display:flex;align-items:flex-end;gap:2px;padding:6px 10px 0;background:var(--bg);border-bottom:.5px solid var(--line);height:38px}
+.dtab{position:relative;height:30px;max-width:220px;padding:0 8px 0 10px;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:7px;color:var(--text-2);transition:background .15s,color .15s}
+.dtab:hover{background:var(--hover);color:var(--text)}
+.dtab.on{background:var(--canvas);color:var(--text);font-weight:500}
+.dtab .ext{font:600 9px var(--font);padding:1px 4px;border-radius:4px;background:var(--accent-soft);color:var(--accent);letter-spacing:.03em}
+.dtab .ext.docx{background:rgba(43,87,154,.14);color:#2b579a}
+.dtab .ext.pdf{background:rgba(220,38,38,.12);color:#dc2626}
+.dtab .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dtab .x{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;opacity:0;transition:opacity .15s,background .15s}
+.dtab:hover .x,.dtab.on .x{opacity:1}
+.dtab .x:hover{background:var(--press)}
+.dtab .x svg{width:11px;height:11px}
+.dtab .mod{width:7px;height:7px;border-radius:50%;background:var(--text-3)}
+.dtab-new{width:28px;height:28px;margin-bottom:1px}
+
+/* tab placement variants */
+.main{display:grid;grid-template-columns:auto 1fr;min-height:0}
+body.tabs-bottom .dtabs{order:9;border-bottom:0;border-top:.5px solid var(--line);align-items:flex-start;padding:0 10px 6px}
+body.tabs-bottom .dtab{border-radius:0 0 8px 8px}
+body.tabs-left .dtabs{display:none}
+.vtabs{display:none;flex-direction:column;gap:2px;width:210px;padding:10px 8px;background:var(--bg);border-right:.5px solid var(--line)}
+body.tabs-left .vtabs{display:flex}
+.vtabs .dtab{border-radius:8px;max-width:none;height:34px}
+.vtabs .dtab.on{background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.vtabs h6{margin:4px 8px 6px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.mid{display:grid;grid-template-rows:auto 1fr;min-height:0}
+.mid-inner{display:grid;grid-template-columns:auto 1fr auto;min-height:0}
+
+/* ---------- outline sidebar ---------- */
+.outline{width:236px;background:var(--bg);border-right:.5px solid var(--line);padding:14px 10px;overflow:auto;transition:width .35s var(--ease),padding .35s var(--ease),opacity .25s}
+.outline.hide{width:0;padding:0;opacity:0;overflow:hidden}
+.side-h{display:flex;align-items:center;justify-content:space-between;margin:0 6px 10px}
+.side-h h5{margin:0;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.oitem{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s,color .15s}
+.oitem:hover{background:var(--hover);color:var(--text)}
+.oitem.on{background:var(--accent-soft);color:var(--accent);font-weight:500}
+.oitem.l2{padding-left:22px}.oitem.l3{padding-left:36px;font-size:12px}
+.sidecard{margin:18px 4px 0;padding:12px;border-radius:var(--r-lg);background:var(--surface);border:.5px solid var(--line)}
+.sidecard h6{margin:0 0 8px;font-size:11px;color:var(--text-2);font-weight:600}
+.stat{display:flex;justify-content:space-between;padding:3px 0;color:var(--text-2);font-size:12px}
+.stat b{color:var(--text);font-weight:600}
+.bar{height:4px;border-radius:2px;background:var(--hover);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;width:62%;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:2px}
+
+/* ---------- canvas & page ---------- */
+.canvas{position:relative;overflow:auto;background:var(--canvas);transition:background .3s}
+.pages{padding:34px 0 80px;display:flex;flex-direction:column;align-items:center;gap:24px;transform-origin:top center;transition:transform .25s var(--ease)}
+.page{width:794px;min-height:1123px;background:var(--surface);box-shadow:var(--page-shadow);border-radius:3px;padding:96px 96px 90px;position:relative;font-family:var(--serif);font-size:15.5px;line-height:1.62;color:var(--text);transition:background .3s}
+:root[data-theme="dark"] .page{background:#1e1e20}
+.page:focus{outline:none}
+.page h1{font:700 30px/1.15 var(--font);letter-spacing:-.02em;margin:0 0 6px}
+.page .byline{font:13px var(--font);color:var(--text-2);margin-bottom:22px}
+.page .abstract{font-size:14px;padding:14px 16px;border-radius:10px;background:var(--accent-soft);border-left:3px solid var(--accent);margin:0 0 24px}
+.page h2{font:650 19px/1.3 var(--font);letter-spacing:-.01em;margin:30px 0 8px}
+.page h3{font:600 15.5px/1.3 var(--font);margin:22px 0 6px;color:var(--text-2)}
+.page p{margin:0 0 12px}
+.page .cite{font:500 12.5px var(--font);color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:5px;cursor:pointer;transition:background .15s}
+.page .cite:hover{background:var(--accent-ring)}
+.page sup.fn{font:600 10px var(--font);color:var(--accent)}
+.page .eq{position:relative;margin:16px 0;padding:6px 0;border-radius:8px;transition:background .2s}
+.page .eq:hover{background:var(--accent-soft)}
+.page .eq .num{position:absolute;right:0;top:50%;transform:translateY(-50%);font:13px var(--font);color:var(--text-2)}
+.m,.page .cite,.search kbd{white-space:nowrap}
+.m{padding:0 1px;border-radius:4px;transition:background .15s;cursor:pointer}
+.m:hover{background:var(--accent-soft)}
+.page table{width:100%;border-collapse:collapse;font:13px var(--font);margin:14px 0 6px}
+.page th{text-align:left;font-weight:600;padding:8px 10px;border-bottom:1.5px solid var(--text)}
+.page td{padding:7px 10px;border-bottom:.5px solid var(--line-2)}
+.page td.n,.page th.n{text-align:right;font-variant-numeric:tabular-nums}
+.page .caption{font:12px var(--font);color:var(--text-2);text-align:center;margin-bottom:16px}
+.page pre{font:12.5px/1.55 var(--mono);background:var(--bg);border:.5px solid var(--line);padding:12px 14px;border-radius:9px;overflow:auto}
+.page .callout{border-radius:10px;padding:12px 14px;margin:14px 0;background:rgba(255,159,10,.10);border-left:3px solid var(--orange);font-size:14.5px}
+.page .callout b{font-family:var(--font);font-size:12.5px;color:#c77700;display:block;margin-bottom:2px}
+.page .diagram{margin:16px 0;padding:18px;border-radius:12px;border:.5px solid var(--line);display:flex;justify-content:center}
+.page .foot{position:absolute;left:96px;right:96px;bottom:46px;font:12px var(--font);color:var(--text-2);border-top:.5px solid var(--line-2);padding-top:8px;display:flex;justify-content:space-between}
+.page ::selection{background:var(--accent-ring)}
+.sel-hl{background:linear-gradient(transparent 0,var(--accent-ring) 0)}
+
+/* floating format bar */
+.float{position:absolute;display:flex;gap:2px;padding:4px;border-radius:10px;background:var(--chrome-solid);box-shadow:var(--pop-shadow);opacity:0;transform:translateY(6px) scale(.97);pointer-events:none;transition:opacity .18s,transform .22s var(--ease);z-index:20}
+.float.show{opacity:1;transform:none;pointer-events:auto}
+
+/* ---------- simple (source) mode ---------- */
+.split{display:none;grid-template-columns:1fr 1fr;min-height:0;height:100%}
+body.simple .split{display:grid}
+body.simple .pages{display:none}
+body.simple .ribbon{display:none}
+body.simple .slimbar{display:flex}
+.slimbar{display:none;align-items:center;gap:2px;padding:6px 12px;background:var(--chrome);border-bottom:.5px solid var(--line)}
+.source{overflow:auto;background:var(--surface);border-right:.5px solid var(--line);font:13.5px/1.75 var(--mono);padding:28px 0;counter-reset:ln}
+.source .ln{display:block;padding:0 28px 0 64px;position:relative;white-space:pre-wrap;color:var(--text)}
+.source .ln::before{counter-increment:ln;content:counter(ln);position:absolute;left:0;width:44px;text-align:right;color:var(--text-3);font-size:11.5px}
+.source .ln.cur{background:var(--accent-soft)}
+.t-h{color:var(--accent);font-weight:700}.t-mk{color:var(--text-3)}.t-b{font-weight:700}.t-em{font-style:italic}
+.t-math{color:var(--purple)}.t-link{color:#0a8f6a}.t-code{color:#c2410c}.t-meta{color:var(--text-2)}
+.caret{display:inline-block;width:1.5px;height:1.2em;background:var(--accent);vertical-align:-3px;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.preview{overflow:auto;background:var(--canvas);display:flex;justify-content:center;padding:28px}
+.preview .page{width:100%;max-width:620px;min-height:0;padding:44px 48px;font-size:14.5px;transform:none}
+.autopair{position:absolute;padding:6px 10px;border-radius:8px;background:var(--chrome-solid);box-shadow:var(--pop-shadow);font:12px var(--font);color:var(--text-2);display:flex;gap:8px;align-items:center}
+.autopair kbd{font:600 11px var(--mono);background:var(--hover);padding:1px 5px;border-radius:4px;color:var(--text)}
+
+/* ---------- status bar ---------- */
+.status{height:28px;display:flex;align-items:center;gap:4px;padding:0 10px;background:var(--chrome);backdrop-filter:blur(20px);border-top:.5px solid var(--line);font-size:11.5px;color:var(--text-2)}
+.sb{height:22px;padding:0 8px;border-radius:5px;display:inline-flex;align-items:center;gap:5px;transition:background .15s,color .15s}
+.sb:hover{background:var(--hover);color:var(--text)}
+.sb svg.i{width:13px;height:13px}
+.flavor{position:relative;background:var(--accent-soft);color:var(--accent);font-weight:600}
+.flavor:hover{background:var(--accent-ring);color:var(--accent)}
+.flavor .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.status .spacer{flex:1}
+.zoom{display:flex;align-items:center;gap:6px}
+.zoom input[type=range]{-webkit-appearance:none;appearance:none;width:110px;height:3px;border-radius:2px;background:linear-gradient(to right,var(--accent) var(--p,40%),var(--line-2) var(--p,40%));outline:none}
+.zoom input::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 1px 3px rgba(0,0,0,.25);transition:transform .15s}
+.zoom input::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.zoom .pct{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* popovers */
+.pop{position:fixed;background:var(--chrome-solid);border-radius:var(--r-lg);box-shadow:var(--pop-shadow);padding:6px;min-width:240px;opacity:0;transform:translateY(6px) scale(.98);pointer-events:none;transition:opacity .18s,transform .25s var(--ease);z-index:50}
+.pop.show{opacity:1;transform:none;pointer-events:auto}
+.pop h6{margin:6px 10px 6px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.mi{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border-radius:7px;text-align:left;transition:background .12s}
+.mi:hover{background:var(--accent);color:#fff}
+.mi:hover small,.mi:hover .chk{color:#fff}
+.mi small{margin-left:auto;color:var(--text-3)}
+.mi .chk{width:14px;color:var(--accent)}
+.feat{display:flex;flex-wrap:wrap;gap:5px;padding:4px 10px 10px}
+.chip{font-size:11px;padding:3px 8px;border-radius:20px;background:var(--hover);color:var(--text-2)}
+.chip.y{background:rgba(40,167,69,.13);color:var(--green)}
+
+/* ---------- backstage (File) ---------- */
+.backstage{position:fixed;inset:0;z-index:40;display:grid;grid-template-columns:230px 1fr;background:var(--bg);opacity:0;pointer-events:none;transform:scale(1.015);transition:opacity .25s,transform .35s var(--ease)}
+.backstage.show{opacity:1;pointer-events:auto;transform:none}
+.bs-nav{background:linear-gradient(180deg,#0a66ff,#0848c4);color:#fff;padding:18px 10px;display:flex;flex-direction:column;gap:2px}
+.bs-nav .back{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;margin:0 0 16px 6px;border:1px solid rgba(255,255,255,.35);transition:background .15s}
+.bs-nav .back:hover{background:rgba(255,255,255,.15)}
+.bs-nav button.n{text-align:left;padding:9px 14px;border-radius:8px;font-size:14px;display:flex;gap:10px;align-items:center;transition:background .15s}
+.bs-nav button.n:hover{background:rgba(255,255,255,.12)}
+.bs-nav button.n.on{background:rgba(255,255,255,.22);font-weight:600}
+.bs-nav .grow{flex:1}
+.bs-main{padding:40px 56px;overflow:auto}
+.bs-main h2{font:600 26px var(--font);letter-spacing:-.02em;margin:0 0 4px}
+.bs-main .sub{color:var(--text-2);margin:0 0 26px;font-size:14px}
+.fmt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:12px;max-width:980px}
+.fmt{background:var(--surface);border:.5px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;text-align:left;transition:transform .2s var(--ease),box-shadow .2s,border-color .2s}
+.fmt:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.08);border-color:var(--accent)}
+.fmt:active{transform:scale(.98)}
+.fmt .badge{width:40px;height:48px;border-radius:6px;position:relative;display:grid;place-items:end center;padding-bottom:6px;font:700 9.5px var(--font);color:#fff;letter-spacing:.03em}
+.fmt .badge::before{content:"";position:absolute;top:0;right:0;width:12px;height:12px;background:linear-gradient(225deg,var(--bg) 50%,rgba(0,0,0,.18) 50%);border-radius:0 6px 0 3px}
+.fmt b{font-size:14px;font-weight:600}
+.fmt span{font-size:12px;color:var(--text-2);line-height:1.35}
+.fmt .needs{font-size:10.5px;color:var(--orange);font-weight:500}
+.sec-title{font:600 13px var(--font);color:var(--text-2);margin:30px 0 12px;letter-spacing:.01em}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;left:50%;bottom:44px;transform:translate(-50%,20px);padding:10px 16px;border-radius:12px;background:rgba(30,30,32,.92);color:#fff;font-size:13px;box-shadow:var(--pop-shadow);opacity:0;transition:opacity .2s,transform .35s var(--ease);display:flex;gap:10px;align-items:center;z-index:60;backdrop-filter:blur(10px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast .ok{width:18px;height:18px;border-radius:50%;background:var(--green);display:grid;place-items:center}
+
+/* add-ins */
+.addon{width:210px;height:76px;border-radius:10px;border:.5px solid var(--line);background:var(--surface);display:flex;gap:10px;align-items:center;padding:10px;text-align:left;transition:border-color .15s,transform .15s var(--ease)}
+.addon:hover{border-color:var(--accent);transform:translateY(-1px)}
+.addon .ic{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;color:#fff}
+.addon b{display:block;font-size:12.5px}.addon span{font-size:11px;color:var(--text-2)}
+.toggle{width:30px;height:18px;border-radius:9px;background:var(--line-2);position:relative;margin-left:auto;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .25s var(--ease)}
+.toggle.on{background:var(--green)}.toggle.on::after{left:14px}
+
+/* mock annotation */
+.note-pill{position:fixed;right:16px;bottom:40px;z-index:30;background:var(--chrome-solid);box-shadow:var(--pop-shadow);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--text-2);max-width:260px;line-height:1.45}
+.note-pill b{color:var(--text)}
+.note-pill .close{float:right;margin:-4px -4px 0 6px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/></symbol>
+    <symbol id="undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></symbol>
+    <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="paste" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 9h6M9 13h6M9 17h3"/></symbol>
+    <symbol id="cut" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.1 16 18 4M15.9 16 6 4"/></symbol>
+    <symbol id="copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="brush" viewBox="0 0 24 24"><path d="M18 3 9 12l3 3 9-9-3-3zM9 12c-3 0-5 2-5 5 0 2-1 3-2 4 4 0 9-1 10-6"/></symbol>
+    <symbol id="ul" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></symbol>
+    <symbol id="ol" viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 4h1v4M4 8h2M4 14h2l-2 3h2"/></symbol>
+    <symbol id="task" viewBox="0 0 24 24"><rect x="3" y="4" width="6" height="6" rx="1.5"/><path d="m4.5 7 1.2 1.2L8 5.8M12 7h9M3 15h6v6H3zM12 18h9"/></symbol>
+    <symbol id="al" viewBox="0 0 24 24"><path d="M3 6h18M3 10h12M3 14h18M3 18h12"/></symbol>
+    <symbol id="ac" viewBox="0 0 24 24"><path d="M3 6h18M6 10h12M3 14h18M6 18h12"/></symbol>
+    <symbol id="ar" viewBox="0 0 24 24"><path d="M3 6h18M9 10h12M3 14h18M9 18h12"/></symbol>
+    <symbol id="aj" viewBox="0 0 24 24"><path d="M3 6h18M3 10h18M3 14h18M3 18h18"/></symbol>
+    <symbol id="indent" viewBox="0 0 24 24"><path d="M3 5h18M11 10h10M11 14h10M3 19h18M3 9l4 3-4 3z"/></symbol>
+    <symbol id="outdent" viewBox="0 0 24 24"><path d="M3 5h18M11 10h10M11 14h10M3 19h18M7 9l-4 3 4 3z"/></symbol>
+    <symbol id="quote" viewBox="0 0 24 24"><path d="M7 7h4v4c0 3-1.5 5-4 6M15 7h4v4c0 3-1.5 5-4 6"/></symbol>
+    <symbol id="code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></symbol>
+    <symbol id="hl" viewBox="0 0 24 24"><path d="m9 11-6 6v3h3l6-6M22 7l-5-5-8 8 5 5z"/></symbol>
+    <symbol id="tc" viewBox="0 0 24 24"><path d="M5 18 11 4h2l6 14M7.5 13h9"/></symbol>
+    <symbol id="sigma" viewBox="0 0 24 24"><path d="M18 5H6l6 7-6 7h12"/></symbol>
+    <symbol id="table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></symbol>
+    <symbol id="image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
+    <symbol id="link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+    <symbol id="flow" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="16" width="7" height="5" rx="1.5"/><path d="M6.5 8v5a2 2 0 0 0 2 2h5.5"/></symbol>
+    <symbol id="hr" viewBox="0 0 24 24"><path d="M3 12h18M7 7h10M7 17h10" opacity=".9"/></symbol>
+    <symbol id="foot" viewBox="0 0 24 24"><path d="M4 6h12M4 10h16M4 14h9M15 16h5M17.5 13.5v5"/></symbol>
+    <symbol id="cite" viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6z"/></symbol>
+    <symbol id="toc" viewBox="0 0 24 24"><path d="M4 6h2M9 6h11M6 11h2M11 11h9M6 16h2M11 16h9"/></symbol>
+    <symbol id="bib" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></symbol>
+    <symbol id="xref" viewBox="0 0 24 24"><path d="M4 12h9M10 8l4 4-4 4M17 5v14"/></symbol>
+    <symbol id="spell" viewBox="0 0 24 24"><path d="m3 15 4-10 4 10M4.5 11.5h5M14 14l3 3 5-6"/></symbol>
+    <symbol id="count" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+    <symbol id="comment" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></symbol>
+    <symbol id="track" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+    <symbol id="page" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></symbol>
+    <symbol id="web" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></symbol>
+    <symbol id="focus" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="side" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+    <symbol id="moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></symbol>
+    <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="tabs" viewBox="0 0 24 24"><path d="M3 8h18v12H3zM3 8V5a1 1 0 0 1 1-1h5l2 4"/></symbol>
+    <symbol id="zin" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6M11 8v6"/></symbol>
+    <symbol id="zout" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6"/></symbol>
+    <symbol id="fit" viewBox="0 0 24 24"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></symbol>
+    <symbol id="puzzle" viewBox="0 0 24 24"><path d="M10 3a2 2 0 0 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 0 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 0 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 0 0 0-4H5V6a1 1 0 0 1 1-1h4z"/></symbol>
+    <symbol id="store" viewBox="0 0 24 24"><path d="M4 9 5.5 4h13L20 9M4 9v11h16V9M4 9h16M9 20v-6h6v6"/></symbol>
+    <symbol id="lang" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+    <symbol id="md" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 15V9l2.5 3L11 9v6M16 9v6M14 13l2 2 2-2"/></symbol>
+    <symbol id="doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M9 12h6M9 16h6"/></symbol>
+    <symbol id="open" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1H3z"/><path d="M3 10h18l-2 9H5z"/></symbol>
+    <symbol id="export" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></symbol>
+    <symbol id="print" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2"/><rect x="6" y="14" width="12" height="7"/></symbol>
+    <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
+    <symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="back" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></symbol>
+    <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="sparkle" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <!-- TITLE BAR -->
+  <header class="titlebar">
+    <div class="logo">M</div>
+    <div class="qa">
+      <button class="btn-ghost" title="Save (Ctrl+S)" data-toast="Saved to Sediment Transport Notes.md"><svg class="i"><use href="#save"/></svg></button>
+      <button class="btn-ghost" title="Undo (Ctrl+Z)"><svg class="i"><use href="#undo"/></svg></button>
+      <button class="btn-ghost" title="Redo (Ctrl+Y)"><svg class="i"><use href="#redo"/></svg></button>
+    </div>
+    <div class="doc-title"><span class="saved-dot" title="All changes saved"></span>Sediment Transport Notes <small>— Saved</small></div>
+    <div class="tb-right">
+      <label class="search"><svg class="i"><use href="#search"/></svg><input placeholder="Search or type a command"><kbd>Ctrl K</kbd></label>
+      <div class="seg" id="modeSeg">
+        <span class="thumb"></span>
+        <button class="on" data-mode="word" title="Click-and-type, like Word">Word</button>
+        <button data-mode="simple" title="Markdown text with live preview">Simple</button>
+      </div>
+      <button class="btn-ghost" id="themeBtn" title="Light / Dark"><svg class="i"><use href="#moon"/></svg></button>
+      <div class="avatar" title="Account">AB</div>
+    </div>
+  </header>
+
+  <!-- RIBBON -->
+  <section class="ribbon" id="ribbon">
+    <nav class="rtabs" id="rtabs">
+      <button class="rtab file" id="fileBtn">File</button>
+      <button class="rtab on" data-p="home">Home</button>
+      <button class="rtab" data-p="insert">Insert</button>
+      <button class="rtab" data-p="layout">Layout</button>
+      <button class="rtab" data-p="refs">References</button>
+      <button class="rtab" data-p="review">Review</button>
+      <button class="rtab" data-p="view">View</button>
+      <button class="rtab" data-p="addins">Add-ins</button>
+      <span class="ink" id="ink"></span>
+    </nav>
+    <div class="rbody">
+      <!-- HOME -->
+      <div class="panel on" id="p-home">
+        <div class="group"><div class="gbody">
+          <button class="big"><svg class="i"><use href="#paste"/></svg>Paste</button>
+          <div class="col"><button class="ib" title="Cut"><svg class="i"><use href="#cut"/></svg></button><button class="ib" title="Copy"><svg class="i"><use href="#copy"/></svg></button></div>
+          <div class="col"><button class="ib" title="Format painter"><svg class="i"><use href="#brush"/></svg></button><button class="ib" title="Paste as plain text"><svg class="i"><use href="#doc"/></svg></button></div>
+        </div><div class="glabel">Clipboard</div></div>
+        <div class="group"><div class="gbody"><div class="col">
+          <div class="row"><span class="select" style="width:132px">Charter<svg class="i"><use href="#chev"/></svg></span><span class="select" style="width:52px">12<svg class="i"><use href="#chev"/></svg></span></div>
+          <div class="row">
+            <button class="ib tg" title="Bold (Ctrl+B)"><b>B</b></button><button class="ib tg" title="Italic (Ctrl+I)"><i>I</i></button><button class="ib tg" title="Underline (Ctrl+U)"><u>U</u></button><button class="ib tg" title="Strikethrough"><s>S</s></button>
+            <span class="sep"></span>
+            <button class="ib tg" title="Subscript" style="font:600 12px var(--serif)">x<sub>2</sub></button><button class="ib tg" title="Superscript" style="font:600 12px var(--serif)">x<sup>2</sup></button>
+            <button class="ib swatch" style="--c:#ffd60a" title="Highlight"><svg class="i"><use href="#hl"/></svg></button><button class="ib swatch" style="--c:#ff375f" title="Text color"><svg class="i"><use href="#tc"/></svg></button>
+          </div></div></div><div class="glabel">Font</div></div>
+        <div class="group"><div class="gbody"><div class="col">
+          <div class="row"><button class="ib" title="Bullets"><svg class="i"><use href="#ul"/></svg></button><button class="ib" title="Numbering"><svg class="i"><use href="#ol"/></svg></button><button class="ib" title="Checklist"><svg class="i"><use href="#task"/></svg></button><span class="sep"></span><button class="ib" title="Decrease indent"><svg class="i"><use href="#outdent"/></svg></button><button class="ib" title="Increase indent"><svg class="i"><use href="#indent"/></svg></button></div>
+          <div class="row"><button class="ib on al" title="Align left"><svg class="i"><use href="#al"/></svg></button><button class="ib al" title="Center"><svg class="i"><use href="#ac"/></svg></button><button class="ib al" title="Align right"><svg class="i"><use href="#ar"/></svg></button><button class="ib al" title="Justify"><svg class="i"><use href="#aj"/></svg></button><span class="sep"></span><button class="ib" title="Quote"><svg class="i"><use href="#quote"/></svg></button><button class="ib" title="Code block"><svg class="i"><use href="#code"/></svg></button></div>
+        </div></div><div class="glabel">Paragraph</div></div>
+        <div class="group"><div class="gbody"><div class="gallery" id="gallery">
+          <button class="sty on"><span class="p" style="font-size:13px">Aa Body</span><span class="n">Normal</span></button>
+          <button class="sty"><span class="p" style="font:700 16px var(--font)">Aa</span><span class="n">Title</span></button>
+          <button class="sty"><span class="p" style="font:650 14px var(--font)">Aa</span><span class="n">Heading 1</span></button>
+          <button class="sty"><span class="p" style="font:600 12.5px var(--font)">Aa</span><span class="n">Heading 2</span></button>
+          <button class="sty"><span class="p" style="font:italic 13px var(--serif);color:var(--text-2)">“Aa”</span><span class="n">Quote</span></button>
+        </div></div><div class="glabel">Styles</div></div>
+        <div class="group"><div class="gbody">
+          <button class="big"><svg class="i"><use href="#search"/></svg>Find</button>
+          <button class="big"><svg class="i"><use href="#sigma"/></svg>Equation</button>
+        </div><div class="glabel">Editing</div></div>
+      </div>
+      <!-- INSERT -->
+      <div class="panel" id="p-insert">
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#table"/></svg>Table</button><button class="big"><svg class="i"><use href="#image"/></svg>Picture</button><button class="big"><svg class="i"><use href="#flow"/></svg>Diagram</button></div><div class="glabel">Illustrations</div></div>
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#sigma"/></svg>Equation</button><button class="big"><svg class="i"><use href="#code"/></svg>Code</button><button class="big"><svg class="i"><use href="#info"/></svg>Callout</button></div><div class="glabel">Blocks</div></div>
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#link"/></svg>Link</button><button class="big"><svg class="i"><use href="#hr"/></svg>Divider</button><button class="big"><svg class="i"><use href="#page"/></svg>Page break</button></div><div class="glabel">Links &amp; pages</div></div>
+      </div>
+      <!-- LAYOUT -->
+      <div class="panel" id="p-layout">
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#page"/></svg>Margins</button><button class="big"><svg class="i"><use href="#doc"/></svg>Size<br></button><button class="big"><svg class="i"><use href="#side"/></svg>Columns</button></div><div class="glabel">Page setup</div></div>
+        <div class="group"><div class="gbody"><div class="col"><div class="row"><span class="select" style="width:150px">Line spacing 1.5<svg class="i"><use href="#chev"/></svg></span></div><div class="row"><span class="select" style="width:150px">Paragraph space 8 pt<svg class="i"><use href="#chev"/></svg></span></div></div></div><div class="glabel">Spacing</div></div>
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#sparkle"/></svg>Theme</button></div><div class="glabel">Document theme</div></div>
+      </div>
+      <!-- REFERENCES -->
+      <div class="panel" id="p-refs">
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#toc"/></svg>Contents</button></div><div class="glabel">Table of contents</div></div>
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#foot"/></svg>Footnote</button></div><div class="glabel">Footnotes</div></div>
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#cite"/></svg>Cite</button><button class="big"><svg class="i"><use href="#bib"/></svg>Library</button><div class="col"><span class="select" style="width:120px">Style: APA 7<svg class="i"><use href="#chev"/></svg></span><span class="select" style="width:120px">refs.bib<svg class="i"><use href="#chev"/></svg></span></div></div><div class="glabel">Citations &amp; bibliography</div></div>
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#xref"/></svg>Cross-ref</button><button class="big"><svg class="i"><use href="#sigma"/></svg>Number eqs</button></div><div class="glabel">Captions</div></div>
+      </div>
+      <!-- REVIEW -->
+      <div class="panel" id="p-review">
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#spell"/></svg>Spelling</button><button class="big"><svg class="i"><use href="#count"/></svg>Word count</button></div><div class="glabel">Proofing</div></div>
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#comment"/></svg>Comment</button><button class="big"><svg class="i"><use href="#track"/></svg>Track</button></div><div class="glabel">Comments &amp; changes</div></div>
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#copy"/></svg>Compare</button></div><div class="glabel">Versions</div></div>
+      </div>
+      <!-- VIEW -->
+      <div class="panel" id="p-view">
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#page"/></svg>Print</button><button class="big"><svg class="i"><use href="#web"/></svg>Web</button><button class="big" id="focusBtn"><svg class="i"><use href="#focus"/></svg>Focus</button></div><div class="glabel">Views</div></div>
+        <div class="group"><div class="gbody"><button class="big" id="outlineBtn"><svg class="i"><use href="#side"/></svg>Outline</button><div class="col"><span style="font-size:11px;color:var(--text-2);padding-left:2px">Tab position</span><div class="seg" id="tabSeg"><span class="thumb"></span><button class="on" data-pos="top">Top</button><button data-pos="bottom">Bottom</button><button data-pos="left">Left</button></div></div></div><div class="glabel">Show</div></div>
+        <div class="group"><div class="gbody"><button class="big" data-z="+"><svg class="i"><use href="#zin"/></svg>Zoom in</button><button class="big" data-z="-"><svg class="i"><use href="#zout"/></svg>Zoom out</button><button class="big" data-z="100"><svg class="i"><use href="#doc"/></svg>100%</button><button class="big" data-z="fit"><svg class="i"><use href="#fit"/></svg>Page width</button></div><div class="glabel">Zoom</div></div>
+      </div>
+      <!-- ADD-INS -->
+      <div class="panel" id="p-addins">
+        <div class="group"><div class="gbody" style="gap:8px">
+          <div class="addon"><div class="ic" style="background:linear-gradient(135deg,#34c759,#248a3d)"><svg class="i"><use href="#cite"/></svg></div><div><b>Zotero Bridge</b><span>Cite from your library</span></div><span class="toggle on"></span></div>
+          <div class="addon"><div class="ic" style="background:linear-gradient(135deg,#af52de,#7d3cbd)"><svg class="i"><use href="#sigma"/></svg></div><div><b>Equation Palette</b><span>Greek, operators, matrices</span></div><span class="toggle on"></span></div>
+          <div class="addon"><div class="ic" style="background:linear-gradient(135deg,#ff9f0a,#d97a00)"><svg class="i"><use href="#spell"/></svg></div><div><b>Readability</b><span>Flesch score, long sentences</span></div><span class="toggle"></span></div>
+        </div><div class="glabel">Installed</div></div>
+        <div class="group"><div class="gbody"><button class="big"><svg class="i"><use href="#store"/></svg>Get add-ins</button><button class="big"><svg class="i"><use href="#puzzle"/></svg>Manage</button></div><div class="glabel">Add-ins</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIMPLE-MODE SLIM BAR -->
+  <div class="slimbar">
+    <button class="ib"><b>B</b></button><button class="ib"><i>I</i></button><button class="ib"><s>S</s></button><span class="sep"></span>
+    <button class="ib" style="font:700 12px var(--font)">H1</button><button class="ib" style="font:700 12px var(--font)">H2</button><span class="sep"></span>
+    <button class="ib"><svg class="i"><use href="#ul"/></svg></button><button class="ib"><svg class="i"><use href="#ol"/></svg></button><button class="ib"><svg class="i"><use href="#task"/></svg></button><button class="ib"><svg class="i"><use href="#quote"/></svg></button><span class="sep"></span>
+    <button class="ib"><svg class="i"><use href="#link"/></svg></button><button class="ib"><svg class="i"><use href="#image"/></svg></button><button class="ib"><svg class="i"><use href="#table"/></svg></button><button class="ib"><svg class="i"><use href="#code"/></svg></button><button class="ib"><svg class="i"><use href="#sigma"/></svg></button><button class="ib"><svg class="i"><use href="#cite"/></svg></button>
+    <span style="margin-left:auto;color:var(--text-3);font-size:11.5px">Markdown source · live preview</span>
+  </div>
+
+  <!-- DOC TABS (top / bottom) + MAIN -->
+  <div class="main" id="mainArea" style="grid-row:4">
+    <aside class="vtabs" id="vtabs"><h6>Open documents</h6></aside>
+    <div class="mid" id="mid">
+      <div class="dtabs" id="dtabs">
+        <div class="dtab on"><span class="ext">MD</span><span class="name">Sediment Transport Notes</span><span class="x"><svg class="i"><use href="#x"/></svg></span></div>
+        <div class="dtab"><span class="ext docx">DOCX</span><span class="name">Grant Proposal Draft</span><span class="mod"></span></div>
+        <div class="dtab"><span class="ext pdf">PDF</span><span class="name">Einstein 1950 — Bed Load</span><span class="x"><svg class="i"><use href="#x"/></svg></span></div>
+        <div class="dtab"><span class="ext">MD</span><span class="name">Lab meeting 21 Nov</span><span class="x"><svg class="i"><use href="#x"/></svg></span></div>
+        <button class="btn-ghost dtab-new" title="New document (Ctrl+N)"><svg class="i"><use href="#plus"/></svg></button>
+      </div>
+      <div class="mid-inner" style="min-height:0">
+        <aside class="outline" id="outline">
+          <div class="side-h"><h5>Outline</h5><button class="btn-ghost" id="hideOutline" title="Hide"><svg class="i" style="width:13px"><use href="#side"/></svg></button></div>
+          <div class="oitem on">Sediment Transport Notes</div>
+          <div class="oitem l2">1  Introduction</div>
+          <div class="oitem l2">2  Governing equations</div>
+          <div class="oitem l3">2.1  Shields parameter</div>
+          <div class="oitem l3">2.2  Bed-load formula</div>
+          <div class="oitem l2">3  Field data</div>
+          <div class="oitem l2">4  Method</div>
+          <div class="oitem l2">References</div>
+          <div class="sidecard">
+            <h6>Document</h6>
+            <div class="stat"><span>Words</span><b>1,284</b></div>
+            <div class="stat"><span>Equations</span><b>6</b></div>
+            <div class="stat"><span>Citations</span><b>4</b></div>
+            <div class="stat"><span>Reading time</span><b>6 min</b></div>
+            <div class="bar"><i></i></div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:6px">62% of 2,000-word target</div>
+          </div>
+        </aside>
+
+        <main class="canvas" id="canvas">
+          <div class="pages" id="pages">
+            <article class="page" contenteditable="true" spellcheck="false" id="docPage">
+              <h1>Sediment Transport Notes</h1>
+              <div class="byline">A. Bilal · Hydraulics Lab · 21 November 2026</div>
+              <div class="abstract"><b style="font-family:var(--font)">Abstract.</b> We compare bed-load predictions with flume measurements and test how the deviation <span class="m" data-tex="|H - C_{prev}|"></span> changes with grain size.</div>
+              <h2>1  Introduction</h2>
+              <p>River beds move when the flow pulls harder than the grains can resist. Classic work <span class="cite" contenteditable="false">(Shields, 1936)</span> frames this as a ratio of forces, later refined for mixed sizes <span class="cite" contenteditable="false">(Wilcock &amp; Crowe, 2003)</span>.<sup class="fn">1</sup> Written as <code>\(|H - C_{prev}|\)</code> or <code>$|H - C_{prev}|$</code>, both render the same: <span class="m" data-tex="|H - C_{prev}|"></span>.</p>
+              <h2>2  Governing equations</h2>
+              <h3>2.1  Shields parameter</h3>
+              <p>The dimensionless shear stress <span class="m" data-tex="\theta"></span> compares bed shear <span class="m" data-tex="\tau_b"></span> with the submerged weight of a grain of size <span class="m" data-tex="D"></span>:</p>
+              <div class="eq"><div class="mb" data-tex="\theta = \frac{\tau_b}{(\rho_s - \rho)\, g\, D}"></div><span class="num">(1)</span></div>
+              <h3>2.2  Bed-load formula</h3>
+              <p>Following Meyer-Peter and Müller, the transport rate per unit width is</p>
+              <div class="eq"><div class="mb" data-tex="q^* = 8\,(\theta - \theta_c)^{3/2}, \qquad \theta > \theta_c \approx 0.047"></div><span class="num">(2)</span></div>
+              <div class="callout"><b>Note</b>Equation (2) holds for uniform gravel; for sand–gravel mixtures use the hiding function in Section 4.</div>
+              <h2>3  Field data</h2>
+              <table>
+                <tr><th>Run</th><th class="n">D (mm)</th><th class="n">θ</th><th class="n">q* measured</th><th class="n">q* predicted</th></tr>
+                <tr><td>R1</td><td class="n">2.0</td><td class="n">0.061</td><td class="n">0.041</td><td class="n">0.042</td></tr>
+                <tr><td>R2</td><td class="n">4.5</td><td class="n">0.078</td><td class="n">0.110</td><td class="n">0.103</td></tr>
+                <tr><td>R3</td><td class="n">8.0</td><td class="n">0.093</td><td class="n">0.183</td><td class="n">0.196</td></tr>
+              </table>
+              <div class="caption">Table 1. Flume runs and bed-load predictions.</div>
+              <h2>4  Method</h2>
+              <div class="diagram" contenteditable="false">
+                <svg width="520" height="70" viewBox="0 0 520 70" font-family="-apple-system,Segoe UI,sans-serif" font-size="12">
+                  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#8e8e93"/></marker></defs>
+                  <g fill="none" stroke="#8e8e93" stroke-width="1.3" marker-end="url(#ar)"><path d="M112 35h36"/><path d="M262 35h36"/><path d="M412 35h36"/></g>
+                  <g><rect x="2" y="15" width="110" height="40" rx="10" fill="rgba(10,102,255,.10)" stroke="#0a66ff"/><text x="57" y="39" text-anchor="middle" fill="#0a66ff">Flume runs</text></g>
+                  <g><rect x="152" y="15" width="110" height="40" rx="10" fill="rgba(142,92,247,.10)" stroke="#8e5cf7"/><text x="207" y="39" text-anchor="middle" fill="#8e5cf7">Compute θ</text></g>
+                  <g><rect x="302" y="15" width="110" height="40" rx="10" fill="rgba(255,159,10,.12)" stroke="#ff9f0a"/><text x="357" y="39" text-anchor="middle" fill="#c77700">Predict q*</text></g>
+                  <g><rect x="452" y="15" width="66" height="40" rx="10" fill="rgba(40,167,69,.12)" stroke="#28a745"/><text x="485" y="39" text-anchor="middle" fill="#28a745">Compare</text></g>
+                </svg>
+              </div>
+              <div class="foot"><span><sup>1</sup> Grain sizes are median diameters, D<sub>50</sub>.</span><span>1</span></div>
+            </article>
+          </div>
+
+          <!-- simple mode -->
+          <div class="split" id="split">
+            <div class="source" id="source"></div>
+            <div class="preview"><div class="page" id="prevPage"></div></div>
+          </div>
+
+          <div class="float" id="float">
+            <button class="ib"><b>B</b></button><button class="ib"><i>I</i></button><button class="ib"><u>U</u></button><button class="ib swatch" style="--c:#ffd60a"><svg class="i"><use href="#hl"/></svg></button><span class="sep"></span><button class="ib"><svg class="i"><use href="#link"/></svg></button><button class="ib"><svg class="i"><use href="#comment"/></svg></button><button class="ib"><svg class="i"><use href="#cite"/></svg></button>
+          </div>
+        </main>
+        <div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <footer class="status" style="grid-row:5">
+    <span class="sb">Page 1 of 3</span>
+    <span class="sb">1,284 words</span>
+    <span class="sb"><svg class="i"><use href="#spell"/></svg>No issues</span>
+    <span class="sb flavor" id="flavorBtn" title="Detected Markdown flavor"><span class="dot"></span>LaTeX Markdown</span>
+    <span class="sb">UTF-8</span>
+    <span class="sb"><svg class="i"><use href="#lang"/></svg>English (US)</span>
+    <span class="spacer"></span>
+    <span class="sb" id="modeLabel">Word mode</span>
+    <span class="sb" title="Print layout"><svg class="i"><use href="#page"/></svg></span>
+    <span class="sb" title="Web layout"><svg class="i"><use href="#web"/></svg></span>
+    <span class="sb" title="Focus"><svg class="i"><use href="#focus"/></svg></span>
+    <div class="zoom">
+      <button class="sb" data-z="-">−</button>
+      <input type="range" id="zoom" min="50" max="300" value="100" step="10">
+      <button class="sb" data-z="+">+</button>
+      <span class="pct sb" id="pct">100%</span>
+    </div>
+  </footer>
+</div>
+
+<!-- FLAVOR POPOVER -->
+<div class="pop" id="flavorPop">
+  <h6>Detected flavor</h6>
+  <button class="mi"><span class="chk"><svg class="i" style="width:13px"><use href="#check"/></svg></span>LaTeX Markdown<small>auto</small></button>
+  <div class="feat"><span class="chip y">$…$ math</span><span class="chip y">\( … \) math</span><span class="chip y">tables</span><span class="chip y">footnotes</span><span class="chip y">citations</span><span class="chip">wikilinks</span><span class="chip">Mermaid</span></div>
+  <h6>Render as</h6>
+  <button class="mi"><span class="chk"></span>CommonMark</button>
+  <button class="mi"><span class="chk"></span>GitHub (GFM)</button>
+  <button class="mi"><span class="chk"></span>Pandoc</button>
+  <button class="mi"><span class="chk"></span>MultiMarkdown</button>
+  <button class="mi"><span class="chk"></span>Obsidian</button>
+  <button class="mi"><span class="chk"></span>R Markdown / Quarto</button>
+  <button class="mi"><span class="chk"></span>MDX</button>
+</div>
+
+<!-- BACKSTAGE -->
+<div class="backstage" id="backstage">
+  <nav class="bs-nav">
+    <button class="back" id="bsBack" title="Back to document"><svg class="i"><use href="#back"/></svg></button>
+    <button class="n"><svg class="i"><use href="#plus"/></svg>New</button>
+    <button class="n"><svg class="i"><use href="#open"/></svg>Open</button>
+    <button class="n"><svg class="i"><use href="#save"/></svg>Save</button>
+    <button class="n on"><svg class="i"><use href="#export"/></svg>Save As / Export</button>
+    <button class="n"><svg class="i"><use href="#print"/></svg>Print</button>
+    <button class="n"><svg class="i"><use href="#info"/></svg>Info</button>
+    <span class="grow"></span>
+    <button class="n"><svg class="i"><use href="#puzzle"/></svg>Add-ins</button>
+    <button class="n"><svg class="i"><use href="#gear"/></svg>Options</button>
+  </nav>
+  <section class="bs-main">
+    <h2>Save As</h2>
+    <p class="sub">Your document stays Markdown. Pick another format to share it with anyone.</p>
+    <div class="sec-title">Built in</div>
+    <div class="fmt-grid">
+      <button class="fmt" data-toast="Saved as Sediment Transport Notes.md"><span class="badge" style="background:#0a66ff">MD</span><b>Markdown</b><span>Plain text. Opens anywhere, works with Git.</span></button>
+      <button class="fmt" data-toast="Exported Sediment Transport Notes.pdf"><span class="badge" style="background:#dc2626">PDF</span><b>PDF</b><span>Print-ready, equations kept sharp.</span></button>
+      <button class="fmt" data-toast="Exported Sediment Transport Notes.docx"><span class="badge" style="background:#2b579a">DOCX</span><b>Word document</b><span>Edit in Microsoft Word or Pages.</span></button>
+      <button class="fmt" data-toast="Exported Sediment Transport Notes.epub"><span class="badge" style="background:#34c759">EPUB</span><b>EPUB e-book</b><span>For Apple Books, Kobo and readers.</span></button>
+      <button class="fmt" data-toast="Exported Sediment Transport Notes.html"><span class="badge" style="background:#ff9f0a">HTML</span><b>Web page</b><span>One self-contained file.</span></button>
+      <button class="fmt" data-toast="Exported Sediment Transport Notes.txt"><span class="badge" style="background:#8e8e93">TXT</span><b>Plain text</b><span>No formatting at all.</span></button>
+    </div>
+    <div class="sec-title">With free helper tools</div>
+    <div class="fmt-grid">
+      <button class="fmt"><span class="badge" style="background:#008080">TEX</span><b>LaTeX</b><span>Hand off to Overleaf or a journal template.</span><span class="needs">Uses Pandoc</span></button>
+      <button class="fmt"><span class="badge" style="background:#5e5ce6">DJVU</span><b>DjVu</b><span>Compact scanned-style archive.</span><span class="needs">Uses DjVuLibre</span></button>
+      <button class="fmt"><span class="badge" style="background:#1e88e5">ODT</span><b>OpenDocument</b><span>LibreOffice Writer.</span><span class="needs">Uses Pandoc</span></button>
+      <button class="fmt"><span class="badge" style="background:#6d4c41">RTF</span><b>Rich Text</b><span>Older word processors.</span><span class="needs">Uses Pandoc</span></button>
+      <button class="fmt"><span class="badge" style="background:#ff375f">PPTX</span><b>Slides</b><span>One slide per heading.</span><span class="needs">Uses Pandoc</span></button>
+      <button class="fmt"><span class="badge" style="background:#30b0c7">JATS</span><b>JATS XML</b><span>Journal submission format.</span><span class="needs">Uses Pandoc</span></button>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"><span class="ok"><svg class="i" style="width:11px;height:11px;stroke-width:2.6"><use href="#check"/></svg></span><span id="toastText">Saved</span></div>
+
+<div class="note-pill" id="notePill"><button class="btn-ghost close" onclick="this.parentNode.remove()"><svg class="i" style="width:12px"><use href="#x"/></svg></button><b>Design mock.</b> Try: ribbon tabs, <b>Word / Simple</b> switch, <b>File</b>, the blue flavor badge, zoom slider or Ctrl + scroll, View → Tab position, the moon icon, and selecting text on the page.</div>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+
+// KaTeX
+window.renderMath = () => {
+  $$('[data-tex]').forEach(el => katex.render(el.dataset.tex, el, { displayMode: el.classList.contains('mb'), throwOnError: false }));
+  const pp = $('#prevPage'); if (pp) pp.innerHTML = $('#docPage').innerHTML.replace(/<div class="foot">[\s\S]*?<\/div>/, '');
+};
+if (window.katex) renderMath();
+
+// Segmented controls
+function seg(el, onPick) {
+  const thumb = el.querySelector('.thumb');
+  const place = b => { thumb.style.left = b.offsetLeft + 'px'; thumb.style.width = b.offsetWidth + 'px'; };
+  el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); place(b); onPick(b); }));
+  requestAnimationFrame(() => place(el.querySelector('button.on')));
+  return place;
+}
+
+// Ribbon tabs + ink bar
+const ink = $('#ink');
+function moveInk(b) { ink.style.left = b.offsetLeft + 'px'; ink.style.width = b.offsetWidth + 'px'; }
+$$('.rtab[data-p]').forEach(b => b.addEventListener('click', () => {
+  $$('.rtab[data-p]').forEach(x => x.classList.toggle('on', x === b));
+  $$('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.p));
+  moveInk(b);
+  if (b.dataset.p === 'view') requestAnimationFrame(() => placeTab($('#tabSeg button.on')));
+}));
+requestAnimationFrame(() => moveInk($('.rtab.on')));
+
+// Toggle buttons
+$$('.ib.tg').forEach(b => b.addEventListener('click', () => b.classList.toggle('on')));
+$$('.ib.al').forEach(b => b.addEventListener('click', () => { $$('.ib.al').forEach(x => x.classList.toggle('on', x === b)); $('#docPage').style.textAlign = ['left','center','right','justify'][$$('.ib.al').indexOf(b)]; }));
+$$('#gallery .sty').forEach(b => b.addEventListener('click', () => $$('#gallery .sty').forEach(x => x.classList.toggle('on', x === b))));
+$$('.toggle').forEach(t => t.addEventListener('click', e => { e.stopPropagation(); t.classList.toggle('on'); }));
+
+// Theme
+$('#themeBtn').addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme !== 'dark';
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  $('#themeBtn use').setAttribute('href', dark ? '#sun' : '#moon');
+});
+if (matchMedia('(prefers-color-scheme: dark)').matches) $('#themeBtn').click();
+
+// Zoom
+let zoom = 100;
+function setZoom(z) {
+  zoom = Math.max(50, Math.min(300, Math.round(z)));
+  $('#pages').style.transform = `scale(${zoom / 100})`;
+  $('#pages').style.marginBottom = `${(zoom / 100 - 1) * 1200}px`;
+  $('#zoom').value = zoom; $('#pct').textContent = zoom + '%';
+  $('#zoom').style.setProperty('--p', ((zoom - 50) / 250 * 100) + '%');
+}
+$('#zoom').addEventListener('input', e => setZoom(+e.target.value));
+$$('[data-z]').forEach(b => b.addEventListener('click', () => {
+  const v = b.dataset.z;
+  setZoom(v === '+' ? zoom + 10 : v === '-' ? zoom - 10 : v === 'fit' ? ($('#canvas').clientWidth - 60) / 794 * 100 : 100);
+}));
+$('#canvas').addEventListener('wheel', e => { if (e.ctrlKey) { e.preventDefault(); setZoom(zoom - Math.sign(e.deltaY) * 10); } }, { passive: false });
+$('#pct').addEventListener('click', () => setZoom(100));
+setZoom(100);
+
+// Mode switch (Word / Simple)
+const SRC = [
+  ['t-meta', '---'], ['t-meta', 'title: Sediment Transport Notes'], ['t-meta', 'author: A. Bilal'], ['t-meta', 'bibliography: refs.bib'], ['t-meta', '---'], ['', ''],
+  ['h', '## 1  Introduction'], ['', ''],
+  ['raw', 'River beds move when the flow pulls harder than the grains can resist. Classic work <span class="t-link">[@shields1936]</span> frames this as a ratio of forces.<span class="t-link">[^1]</span> Both <span class="t-math">$|H - C_{prev}|$</span> and <span class="t-math">\\(|H - C_{prev}|\\)</span> render the same.'], ['', ''],
+  ['h', '### 2.1  Shields parameter'], ['', ''],
+  ['raw', 'The dimensionless shear stress <span class="t-math">$\\theta$</span> compares bed shear <span class="t-math">$\\tau_b$</span> with grain weight:'], ['', ''],
+  ['t-math', '$$'], ['t-math', '\\theta = \\frac{\\tau_b}{(\\rho_s - \\rho)\\, g\\, D}'], ['t-math', '$$'], ['', ''],
+  ['raw', '<span class="t-mk">&gt;</span> <span class="t-code">[!NOTE]</span>'], ['raw', '<span class="t-mk">&gt;</span> Equation (2) holds for <span class="t-mk">**</span><span class="t-b">uniform gravel</span><span class="t-mk">**</span>.'], ['', ''],
+  ['raw', '<span class="t-mk">|</span> Run <span class="t-mk">|</span> D (mm) <span class="t-mk">|</span> θ <span class="t-mk">|</span>'], ['raw', '<span class="t-mk">|-----|-------:|----:|</span>'], ['raw', '<span class="t-mk">|</span> R1  <span class="t-mk">|</span> 2.0 <span class="t-mk">|</span> 0.061 <span class="t-mk">|</span>'], ['', ''],
+  ['cur', 'See also <span class="t-link">[</span><span class="caret"></span><span class="t-link">]</span>'],
+];
+$('#source').innerHTML = SRC.map(([c, t]) => c === 'h' ? `<span class="ln"><span class="t-mk">${t.match(/^#+/)[0]}</span><span class="t-h">${t.replace(/^#+/, '')}</span></span>` : c === 'raw' ? `<span class="ln">${t}</span>` : c === 'cur' ? `<span class="ln cur">${t}</span>` : `<span class="ln"><span class="${c}">${t.replace(/</g,'&lt;')}</span></span>`).join('');
+$('#prevPage').innerHTML = $('#docPage').innerHTML.replace(/<div class="foot">[\s\S]*?<\/div>/, '');
+$('#source').insertAdjacentHTML('beforeend', '<div class="autopair" style="position:relative;margin:10px 0 0 64px;width:max-content"><kbd>[</kbd> closes itself <kbd>]</kbd> · also <kbd>(</kbd> <kbd>*</kbd> <kbd>$</kbd> <kbd>`</kbd></div>');
+seg($('#modeSeg'), b => {
+  const simple = b.dataset.mode === 'simple';
+  document.body.classList.toggle('simple', simple);
+  $('#modeLabel').textContent = simple ? 'Simple mode' : 'Word mode';
+  $('#canvas').style.overflow = simple ? 'hidden' : 'auto';
+});
+
+// Tab position
+const tabsHTML = $('#dtabs').innerHTML;
+$('#vtabs').insertAdjacentHTML('beforeend', tabsHTML);
+const placeTab = seg($('#tabSeg'), b => {
+  document.body.classList.remove('tabs-bottom', 'tabs-left');
+  if (b.dataset.pos !== 'top') document.body.classList.add('tabs-' + b.dataset.pos);
+  const mid = $('#mid');
+  mid.style.gridTemplateRows = b.dataset.pos === 'bottom' ? '1fr auto' : 'auto 1fr';
+  $('#dtabs').style.order = b.dataset.pos === 'bottom' ? 2 : 0;
+});
+$$('.dtab').forEach(t => t.addEventListener('click', () => { const i = [...t.parentNode.querySelectorAll('.dtab')].indexOf(t); $$('.dtabs .dtab, .vtabs .dtab').forEach(x => x.classList.toggle('on', [...x.parentNode.querySelectorAll('.dtab')].indexOf(x) === i)); }));
+
+// Outline
+const toggleOutline = () => $('#outline').classList.toggle('hide');
+$('#outlineBtn').addEventListener('click', toggleOutline);
+$('#hideOutline').addEventListener('click', toggleOutline);
+$$('.oitem').forEach(o => o.addEventListener('click', () => $$('.oitem').forEach(x => x.classList.toggle('on', x === o))));
+$('#focusBtn').addEventListener('click', () => { $('#outline').classList.add('hide'); document.body.classList.toggle('focus'); $('#ribbon').style.maxHeight = document.body.classList.contains('focus') ? '38px' : ''; });
+
+// Popover
+const pop = $('#flavorPop');
+$('#flavorBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  const r = e.currentTarget.getBoundingClientRect();
+  pop.style.left = r.left + 'px'; pop.style.bottom = (innerHeight - r.top + 8) + 'px';
+  pop.classList.toggle('show');
+});
+document.addEventListener('click', e => { if (!pop.contains(e.target)) pop.classList.remove('show'); });
+
+// Backstage
+$('#fileBtn').addEventListener('click', () => $('#backstage').classList.add('show'));
+$('#bsBack').addEventListener('click', () => $('#backstage').classList.remove('show'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('#backstage').classList.remove('show'); pop.classList.remove('show'); } });
+
+// Toast
+let tt;
+$$('[data-toast]').forEach(b => b.addEventListener('click', () => {
+  $('#toastText').textContent = b.dataset.toast; $('#toast').classList.add('show');
+  clearTimeout(tt); tt = setTimeout(() => $('#toast').classList.remove('show'), 2200);
+  if (b.classList.contains('fmt')) setTimeout(() => $('#backstage').classList.remove('show'), 400);
+}));
+
+// Floating format bar on selection
+document.addEventListener('selectionchange', () => {
+  const s = getSelection(), f = $('#float');
+  if (!s.rangeCount || s.isCollapsed || !$('#docPage').contains(s.anchorNode)) return f.classList.remove('show');
+  const r = s.getRangeAt(0).getBoundingClientRect(), c = $('#canvas').getBoundingClientRect();
+  f.style.left = (r.left - c.left + $('#canvas').scrollLeft + r.width / 2 - 130) + 'px';
+  f.style.top = (r.top - c.top + $('#canvas').scrollTop - 48) + 'px';
+  f.classList.add('show');
+});
+addEventListener('resize', () => { moveInk($('.rtab.on')); });
+</script>
+</body>
+</html>

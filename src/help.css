@@ -1,0 +1,167 @@
+/* Markooj — Help: reference manual viewer, File → Help, About, shortcuts and What's new (src/help.js). */
+
+/* ---------- reference manual viewer ---------- */
+.mkh-scrim{position:fixed;inset:0;z-index:74;background:rgba(0,0,0,.22);opacity:0;transition:opacity .22s var(--ease)}
+.mkh-scrim.show{opacity:1}
+.mkh-viewer{position:fixed;z-index:75;left:50%;top:50%;width:min(1180px,calc(100vw - 48px));height:min(860px,calc(100vh - 48px));
+  display:flex;flex-direction:column;background:var(--chrome-solid);border-radius:14px;box-shadow:var(--pop-shadow);overflow:hidden;
+  opacity:0;transform:translate(-50%,-48%) scale(.985);transition:opacity .2s,transform .3s var(--ease)}
+.mkh-viewer.show{opacity:1;transform:translate(-50%,-50%)}
+.mkh-bar{display:flex;align-items:center;gap:4px;padding:10px 12px;border-bottom:.5px solid var(--line);background:var(--chrome);backdrop-filter:saturate(180%) blur(20px)}
+.mkh-tb{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--text-2);transition:background .15s,color .15s,transform .12s var(--ease);flex:none}
+.mkh-tb:hover{background:var(--hover);color:var(--text)}
+.mkh-tb:active{background:var(--press);transform:scale(.92)}
+.mkh-title{display:flex;align-items:center;gap:8px;margin-left:8px;min-width:0;font-size:13px}
+.mkh-title b{font-weight:600;white-space:nowrap}
+.mkh-badge{width:24px;height:24px;border-radius:7px;background:linear-gradient(145deg,#4f9bff,#0a52e0);color:#fff;display:grid;place-items:center;flex:none}
+.mkh-badge .i{width:15px;height:15px}
+.mkh-crumb{color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkh-crumb:not(:empty)::before{content:"›";margin-right:8px;color:var(--text-3)}
+.mkh-grow{flex:1}
+.mkh-search{height:30px;width:260px;border-radius:8px;background:var(--hover);display:flex;align-items:center;gap:6px;padding:0 9px;color:var(--text-3);margin-right:6px;transition:box-shadow .2s,background .2s,width .3s var(--ease)}
+.mkh-search:focus-within{background:var(--surface);box-shadow:0 0 0 3px var(--accent-ring);width:300px}
+.mkh-search input{border:0;outline:0;background:none;font:inherit;color:var(--text);width:100%;min-width:0}
+.mkh-search input::placeholder{color:var(--text-3)}
+.mkh-search input:focus-visible{box-shadow:none!important}
+.mkh-body{flex:1;min-height:0;display:grid;grid-template-columns:244px minmax(0,1fr)}
+.mkh-side{overflow:auto;padding:12px 10px 24px;border-right:.5px solid var(--line);background:var(--bg)}
+.mkh-sec{font:600 10.5px var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin:14px 8px 4px}
+.mkh-sec:first-child{margin-top:4px}
+.mkh-link,.mkh-res{display:block;width:100%;text-align:left;padding:6px 10px;border-radius:7px;font-size:13px;color:var(--text);transition:background .15s,color .15s}
+.mkh-link:hover,.mkh-res:hover{background:var(--hover)}
+.mkh-link.on,.mkh-res.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.mkh-res{padding:8px 10px}
+.mkh-res b{display:block;font-weight:600;margin-bottom:2px}
+.mkh-res small{display:block;color:var(--text-2);font-size:11.5px;line-height:1.4}
+.mkh-res mark{background:rgba(255,204,0,.35);color:inherit;border-radius:2px}
+.mkh-side-note{color:var(--text-2);font-size:12.5px;padding:8px 10px;line-height:1.45}
+.mkh-main{overflow:auto;background:var(--page-bg);scroll-behavior:auto}
+.mkh-doc{max-width:760px;margin:0 auto;padding:36px 48px 24px;outline:none;--doc-size:15px;font-size:15px}
+/* the page layout (size, margins, columns) of documents never applies to help pages */
+.mk-page.mkh-doc{width:auto!important;min-height:0!important;padding:36px 48px 24px!important;box-shadow:none!important;border-radius:0!important;background:transparent!important;columns:auto!important;column-count:auto!important;font-size:15px!important}
+.mk-page.mkh-new-body{padding:4px 2px 4px 0!important;font-size:13.5px!important}
+.mkh-doc.mk-page h1{font:700 28px/1.2 var(--font);letter-spacing:-.02em;margin:0 0 14px}
+.mkh-doc.mk-page h2{font:650 20px/1.3 var(--font);letter-spacing:-.01em;margin:30px 0 8px}
+.mkh-doc.mk-page h3{font:600 16px/1.35 var(--font);margin:22px 0 6px}
+.mkh-doc.mk-page h4{font:600 14px/1.4 var(--font);margin:18px 0 4px}
+.mkh-doc a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .15s}
+.mkh-doc a:hover{border-bottom-color:currentColor}
+.mkh-doc a.mkh-ext::after{content:"↗";font:11px var(--font);margin-left:2px;vertical-align:1px;opacity:.7}
+.mkh-doc kbd{font:12px var(--font);color:var(--text);background:var(--surface);border:.5px solid var(--line-2);border-bottom-width:1.5px;border-radius:5px;padding:1px 5px}
+.mkh-doc img{max-width:100%;height:auto;border-radius:8px;box-shadow:0 0 0 .5px var(--line-2)}
+.mkh-doc table{border-collapse:collapse;margin:10px 0;font-size:.93em}
+.mkh-doc th,.mkh-doc td{border:.5px solid var(--line-2);padding:5px 10px;vertical-align:top}
+.mkh-doc th{background:var(--hover);text-align:left}
+.mkh-doc.mkh-text h1{font-size:22px}
+.mkh-pre{white-space:pre-wrap;font:12.5px/1.5 var(--mono);color:var(--text);background:var(--code-bg);border-radius:8px;padding:14px 16px;overflow-wrap:anywhere}
+.mkh-pager{max-width:760px;margin:0 auto;padding:8px 48px 48px;display:flex;gap:12px}
+.mkh-pg{display:flex;flex-direction:column;gap:2px;padding:10px 14px;border-radius:10px;border:.5px solid var(--line-2);background:var(--surface);min-width:180px;max-width:48%;transition:border-color .15s,transform .12s var(--ease)}
+.mkh-pg.next{text-align:right;align-items:flex-end}
+.mkh-pg:hover{border-color:var(--accent)}
+.mkh-pg:active{transform:scale(.98)}
+.mkh-pg small{color:var(--text-3);font-size:11px}
+.mkh-pg b{font-weight:600;color:var(--accent)}
+::highlight(mkh-find){background-color:rgba(255,204,0,.45);color:inherit}
+@media (max-width:860px){.mkh-body{grid-template-columns:minmax(0,1fr)}.mkh-side{display:none}.mkh-search{width:160px}.mkh-search:focus-within{width:200px}.mk-page.mkh-doc{padding:24px 22px!important}}
+
+/* ---------- File → Help ---------- */
+.mkh-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:8px}
+.mkh-card{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px 16px;border-radius:12px;background:var(--surface);border:.5px solid var(--line);transition:transform .2s var(--ease),box-shadow .2s,border-color .2s}
+.mkh-card:hover{border-color:var(--accent);box-shadow:0 4px 18px rgba(0,0,0,.07);transform:translateY(-1px)}
+.mkh-card:active{transform:scale(.985)}
+.mkh-card-ic{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:none}
+.mkh-card-ic .i{width:19px;height:19px}
+.mkh-card-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mkh-card-t b{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+.mkh-card-t small{color:var(--text-2);font-size:12.5px;line-height:1.4}
+.mkh-card-x{display:inline-flex;color:var(--text-3);font-weight:400}
+.mkh-card-x .i{width:12px;height:12px}
+.mkh-card-x kbd{font-size:10.5px}
+
+/* tutorials list (File → Help and Help → Tutorials) */
+.mkh-tours{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+.mkh-tut-dlg .mkh-tours{grid-template-columns:1fr 1fr;max-height:58vh;overflow:auto;padding:2px}
+.mkh-tut-lead{margin:0 0 12px}
+.mkh-tour{display:flex;align-items:center;gap:12px;text-align:left;padding:10px 12px;border-radius:10px;background:var(--surface);border:.5px solid var(--line);transition:border-color .15s,transform .12s var(--ease),background .15s}
+.mkh-tour:hover{border-color:var(--accent)}
+.mkh-tour:active{transform:scale(.985)}
+.mkh-tour-ic{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:none}
+.mkh-tour.done .mkh-tour-ic{background:rgba(40,167,69,.14);color:var(--green)}
+.mkh-tour-t{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.mkh-tour-t b{font-size:13px;font-weight:600;color:var(--text)}
+.mkh-tour-t small{font-size:12px;color:var(--text-2);line-height:1.35}
+.mkh-tour-m{font-size:11.5px;color:var(--text-3);white-space:nowrap;flex:none}
+
+/* ---------- About ---------- */
+.mkh-about{min-width:0}
+.mkh-bs .mkh-about{background:var(--surface);border:.5px solid var(--line);border-radius:14px;padding:20px 22px;max-width:720px}
+.mkh-about-head{display:flex;gap:16px;align-items:center;margin-bottom:12px}
+.mkh-logo{width:64px;height:64px;flex:none;border-radius:15px;overflow:hidden;display:grid;place-items:center;filter:drop-shadow(0 2px 6px rgba(10,82,224,.25))}
+.mkh-logo img{width:64px;height:64px;display:block}
+.mkh-logo-m{width:64px;height:64px;border-radius:15px;background:linear-gradient(145deg,#4f9bff,#0a52e0);color:#fff;display:grid;place-items:center;font:700 32px var(--font)}
+.mkh-about-name{font:700 22px/1.15 var(--font);letter-spacing:-.02em;color:var(--text)}
+.mkh-about-ver{color:var(--text-2);font-size:13px;margin-top:2px}
+.mkh-about-tag{color:var(--text-2);font-size:13px;margin-top:4px}
+.mkh-about-facts p{margin:0 0 6px;color:var(--text);font-size:13px}
+.mkh-about-facts .mkh-copy{font-weight:500}
+.mkh-linkbtn{color:var(--accent);font:inherit;padding:0 2px;border-radius:4px;transition:background .15s}
+.mkh-linkbtn:hover{background:var(--accent-soft)}
+.mkh-about a,.mkh-credits a,.mkh-new a{color:var(--accent);text-decoration:none}
+.mkh-about a:hover,.mkh-credits a:hover{text-decoration:underline}
+.mkh-about-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.mkh-about-acts .btn .i{width:14px;height:14px}
+.mkh-quiet{margin:14px 0 0;font-size:11px;color:var(--text-3)}
+.mkh-quiet .mkh-li,.mkh-about .mkh-quiet a.mkh-li{color:var(--text-3)}
+.mkh-quiet .mkh-li:hover{color:var(--text-2)}
+.mkh-credits{margin-top:16px;border-top:.5px solid var(--line);padding-top:12px}
+.mkh-credits-head{display:flex;align-items:center;gap:8px}
+.mkh-credits-head b{font-size:13px;color:var(--text)}
+.mkh-credits-lead{margin:4px 0 8px!important;font-size:12.5px}
+.mkh-credits-list{border:.5px solid var(--line);border-radius:10px;background:var(--surface);padding:2px 0}
+.mkh-cg{font:600 10.5px var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:10px 12px 3px}
+.mkh-cr{display:flex;align-items:flex-start;gap:10px;padding:5px 12px;border-top:.5px solid var(--line)}
+.mkh-cg + .mkh-cr{border-top:0}
+.mkh-cn{flex:1;min-width:0;font-size:12.5px;color:var(--text)}
+.mkh-cn a{font-weight:600}
+.mkh-cv{color:var(--text-3);font-size:11.5px;margin-left:6px}
+.mkh-cw{color:var(--text-2);font-size:11.5px}
+.mkh-cl{flex:none;font-size:11.5px;color:var(--text-2);text-align:right;max-width:46%;white-space:normal}
+button.mkh-cl{color:var(--accent)}
+.mkh-gpl{font-size:11.5px;margin:10px 0 0!important;color:var(--text-2)}
+
+/* ---------- Keyboard shortcuts ---------- */
+.mkh-keys-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.mkh-keys-count{color:var(--text-3);font-size:12px;white-space:nowrap}
+.mkh-keys-list{max-height:52vh;overflow-y:auto;overflow-x:hidden;border:.5px solid var(--line);border-radius:10px;background:var(--surface);padding:4px 0}
+.mkh-keys-cols{columns:2 340px;column-gap:0;column-rule:.5px solid var(--line)}
+.mkh-kg{font:600 10.5px var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:10px 12px 3px;break-after:avoid}
+.mkh-kr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 12px;break-inside:avoid;transition:background .12s}
+.mkh-kr:hover{background:var(--hover)}
+.mkh-kt{color:var(--text);font-size:12.5px;min-width:0}
+.mkh-word{font-size:9.5px;font-weight:500;color:var(--text-3);margin-left:6px;vertical-align:1px;letter-spacing:.02em}
+.mkh-kk{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:2px;flex:none;max-width:55%}
+.mkh-kk kbd{font:11px var(--font);color:var(--text);background:var(--bg);border:.5px solid var(--line-2);border-bottom-width:1.5px;border-radius:5px;padding:0 5px;line-height:18px}
+.mkh-plus{color:var(--text-3);font-size:10px;margin:0 1px}
+.mkh-or{color:var(--text-3);font-size:11px;margin:0 5px}
+.mkh-typing{color:var(--text-3);font-size:11px;margin-left:6px;display:inline-flex;gap:2px;align-items:center}
+.mkh-keys-notes{margin-top:10px;font-size:12.5px}
+.mkh-keys-notes summary{cursor:default;color:var(--text-2)}
+.mkh-keys-notes ul{margin:6px 0 0;padding-left:18px}
+.mkh-keys-notes li{margin:3px 0}
+.mkh-keys-notes kbd{font:11px var(--font);border:.5px solid var(--line-2);border-radius:4px;padding:0 4px}
+
+/* ---------- What's new ---------- */
+.mkh-new-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;color:var(--text)}
+.mkh-new-head b{font-size:15px}
+.mkh-new-head span{color:var(--text-2);font-size:12.5px}
+.mkh-pill{background:var(--accent-soft);color:var(--accent)!important;border-radius:20px;padding:1px 8px;font-size:11px!important;font-weight:600}
+.mkh-new-body{max-height:52vh;overflow:auto;padding:4px 2px 4px 0;margin:0;font:13.5px/1.55 var(--font);--doc-size:13.5px}
+.mkh-new-body.mk-page h3{font:600 14px var(--font);margin:14px 0 4px}
+.mkh-new-body ul{margin:4px 0;padding-left:20px}
+.mkh-res small{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* review fixes: one scroller in About (the dialog body), the warranty line, and Start buttons on the Tutorials page */
+.mkh-about-dlg .mkh-credits-list{max-height:none;overflow:visible}
+.mkh-warranty{font-size:12px;color:var(--text-2)}
+.mkh-doc .mkh-starttour{display:inline-flex;align-items:center;gap:6px;margin:-2px 0 10px}
+.mkh-doc .mkh-starttour .i,.mkh-doc .mkh-starttour svg{width:14px;height:14px}

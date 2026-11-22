@@ -1,0 +1,14 @@
+Citation styles shipped with Markooj (folder csl/, installed as resources/csl)
+
+  apa.csl                  American Psychological Association 6th edition
+  ieee.csl                 IEEE
+  chicago-author-date.csl  Chicago Manual of Style 18th edition (author-date)
+
+Markooj hands one of these to Pandoc for DOCX, ODT, EPUB, LaTeX and other exports, following
+References -> Citation style. The files are used unmodified, as included with the Pandoc 3.14
+source (test/command/apa.csl, test/command/ieee.csl, data/default.csl). They come from the
+Citation Style Language styles project: https://github.com/citation-style-language/styles
+
+License: Creative Commons Attribution-ShareAlike 3.0 Unported
+         https://creativecommons.org/licenses/by-sa/3.0/
+Authors and contributors are named in the <info> section of each file.

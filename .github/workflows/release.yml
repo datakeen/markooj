@@ -1,0 +1,257 @@
+name: Build installers
+run-name: "Build installers · ${{ github.ref_name }}"
+
+# Push a tag such as v1.1.0 to build Markooj for Windows, macOS (Apple chip and Intel) and Linux and publish
+# them as a GitHub Release for that tag. "Run workflow" (on a branch) builds the same files and keeps them with
+# the run (Summary → Artifacts) without making a release; run it on a tag to (re)make that tag's release.
+#
+# Files (the website and README link to these exact names):
+#   Markooj-<ver>-win-x64-setup.exe        Markooj-<ver>-win-x64-portable.zip
+#   Markooj-<ver>-mac-arm64.dmg            Markooj-<ver>-mac-x64.dmg
+#   Markooj-<ver>-linux-x86_64.AppImage    Markooj-<ver>-linux-amd64.deb     Markooj-<ver>-linux-x64.tar.gz
+#   Markooj-<ver>-third-party-sources.zip  Markooj-<ver>-SHA256SUMS.txt
+#
+# Nothing is code-signed: Windows SmartScreen and macOS Gatekeeper ask once before the first start.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+  # scripts/fetch-tools.js asks the GitHub API for Pandoc's release digests; the token avoids rate limits
+  GITHUB_TOKEN: ${{ github.token }}
+  NODE_VERSION: 22
+
+jobs:
+  windows:
+    name: Windows (installer + portable zip)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Fetch Pandoc, pdf2djvu and DjVuLibre (with their GPL sources)
+        run: node scripts/fetch-tools.js --platform=win32 --with-source
+
+      - name: Make the thesaurus data if it is missing
+        shell: bash
+        run: test -f data/thesaurus-en.json || node scripts/make-thesaurus.js
+
+      - name: Build installer and portable zip
+        run: npm run dist:win
+
+      - name: Pack the third-party sources
+        shell: pwsh
+        run: |
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          Compress-Archive -Path vendor-src/*, THIRD_PARTY_NOTICES.md, licenses -DestinationPath "dist/Markooj-$v-third-party-sources.zip"
+
+      - name: Check the file names
+        shell: bash
+        run: |
+          V=$(node -p "require('./package.json').version")
+          ls -la dist
+          for f in "Markooj-$V-win-x64-setup.exe" "Markooj-$V-win-x64-portable.zip" "Markooj-$V-third-party-sources.zip"; do
+            test -f "dist/$f" || { echo "::error::Expected dist/$f was not built"; exit 1; }
+          done
+
+      - name: Keep the files with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: markooj-windows
+          path: |
+            dist/Markooj-*-win-x64-setup.exe
+            dist/Markooj-*-win-x64-portable.zip
+            dist/Markooj-*-third-party-sources.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  macos:
+    name: macOS (${{ matrix.arch }})
+    # Both Macs are built on the Apple-chip runner; the Intel copy is cross-built with --x64 (Markooj has no
+    # native modules, and fetch-tools gets the x86_64 Pandoc). To build Intel on Intel hardware instead, set
+    # runs-on to macos-15-intel for the x64 row.
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Make the thesaurus data if it is missing
+        run: test -f data/thesaurus-en.json || node scripts/make-thesaurus.js
+
+      - name: Fetch Pandoc and build the disk image
+        run: npm run dist:mac:${{ matrix.arch }}
+
+      - name: Check the file names
+        run: |
+          V=$(node -p "require('./package.json').version")
+          ls -la dist
+          f="Markooj-$V-mac-${{ matrix.arch }}.dmg"
+          test -f "dist/$f" || { echo "::error::Expected dist/$f was not built"; exit 1; }
+
+      - name: Keep the files with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: markooj-mac-${{ matrix.arch }}
+          path: dist/Markooj-*-mac-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+  linux:
+    name: Linux (AppImage, deb, tar.gz)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Make the thesaurus data if it is missing
+        run: test -f data/thesaurus-en.json || node scripts/make-thesaurus.js
+
+      - name: Fetch Pandoc and build the packages
+        run: npm run dist:linux
+
+      - name: Check the file names
+        run: |
+          V=$(node -p "require('./package.json').version")
+          ls -la dist
+          for f in "Markooj-$V-linux-x86_64.AppImage" "Markooj-$V-linux-amd64.deb" "Markooj-$V-linux-x64.tar.gz"; do
+            test -f "dist/$f" || { echo "::error::Expected dist/$f was not built"; exit 1; }
+          done
+
+      - name: Keep the files with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: markooj-linux
+          path: |
+            dist/Markooj-*-linux-x86_64.AppImage
+            dist/Markooj-*-linux-amd64.deb
+            dist/Markooj-*-linux-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish the release
+    needs: [windows, macos, linux]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Collect the files
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: markooj-*
+          merge-multiple: true
+
+      - name: Check the version and every file
+        run: |
+          V=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$V" ]; then
+            echo "::error::Tag $TAG does not match package.json version $V. Set \"version\": \"${TAG#v}\" in package.json, or tag v$V."
+            exit 1
+          fi
+          missing=0
+          for f in \
+            "Markooj-$V-win-x64-setup.exe" "Markooj-$V-win-x64-portable.zip" \
+            "Markooj-$V-mac-arm64.dmg" "Markooj-$V-mac-x64.dmg" \
+            "Markooj-$V-linux-x86_64.AppImage" "Markooj-$V-linux-amd64.deb" "Markooj-$V-linux-x64.tar.gz" \
+            "Markooj-$V-third-party-sources.zip"; do
+            if [ -f "dist/$f" ]; then echo "found   $f"; else echo "::error::Missing $f"; missing=1; fi
+          done
+          [ "$missing" = 0 ] || exit 1
+          (cd dist && sha256sum Markooj-* > "Markooj-$V-SHA256SUMS.txt" && cat "Markooj-$V-SHA256SUMS.txt")
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+
+      - name: Write the release notes
+        run: |
+          # the CHANGELOG.md section for this version ("## [1.1.0] - date" up to the next "## [")
+          awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > section.md
+          {
+            echo "## Download"
+            echo
+            echo "| System | File |"
+            echo "|---|---|"
+            echo "| Windows 10 and 11 (installer) | [Markooj-$VERSION-win-x64-setup.exe](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-win-x64-setup.exe) |"
+            echo "| Windows (portable, unzip and run) | [Markooj-$VERSION-win-x64-portable.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-win-x64-portable.zip) |"
+            echo "| macOS, Apple chip (M1 and later) | [Markooj-$VERSION-mac-arm64.dmg](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-mac-arm64.dmg) |"
+            echo "| macOS, Intel | [Markooj-$VERSION-mac-x64.dmg](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-mac-x64.dmg) |"
+            echo "| Linux (AppImage) | [Markooj-$VERSION-linux-x86_64.AppImage](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-linux-x86_64.AppImage) |"
+            echo "| Debian, Ubuntu | [Markooj-$VERSION-linux-amd64.deb](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-linux-amd64.deb) |"
+            echo "| Linux (tar.gz) | [Markooj-$VERSION-linux-x64.tar.gz](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-linux-x64.tar.gz) |"
+            echo
+            echo "The copies are not code-signed. Windows may show \"Windows protected your PC\": choose More info, then Run anyway. On macOS, open the app once from Finder with right-click → Open (or System Settings → Privacy & Security → Open Anyway). On macOS and Linux, Pandoc is included; for DjVu files install the DjVu tools: \`brew install djvulibre pdf2djvu\` or \`sudo apt install djvulibre-bin pdf2djvu\`."
+            echo
+            echo "Third-party source code (Pandoc, DjVuLibre, pdf2djvu): Markooj-$VERSION-third-party-sources.zip. Checksums: Markooj-$VERSION-SHA256SUMS.txt."
+            if [ -s section.md ]; then
+              echo
+              echo "## What's new in $VERSION"
+              cat section.md
+            fi
+          } > notes.md
+          cat notes.md
+
+      - name: Create or update the GitHub Release
+        run: |
+          PRE=""
+          case "$TAG" in *-*) PRE="--prerelease";; esac
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/Markooj-* --clobber
+            gh release edit "$TAG" --title "Markooj $VERSION" --notes-file notes.md --draft=false $PRE
+          else
+            gh release create "$TAG" dist/Markooj-* --verify-tag --title "Markooj $VERSION" \
+              --notes-file notes.md --generate-notes $PRE
+          fi

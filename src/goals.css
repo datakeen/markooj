@@ -1,0 +1,97 @@
+/* Markooj: writing goals, sprint timer, streak, celebration, Typewriter scrolling (goals.js). Owner: developer. */
+
+/* the ring (status bar, outline card, panel, celebration) */
+.mkg-ring{flex:none;display:block}
+.mkg-ring circle{fill:none}
+.mkg-ring .trk{stroke:var(--line-2,rgba(0,0,0,.15))}
+.mkg-ring .val{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .6s var(--ease,ease),stroke .3s}
+.mkg-ring.done .val{stroke:var(--green,#34c759)}
+.mkg-ring text{font:600 9.5px var(--font,system-ui);fill:var(--text);letter-spacing:-.02em}
+
+/* status bar */
+.mkg-sb{display:inline-flex;align-items:center;gap:5px}
+.mkg-sb .mkg-sb-t{font-variant-numeric:tabular-nums}
+.mkg-flame{display:inline-block;flex:none;vertical-align:-2px}
+.mkg-streak{display:inline-flex;flex-direction:row;white-space:nowrap;align-items:center;gap:3px;color:#e8730c;font-weight:600;font-variant-numeric:tabular-nums}
+.mkg-streak svg{width:12px;height:12px;fill:currentColor;stroke:none}
+.mkg-streak.big svg{width:14px;height:14px}
+.mkg-sprint{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-variant-numeric:tabular-nums}
+.mkg-sprint svg.i{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mkg-sprint .mkg-sp-time{font-weight:600}
+.mkg-sprint .mkg-sp-words{color:var(--text-2)}
+body.mk-sprinting .mkg-sprint{background:var(--accent-soft);border-radius:5px}
+
+/* outline Document card */
+.mkg-card{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:.5px solid var(--line)}
+.mkg-card-ring{flex:none}
+.mkg-card-ring text{font-size:9px}
+.mkg-card-t{min-width:0;font-size:11.5px;color:var(--text-2);line-height:1.45}
+.mkg-card-t b{color:var(--text);font-variant-numeric:tabular-nums}
+.mkg-card-s{display:flex;flex-direction:row;align-items:center;gap:3px;color:#e8730c;font-weight:600}
+.mkg-card-s svg{width:12px;height:12px;fill:currentColor;stroke:none}
+.mkg-link{padding:2px 0!important;font-size:11.5px!important;color:var(--accent)!important}
+
+/* panel (popover) */
+.mkg-panel{width:300px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--text)}
+.mkg-menu{width:250px}
+.mkg-head{display:flex;align-items:center;gap:12px;padding:2px 2px 8px}
+.mkg-head > div:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mkg-head b{font-size:14px}
+.mkg-head span{color:var(--text-2);font-size:12px;line-height:1.35}
+.mkg-head text{font-size:10.5px}
+.mkg-row{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:8px;min-height:30px;padding:0 2px}
+.mkg-row-l{color:var(--text-2)}
+.mkg-row-v{font-variant-numeric:tabular-nums;font-weight:500}
+.mkg-sep{height:.5px;background:var(--line);margin:4px 0}
+.mkg-sub{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:2px 2px 0}
+.mkg-sprint-row{display:flex;align-items:center;gap:6px;padding:2px}
+.mkg-sprint-row > span{flex:1;color:var(--text-2)}
+.mkg-sprint-row .mkg-btn{flex:1}
+.mkg-btn{height:28px;padding:0 10px;border-radius:7px;border:.5px solid var(--line-2);background:var(--surface);color:var(--text);font:500 12.5px var(--font,system-ui);display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;transition:background .15s,border-color .15s,transform .12s var(--ease,ease)}
+.mkg-btn:hover{background:var(--hover);border-color:var(--accent)}
+.mkg-btn:active{background:var(--press);transform:scale(.96)}
+.mkg-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.mkg-btn.primary:hover{background:var(--accent-2,var(--accent))}
+.mkg-btn.danger{color:#d92d20}
+.mkg-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-ring)}
+.mkg-check{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:12.5px;color:var(--text);user-select:none;line-height:1.35}
+.mkg-check input{appearance:none;flex:none;width:16px;height:16px;border-radius:5px;border:.5px solid var(--line-2);background:var(--surface);display:grid;place-items:center;margin:0;transition:background .15s,border-color .15s}
+.mkg-check input:checked{background:var(--accent);border-color:var(--accent)}
+.mkg-check input:checked::after{content:"";width:8px;height:4.5px;border:2px solid #fff;border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
+.mkg-check input:focus-visible{box-shadow:0 0 0 3px var(--accent-ring)}
+.mkg-hint{font-size:12px;color:var(--text-2);line-height:1.45;margin:0}
+.mkg-opts{display:flex;flex-direction:column;gap:10px;max-width:640px}
+.mkg-opt-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.mkg-opt-row > span:first-child{min-width:220px}
+.mkg-input{height:28px;width:100px;border-radius:7px;border:.5px solid var(--line-2);background:var(--surface);color:var(--text);font:13px var(--font,system-ui);padding:0 9px;outline:none}
+.mkg-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
+
+/* celebration: a soft card above the status bar */
+.mkg-cele{position:fixed;left:50%;bottom:44px;z-index:70;display:flex;align-items:center;gap:12px;padding:12px 14px 12px 12px;min-width:300px;max-width:min(460px,92vw);border-radius:14px;background:var(--chrome-solid,var(--surface));box-shadow:var(--pop-shadow,0 10px 30px rgba(0,0,0,.18));color:var(--text);font:13px/1.4 var(--font,system-ui);transform:translate(-50%,0);opacity:0;transition:opacity .3s}
+.mkg-cele.anim{transform:translate(-50%,14px) scale(.97);transition:opacity .35s,transform .5s var(--ease,cubic-bezier(.2,.8,.2,1))}
+.mkg-cele.show{opacity:1;transform:translate(-50%,0)}
+.mkg-cele-ring{position:relative;flex:none;width:44px;height:44px}
+.mkg-cele-check{position:absolute;inset:0;width:44px;height:44px;fill:none;stroke:var(--green,#34c759);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.mkg-cele.anim .mkg-cele-check path{stroke-dasharray:16;stroke-dashoffset:16;animation:mkgDraw .45s .35s forwards}
+.mkg-cele.anim .mkg-ring .val{animation:mkgFill .7s var(--ease,ease) both}
+.mkg-cele-t{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.mkg-cele-t b{font-size:14px}
+.mkg-cele-t span{color:var(--text-2)}
+.mkg-cele-x{flex:none;width:24px;height:24px;border-radius:6px;border:0;background:none;color:var(--text-3);display:grid;place-items:center;transition:background .15s,color .15s}
+.mkg-cele-x:hover{background:var(--hover);color:var(--text)}
+.mkg-cele-x svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.mkg-spark{position:absolute;left:34px;top:30px;width:6px;height:6px;border-radius:50%;background:var(--c);opacity:0;pointer-events:none;animation:mkgSpark 1.3s var(--d) cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes mkgSpark{0%{opacity:0;transform:translate(0,0) scale(.4)}15%{opacity:.9}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(1)}}
+@keyframes mkgDraw{to{stroke-dashoffset:0}}
+@keyframes mkgFill{from{stroke-dashoffset:126}}
+
+/* Typewriter scrolling: room below the last line so it can sit in the middle too */
+.mkg-tw-pad{padding-bottom:45vh!important}
+
+@media (prefers-reduced-motion: reduce){
+  .mkg-cele,.mkg-cele.anim{transition:opacity .2s;transform:translate(-50%,0)}
+  .mkg-spark{display:none}
+  .mkg-ring .val{transition:none}
+}
+:root[data-theme="dark"] .mkg-streak,:root[data-theme="dark"] .mkg-card-s{color:#ff9f43}
+:root[data-theme="dark"] .mkg-btn.danger{color:#ff6961}

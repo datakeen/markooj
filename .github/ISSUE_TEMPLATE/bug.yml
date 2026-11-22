@@ -1,0 +1,50 @@
+name: Something does not work
+description: Markooj crashes, shows an error, or does something you did not expect.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sorry about the trouble. A few details help find it quickly.
+        For a missing or wrong word in Urdu, Arabic, Punjabi or Persian, please use the
+        [language packs](https://github.com/datakeen/markooj-language-packs/issues/new/choose) instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw. Copy any message word for word.
+      placeholder: |
+        1. I opened …
+        2. I clicked …
+        3. Markooj showed …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Markooj version
+      description: Help → About Markooj → Copy Version Info.
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: Computer
+      options:
+        - Windows (installer)
+        - Windows (portable zip)
+        - macOS (Apple chip)
+        - macOS (Intel)
+        - Linux (AppImage)
+        - Linux (.deb)
+        - Linux (tar.gz)
+        - From source
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshot or sample file
+      description: Drag a screenshot or a small file that shows the problem here. Leave out anything private.

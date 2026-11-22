@@ -1,0 +1,87 @@
+name: Check
+run-name: "Check · ${{ github.event.pull_request.title || github.ref_name }}"
+
+# Quick checks for every pull request and every push to main: the JavaScript parses, and the in-app smoke
+# suite runs on Linux under a virtual screen.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    name: JavaScript syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: node --check every file
+        run: |
+          fail=0
+          for f in main.js main-langpacks.js preload.js $(find src scripts build -name '*.js' -not -path '*/node_modules/*' | sort); do
+            [ -f "$f" ] || continue
+            node --check "$f" || { echo "::error file=$f::does not parse"; fail=1; }
+          done
+          [ "$fail" = 0 ] && echo "All files parse."
+          exit $fail
+
+      - name: package.json is valid and names the right version
+        run: node -e "const p=require('./package.json'); if(!/^\d+\.\d+\.\d+/.test(p.version)) throw new Error('bad version'); console.log(p.name, p.version)"
+
+  smoke:
+    name: In-app smoke suite (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Not blocking yet: the suite was written and run on Windows. Remove this line once it passes on Linux.
+    continue-on-error: true
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Install the DjVu tools and fetch Pandoc
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq djvulibre-bin pdf2djvu xvfb
+          node scripts/fetch-tools.js --platform=linux --arch=x64 --only=pandoc
+
+      # Ubuntu 24.04 blocks the user namespaces Chromium's sandbox needs; allow them on this throwaway runner
+      - name: Allow the Chromium sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      - name: Run the smoke suite
+        run: xvfb-run -a --server-args="-screen 0 1600x1000x24" node scripts/smoke.js smoke-out
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: smoke-out/
+          if-no-files-found: ignore
+          retention-days: 7

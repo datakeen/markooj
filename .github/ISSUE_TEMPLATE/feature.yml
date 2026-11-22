@@ -1,0 +1,35 @@
+name: Idea or wish
+description: Something Markooj could do, or do better.
+title: "[Idea] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the idea. The [roadmap](https://github.com/datakeen/markooj/blob/main/ROADMAP.md) shows what is planned already.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: Describe it in your own words. If Word or another program does it, say which one and how.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What would it help you do?
+      description: A short example from your own writing helps most.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Writing and editing
+        - Equations
+        - Numbering, references and citations
+        - Writing Assistant
+        - Languages and right to left
+        - Tables
+        - Open and export
+        - Macros and add-ins
+        - Something else

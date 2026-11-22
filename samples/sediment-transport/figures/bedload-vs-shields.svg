@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440" width="720" height="440" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="720" height="440" fill="#ffffff"/>
+<line x1="78" y1="34" x2="78" y2="376" stroke="#e8ebf0"/><text x="78" y="398" font-size="13" fill="#5b6472" text-anchor="middle">0.04</text>
+<line x1="231.5" y1="34" x2="231.5" y2="376" stroke="#e8ebf0"/><text x="231.5" y="398" font-size="13" fill="#5b6472" text-anchor="middle">0.08</text>
+<line x1="384.99999999999994" y1="34" x2="384.99999999999994" y2="376" stroke="#e8ebf0"/><text x="384.99999999999994" y="398" font-size="13" fill="#5b6472" text-anchor="middle">0.12</text>
+<line x1="538.5" y1="34" x2="538.5" y2="376" stroke="#e8ebf0"/><text x="538.5" y="398" font-size="13" fill="#5b6472" text-anchor="middle">0.16</text>
+<line x1="692" y1="34" x2="692" y2="376" stroke="#e8ebf0"/><text x="692" y="398" font-size="13" fill="#5b6472" text-anchor="middle">0.20</text>
+<line x1="78" y1="376" x2="692" y2="376" stroke="#e8ebf0"/><text x="68" y="380" font-size="13" fill="#5b6472" text-anchor="end">0.00</text>
+<line x1="78" y1="290.5" x2="692" y2="290.5" stroke="#e8ebf0"/><text x="68" y="294.5" font-size="13" fill="#5b6472" text-anchor="end">0.06</text>
+<line x1="78" y1="205" x2="692" y2="205" stroke="#e8ebf0"/><text x="68" y="209" font-size="13" fill="#5b6472" text-anchor="end">0.12</text>
+<line x1="78" y1="119.5" x2="692" y2="119.5" stroke="#e8ebf0"/><text x="68" y="123.5" font-size="13" fill="#5b6472" text-anchor="end">0.18</text>
+<line x1="78" y1="34" x2="692" y2="34" stroke="#e8ebf0"/><text x="68" y="38" font-size="13" fill="#5b6472" text-anchor="end">0.24</text>
+<line x1="78" y1="376" x2="692" y2="376" stroke="#9aa3b2"/><line x1="78" y1="34" x2="78" y2="376" stroke="#9aa3b2"/>
+<line x1="114.45625000000001" y1="34" x2="114.45625000000001" y2="376" stroke="#9aa3b2" stroke-dasharray="4 4"/><text x="120.45625000000001" y="48" font-size="12" fill="#5b6472">θc = 0.0495</text>
+<path d="M114.5 376.0 L122.1 375.5 L129.8 374.6 L137.5 373.4 L145.2 372.0 L152.8 370.3 L160.5 368.6 L168.2 366.6 L175.9 364.6 L183.5 362.3 L191.2 360.0 L198.9 357.5 L206.6 355.0 L214.2 352.3 L221.9 349.5 L229.6 346.6 L237.3 343.6 L244.9 340.5 L252.6 337.4 L260.3 334.1 L268.0 330.7 L275.6 327.3 L283.3 323.8 L291.0 320.2 L298.7 316.5 L306.3 312.8 L314.0 308.9 L321.7 305.0 L329.4 301.0 L337.0 297.0 L344.7 292.9 L352.4 288.7 L360.1 284.4 L367.7 280.1 L375.4 275.7 L383.1 271.2 L390.8 266.7 L398.4 262.1 L406.1 257.5 L413.8 252.8 L421.5 248.0 L429.1 243.2 L436.8 238.3 L444.5 233.3 L452.2 228.3 L459.8 223.3 L467.5 218.1 L475.2 213.0 L482.9 207.7 L490.5 202.4 L498.2 197.1 L505.9 191.7 L513.6 186.3 L521.2 180.8 L528.9 175.2 L536.6 169.6 L544.3 164.0 L551.9 158.2 L559.6 152.5 L567.3 146.7 L575.0 140.8 L582.6 134.9 L590.3 129.0 L598.0 123.0 L605.7 116.9 L613.3 110.8 L621.0 104.7 L628.7 98.5 L636.4 92.3 L644.0 86.0 L651.7 79.7 L659.4 73.3 L667.1 66.9 L674.7 60.4 L682.4 53.9 L690.1 47.3 " fill="none" stroke="#1f6feb" stroke-width="2.5"/>
+<polyline points="244.93125000000003,346.075 328.20500000000004,307.6 420.68874999999997,242.05 515.8587499999999,160.82500000000002 611.79625,86.72499999999997" fill="none" stroke="#d1242f" stroke-width="1.2" stroke-dasharray="3 3"/><polyline points="611.79625,86.72499999999997 559.6062499999999,173.65 464.82,237.775 370.41749999999996,293.35 277.93375000000003,337.525" fill="none" stroke="#e8893a" stroke-width="1.2" stroke-dasharray="3 3"/>
+<circle cx="244.93125000000003" cy="346.075" r="6" fill="#d1242f"/>
+<circle cx="328.20500000000004" cy="307.6" r="6" fill="#d1242f"/>
+<circle cx="420.68874999999997" cy="242.05" r="6" fill="#d1242f"/>
+<circle cx="515.8587499999999" cy="160.82500000000002" r="6" fill="#d1242f"/>
+<circle cx="611.79625" cy="86.72499999999997" r="6" fill="#d1242f"/>
+<circle cx="559.6062499999999" cy="173.65" r="6" fill="#ffffff" stroke="#e8893a" stroke-width="2.5"/>
+<circle cx="464.82" cy="237.775" r="6" fill="#ffffff" stroke="#e8893a" stroke-width="2.5"/>
+<circle cx="370.41749999999996" cy="293.35" r="6" fill="#ffffff" stroke="#e8893a" stroke-width="2.5"/>
+<circle cx="277.93375000000003" cy="337.525" r="6" fill="#ffffff" stroke="#e8893a" stroke-width="2.5"/>
+<text x="385" y="422" font-size="14" fill="#2b313b" text-anchor="middle">Shields parameter θ</text>
+<text transform="translate(22 205) rotate(-90)" font-size="14" fill="#2b313b" text-anchor="middle">Dimensionless bedload q*</text>
+<rect x="90" y="48" width="248" height="88" rx="8" fill="#ffffff" stroke="#e1e5eb"/>
+<line x1="102" y1="68" x2="128" y2="68" stroke="#1f6feb" stroke-width="2.5"/><text x="138" y="72" font-size="13" fill="#2b313b">Wong and Parker (2006)</text>
+<circle cx="115" cy="92" r="6" fill="#d1242f"/><text x="138" y="96" font-size="13" fill="#2b313b">Rising limb (R1–R5)</text>
+<circle cx="115" cy="116" r="6" fill="#fff" stroke="#e8893a" stroke-width="2.5"/><text x="138" y="120" font-size="13" fill="#2b313b">Falling limb (F1–F4)</text>
+</svg>

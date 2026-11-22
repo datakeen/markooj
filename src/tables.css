@@ -1,0 +1,77 @@
+/* Markooj — tables: gridlines while editing, the Insert → Table picker, table dialogs, Inline cell editor.
+   Gridlines are screen-only: the body class is never part of print or export HTML, and @media print turns them off. */
+
+:root { --mk-grid-c: rgba(60, 60, 67, .30); }
+:root[data-theme="dark"] { --mk-grid-c: rgba(235, 235, 245, .28); }
+
+/* ---------- gridlines (View → Gridlines): dashed lines on every cell, even when the table style has none */
+body.mk-table-gridlines .mk-word .mk-page table,
+body.mk-table-gridlines .mk-inline .mk-page table,
+body.mk-table-gridlines .mk-il-page table {
+  background-image:
+    repeating-linear-gradient(to right, var(--mk-grid-c) 0 3px, transparent 3px 6px),
+    repeating-linear-gradient(to bottom, var(--mk-grid-c) 0 3px, transparent 3px 6px);
+  background-size: 100% 1px, 1px 100%;
+  background-position: left top, left top;
+  background-repeat: no-repeat;
+}
+body.mk-table-gridlines .mk-word .mk-page td, body.mk-table-gridlines .mk-word .mk-page th,
+body.mk-table-gridlines .mk-inline .mk-page td, body.mk-table-gridlines .mk-inline .mk-page th,
+body.mk-table-gridlines .mk-il-page td, body.mk-table-gridlines .mk-il-page th {
+  background-image:
+    repeating-linear-gradient(to right, var(--mk-grid-c) 0 3px, transparent 3px 6px),
+    repeating-linear-gradient(to bottom, var(--mk-grid-c) 0 3px, transparent 3px 6px);
+  background-size: 100% 1px, 1px 100%;
+  background-position: left bottom, right top;
+  background-repeat: no-repeat;
+  min-width: 2.5em;
+}
+/* an empty cell still has room to click into */
+.mk-word .mk-page td:empty::after, .mk-word .mk-page th:empty::after { content: "\200b"; }
+.mk-word .mk-page td, .mk-word .mk-page th { vertical-align: top; }
+@media print {
+  body.mk-table-gridlines .mk-page table, body.mk-table-gridlines .mk-page td, body.mk-table-gridlines .mk-page th { background-image: none !important; }
+}
+
+/* a header row left empty ("Header Row" off) is hidden where the page is read, not edited */
+.mk-read .mk-page table thead:not(:has(th:not(:empty))),
+.mk-export-stage table thead:not(:has(th:not(:empty))) { display: none; }
+.mk-word .mk-page table thead:not(:has(th:not(:empty))) th,
+.mk-il-page table thead:not(:has(th:not(:empty))) th { border-bottom-style: dashed; height: 1.6em; }
+
+/* selected rows / columns (Table Layout → Select) */
+.mk-page td.mk-tsel, .mk-page th.mk-tsel { background-color: var(--accent-soft) !important; box-shadow: inset 0 0 0 1px var(--accent-ring); }
+
+/* the cell the caret is in */
+.mk-word .mk-page td:focus-within, .mk-word .mk-page th:focus-within { background-color: var(--accent-soft); }
+
+/* ---------- Inline mode: a cell shows its Markdown while you type in it */
+.mk-il-page td.mk-il-cell, .mk-il-page th.mk-il-cell {
+  font-family: var(--mono, ui-monospace, "SF Mono", Consolas, monospace); font-size: 12.5px; font-weight: 400;
+  background-color: var(--accent-soft); outline: 2px solid var(--accent-ring); outline-offset: -2px;
+  white-space: pre-wrap; caret-color: var(--accent); cursor: text;
+}
+.mk-il-page td, .mk-il-page th { cursor: text; }
+.mk-il-page table { transition: box-shadow .2s; }
+
+/* ---------- Insert → Table picker (10 × 8, like Word) */
+.mkt-picker { padding: 4px 6px 2px; }
+.mkt-pick-label { font: 600 12px var(--font); color: var(--text-2); padding: 2px 4px 6px; }
+.mkt-grid { display: grid; grid-template-columns: repeat(var(--cols, 10), 17px); gap: 3px; padding: 0 4px 4px; }
+.mkt-cell { width: 17px; height: 17px; padding: 0; border-radius: 3px; border: .5px solid var(--line-2); background: var(--surface, #fff);
+  transition: background .08s, border-color .08s, transform .12s var(--ease, ease); }
+.mkt-cell.on { background: var(--accent-soft); border-color: var(--accent); }
+.mkt-cell:active { transform: scale(.88); }
+.mkt-cell:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent-ring) !important; }
+.mk-pop .mk-mi svg.i { width: 16px; height: 16px; flex: none; color: var(--text-2); }
+.mk-pop .mk-mi:disabled { opacity: .45; }
+
+/* ---------- dialogs */
+.mkt-radios { display: grid; gap: 6px; padding: 4px 0 2px; font: 13px var(--font); }
+.mkt-radios label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.mkt-check { display: flex; align-items: center; gap: 6px; font: 13px var(--font); margin: 10px 0 8px; cursor: pointer; }
+.mkt-preview { margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--hover); font: 12px var(--mono, ui-monospace, Consolas, monospace);
+  max-height: 140px; overflow: auto; white-space: pre; color: var(--text-2); }
+
+/* table style previews in the gallery */
+.mkt-sty i { background-clip: padding-box; }

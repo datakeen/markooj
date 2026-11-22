@@ -1,0 +1,71 @@
+/* Markooj — Inline (live) mode and hidden notes. Tokens from design/mock.html. */
+
+/* ---------- the page (same canvas and sheet as Word mode) ---------- */
+.mk-inline{min-height:100%;padding:34px 24px 80px;display:flex;flex-direction:column;align-items:safe center;width:max-content;min-width:100%;box-sizing:border-box;outline:none}
+.mk-inline .mk-sheet{position:relative;flex:none}
+.mk-il-page{cursor:text;outline:none}
+.mk-inline.readonly .mk-il-page{cursor:default}
+.mk-il-page:empty::before{content:"Click here and start typing";color:var(--text-3);font-family:var(--font);font-size:14px}
+.mk-il-page a[href]{cursor:text}
+.mk-il-page .task-list-item input{cursor:pointer}
+.mk-il-page .mk-math,.mk-il-page .mk-cite{cursor:text}
+
+/* the block marked for the keyboard (arrow keys while nothing is open; Enter opens it) */
+.mk-il-page .mk-il-cur{position:relative}
+.mk-il-page .mk-il-cur::before{content:"";position:absolute;left:-18px;top:2px;bottom:2px;width:3px;border-radius:2px;background:var(--accent);opacity:.55;animation:mkIlFade .2s var(--ease)}
+.mk-il-page li.mk-il-cur::before{left:-46px}
+
+/* ---------- the block being edited: its Markdown, set in the page's own type ---------- */
+.mk-il-edit{position:relative;margin:0 -14px 12px;padding:3px 14px;border-radius:8px;
+  background:rgba(10,102,255,.045);box-shadow:inset 2px 0 0 var(--accent-ring);
+  white-space:pre-wrap;overflow-wrap:break-word;word-break:normal;tab-size:4;
+  outline:none;caret-color:var(--accent);font:inherit;color:var(--text);
+  animation:mkIlIn .22s var(--ease)}
+:root[data-theme="dark"] .mk-il-edit{background:rgba(61,139,255,.08)}
+.mk-il-edit:focus{box-shadow:inset 2px 0 0 var(--accent)}
+.mk-il-edit .ln{min-height:1.62em}
+.mk-il-edit .ln.blank{min-height:1.2em}
+@keyframes mkIlIn{from{background-color:transparent;box-shadow:inset 0 0 0 transparent}}
+@keyframes mkIlFade{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.mk-il-edit,.mk-il-page .mk-il-cur::before{animation:none}}
+
+/* Markdown marks: present but quiet */
+.mk-il-edit .t-mk{color:var(--text-3);font-weight:400;font-style:normal}
+.mk-il-edit .t-h{color:inherit;font-weight:inherit}
+.mk-il-edit .t-b{font-weight:700}
+.mk-il-edit .t-em{font-style:italic}
+.mk-il-edit .t-del{text-decoration:line-through;color:var(--text-2)}
+.mk-il-edit .t-mark{background:rgba(255,214,10,.45);border-radius:2px}
+.mk-il-edit .t-math{font:.88em/1 var(--mono);color:var(--purple,#8e5cf7)}
+.mk-il-edit .t-code{font:.86em var(--mono);color:#c2410c}
+.mk-il-edit .t-link{color:var(--accent)}
+.mk-il-edit .t-meta{color:var(--text-3)}
+.mk-il-edit .t-quote{color:var(--text-2)}
+.mk-il-edit .t-note{background:rgba(142,92,247,.10);color:var(--text-2);border-radius:3px}
+:root[data-theme="dark"] .mk-il-edit .t-code{color:#ff8a5c}
+
+/* line kinds take the look of what they will become */
+.mk-il-edit .ln.h1{font:700 30px/1.15 var(--font);letter-spacing:-.02em;margin:2px 0}
+.mk-il-edit .ln.h2{font:650 19px/1.3 var(--font);letter-spacing:-.01em;margin:2px 0}
+.mk-il-edit .ln.h3{font:600 15.5px/1.3 var(--font);color:var(--text-2)}
+.mk-il-edit .ln.h4,.mk-il-edit .ln.h5,.mk-il-edit .ln.h6{font:600 14px/1.3 var(--font);color:var(--text-2)}
+.mk-il-edit .ln.code,.mk-il-edit .ln.math{font:12.5px/1.6 var(--mono)}
+.mk-il-edit .ln.code .t-code,.mk-il-edit .ln.math .t-math{font:inherit}
+.mk-il-edit .ln.tbl{font:12.5px/1.7 var(--mono)}
+.mk-il-edit .ln.front{font:12.5px/1.7 var(--mono);color:var(--text-2)}
+.mk-il-edit .ln.front .t-meta{color:var(--text-2)}
+
+/* selection kept visible while the find bar or a dialog has the focus */
+::highlight(mk-il-sel){background-color:var(--accent-ring)}
+
+/* ---------- hidden notes %%like this%% ---------- */
+.mk-note{background:rgba(142,92,247,.09);color:var(--text-2);border-radius:3px;padding:0 2px;box-decoration-break:clone;-webkit-box-decoration-break:clone;
+  text-decoration:underline dotted rgba(142,92,247,.45);text-underline-offset:3px;transition:background .15s}
+.mk-note:hover{background:rgba(142,92,247,.16)}
+.mk-note.mk-note-block,p:has(> .mk-note:only-child){padding:2px 4px}
+.mk-note-mark{display:none}
+:root[data-theme="dark"] .mk-note{background:rgba(142,92,247,.16)}
+
+/* never in Read mode, print or exports */
+body.mode-read .mk-note,body.mode-read .mk-comment,.mk-read .mk-note,.mk-read .mk-comment{display:none!important}
+@media print{.mk-note,.mk-note-block{display:none!important}}

@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markooj: Markdown that feels like Word</title>
+<meta name="description" content="Markooj is a free, calm Markdown editor that works like Microsoft Word, made with researchers in mind. Equations, citations, cross-references, a Writing Assistant that explains itself, right-to-left Urdu, Arabic, Persian and Punjabi, and an add-in store. Works offline on Windows, macOS and Linux.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0c10" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://datakeen.github.io/markooj/">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="favicon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Markooj">
+<meta property="og:title" content="Markooj: Markdown that feels like Word">
+<meta property="og:description" content="A free, calm Markdown editor for researchers. Word's ribbon and shortcuts, equations, citations and a Writing Assistant that explains itself. Works offline.">
+<meta property="og:url" content="https://datakeen.github.io/markooj/">
+<meta property="og:image" content="https://datakeen.github.io/markooj/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="Markooj, a Markdown editor with a ribbon like Word's, showing a research paper with equations">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Markooj: Markdown that feels like Word">
+<meta name="twitter:description" content="A free, calm Markdown editor for researchers. Works offline on Windows, macOS and Linux.">
+<meta name="twitter:image" content="https://datakeen.github.io/markooj/social-preview.png">
+<meta name="twitter:image:alt" content="Markooj, a Markdown editor with a ribbon like Word's, showing a research paper with equations">
+
+<link rel="preload" href="img/hero-1200.webp" as="image" type="image/webp" imagesrcset="img/hero-1200.webp 1200w, img/hero-2400.webp 2400w" imagesizes="(min-width: 1200px) 1120px, 94vw" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.classList.add('js')</script>
+<script src="main.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="top">
+  <div class="nav-in">
+    <a class="brand" href="#top" aria-label="Markooj, back to top">
+      <img src="img/logo-64.png" width="28" height="28" alt="">
+      <span>Markooj</span>
+    </a>
+    <nav aria-label="Sections">
+      <ul class="nav-links">
+        <li><a href="#modes">Modes</a></li>
+        <li><a href="#gallery">In action</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#languages">Languages</a></li>
+        <li><a href="#addins">Add-ins</a></li>
+        <li><a href="https://github.com/datakeen/markooj">GitHub</a></li>
+      </ul>
+    </nav>
+    <a class="btn btn-sm" href="#download">Download</a>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============ Hero ============ -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap hero-text">
+    <p class="eyebrow">Free and open source · Works offline</p>
+    <h1 id="hero-title">Markdown that<br class="br-wide"> feels like Word.</h1>
+    <p class="lead">A calm editor for researchers, students and anyone who learned to write in Word. Click and type on the page with the ribbon and shortcuts you know, and Markooj writes plain Markdown that opens anywhere and lasts.</p>
+    <div class="cta">
+      <a class="btn btn-lg" id="hero-download" href="#download" data-fallback="#download">
+        <svg aria-hidden="true" viewBox="0 0 24 24" class="ic"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
+        <span id="hero-download-label">Download Markooj</span>
+      </a>
+      <a class="btn btn-lg btn-ghost" href="#features">See features</a>
+    </div>
+    <p class="meta" id="hero-meta">For Windows, macOS and Linux · Free under the AGPL</p>
+  </div>
+  <div class="wrap-wide">
+    <figure class="window hero-shot">
+      <div class="window-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="img/hero-dark-1200.webp 1200w, img/hero-dark-2400.webp 2400w" sizes="(min-width: 1200px) 1120px, 94vw" type="image/webp">
+        <img src="img/hero-1200.webp" srcset="img/hero-1200.webp 1200w, img/hero-2400.webp 2400w" sizes="(min-width: 1200px) 1120px, 94vw" width="1200" height="750" alt="Markooj in Word mode: a research paper with a title, an abstract box and an introduction, the Home tab of the ribbon above it, and an outline of headings on the left." fetchpriority="high">
+      </picture>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ Points ============ -->
+<section class="points wrap" aria-label="In short">
+  <ul class="point-list">
+    <li><strong>Word's ribbon and shortcuts</strong><span>Ctrl+B, F7, F12 and Shift+F3 do what you expect. Press Alt for KeyTips.</span></li>
+    <li><strong>Built for research</strong><span>Equations, numbered figures and tables, cross-references and citations from Zotero.</span></li>
+    <li><strong>Plain files that last</strong><span>Everything is saved as Markdown, ready for Pandoc, Quarto, Git and journals.</span></li>
+    <li><strong>Yours, on your computer</strong><span>No account, no cloud, no tracking. It works without an internet connection.</span></li>
+  </ul>
+</section>
+
+<!-- ============ Four modes ============ -->
+<section class="section" id="modes" aria-labelledby="modes-title">
+  <div class="wrap center">
+    <p class="eyebrow">Four modes, one file</p>
+    <h2 id="modes-title">Work the way you like.<br class="br-wide"> Switch any time.</h2>
+    <p class="sub">Ctrl+1 to Ctrl+4 change the mode, and your place stays put.</p>
+  </div>
+  <div class="wrap-wide">
+    <div class="modes" data-modes>
+      <div class="mode-tabs" role="tablist" aria-label="Editing modes">
+        <button role="tab" id="tab-word" aria-controls="panel-word" aria-selected="true" tabindex="0">Word</button>
+        <button role="tab" id="tab-inline" aria-controls="panel-inline" aria-selected="false" tabindex="-1">Inline</button>
+        <button role="tab" id="tab-simple" aria-controls="panel-simple" aria-selected="false" tabindex="-1">Simple</button>
+        <button role="tab" id="tab-read" aria-controls="panel-read" aria-selected="false" tabindex="-1">Read</button>
+      </div>
+      <div class="mode-panels">
+        <div class="mode-panel" role="tabpanel" id="panel-word" aria-labelledby="tab-word" tabindex="0">
+          <p class="mode-note"><strong>Word mode.</strong> Click and type on the page. Numbered equations, citations and tables look finished while you write.</p>
+          <figure class="window"><img src="img/word-mode-1600.webp" srcset="img/word-mode-800.webp 800w, img/word-mode-1600.webp 1600w" sizes="(min-width: 1200px) 1120px, 94vw" width="1600" height="1000" loading="lazy" decoding="async" alt="Word mode with the Insert tab open and three numbered display equations on the page, with their numbers in the right margin."></figure>
+        </div>
+        <div class="mode-panel" role="tabpanel" id="panel-inline" aria-labelledby="tab-inline" tabindex="0" hidden>
+          <p class="mode-note"><strong>Inline mode.</strong> The page looks finished, and only the paragraph you are in shows its Markdown.</p>
+          <figure class="window"><img src="img/inline-1600.webp" srcset="img/inline-800.webp 800w, img/inline-1600.webp 1600w" sizes="(min-width: 1200px) 1120px, 94vw" width="1600" height="1000" loading="lazy" decoding="async" alt="Inline mode: the equation the cursor is in shows its LaTeX source in a blue box, while the rest of the page stays formatted."></figure>
+        </div>
+        <div class="mode-panel" role="tabpanel" id="panel-simple" aria-labelledby="tab-simple" tabindex="0" hidden>
+          <p class="mode-note"><strong>Simple mode.</strong> Markdown on the left, a live preview on the right, kept in step as you scroll.</p>
+          <figure class="window"><img src="img/simple-1600.webp" srcset="img/simple-800.webp 800w, img/simple-1600.webp 1600w" sizes="(min-width: 1200px) 1120px, 94vw" width="1600" height="1000" loading="lazy" decoding="async" alt="Simple mode: numbered Markdown source lines with LaTeX equations on the left, and the rendered page with numbered equations and a diagram on the right."></figure>
+        </div>
+        <div class="mode-panel" role="tabpanel" id="panel-read" aria-labelledby="tab-read" tabindex="0" hidden>
+          <p class="mode-note"><strong>Read mode.</strong> The finished document, with no editing tools, comments or hidden notes.</p>
+          <figure class="window"><img src="img/read-mode-1600.webp" srcset="img/read-mode-800.webp 800w, img/read-mode-1600.webp 1600w" sizes="(min-width: 1200px) 1120px, 94vw" width="1600" height="1000" loading="lazy" decoding="async" alt="Read mode: a results table with a caption and a plotted figure with its numbered caption."></figure>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Gallery ============ -->
+<section class="section tint" id="gallery" aria-labelledby="gallery-title">
+  <div class="wrap center">
+    <p class="eyebrow">Markooj in action</p>
+    <h2 id="gallery-title">Real screens, real work.</h2>
+    <p class="sub">Every picture is the app itself, with a sample research paper open. Click one to see it larger.</p>
+  </div>
+  <div class="wrap-wide">
+    <ul class="gallery">
+      <li><figure>
+        <button class="shot" type="button" data-full="img/writing-assistant-1600.webp" aria-label="Enlarge: Writing Assistant">
+          <img src="img/writing-assistant-800.webp" srcset="img/writing-assistant-800.webp 800w, img/writing-assistant-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="The Writing Assistant pane with a writing score and suggestions, and a card for the wrong preposition 'discuss about' with its Why? explanation open.">
+        </button>
+        <figcaption><strong>A Writing Assistant that explains itself.</strong> Every card says why, with a wrong and a right example.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/equations-1600.webp" aria-label="Enlarge: Equation editor">
+          <img src="img/equations-800.webp" srcset="img/equations-800.webp 800w, img/equations-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="The equation editor with palettes of math symbols, a visual equation, and the same equation in LaTeX beside it.">
+        </button>
+        <figcaption><strong>Equations, visually or in LaTeX.</strong> Both sides stay in step, with palettes, matrices and favorites.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/cross-references-1600.webp" aria-label="Enlarge: Cross-references">
+          <img src="img/cross-references-800.webp" srcset="img/cross-references-800.webp 800w, img/cross-references-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="The Cross-reference dialog listing numbered equations, over a page with chapter-style numbers such as (2.1).">
+        </button>
+        <figcaption><strong>Numbers and cross-references.</strong> Chapter numbering like (2.3), and references that update themselves.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/tables-1600.webp" aria-label="Enlarge: Tables">
+          <img src="img/tables-800.webp" srcset="img/tables-800.webp 800w, img/tables-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="A table being edited on the page with dashed gridlines, and the Table Design tab in the ribbon.">
+        </button>
+        <figcaption><strong>Tables that work like Word's.</strong> Click a cell and type; Table Design and Table Layout appear when you need them.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/rtl-1600.webp" aria-label="Enlarge: Right-to-left writing">
+          <img src="img/rtl-800.webp" srcset="img/rtl-800.webp 800w, img/rtl-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="Urdu paragraphs in Nastaliq script, a table with Urdu and English columns, and Arabic and Persian paragraphs, all next to English headings.">
+        </button>
+        <figcaption><strong>Right to left, next to English.</strong> Urdu, Arabic and Persian paragraphs each find their own direction.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/export-1600.webp" aria-label="Enlarge: Save As">
+          <img src="img/export-800.webp" srcset="img/export-800.webp 800w, img/export-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="File, Save As, showing a grid of formats: PDF, Word, EPUB, web page, LaTeX, OpenDocument, PowerPoint and more.">
+        </button>
+        <figcaption><strong>Share it in the format they need.</strong> PDF, Word, LaTeX, EPUB, OpenDocument, slides and more.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/developer-1600.webp" aria-label="Enlarge: Python macros">
+          <img src="img/developer-800.webp" srcset="img/developer-800.webp 800w, img/developer-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="The Developer tab and the Macro Editor with a Python macro and its output.">
+        </button>
+        <figcaption><strong>Macros in Python and JavaScript.</strong> Like VBA in Word. Python runs offline, inside Markooj.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/math-macros-1600.webp" aria-label="Enlarge: Math macros">
+          <img src="img/math-macros-800.webp" srcset="img/math-macros-800.webp 800w, img/math-macros-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="The Math macros dialog with newcommand lines on the left and a gallery of examples such as the real numbers on the right.">
+        </button>
+        <figcaption><strong>Your LaTeX shortcuts.</strong> Paste <code>\newcommand</code> lines as they are; a gallery shows what each one does.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/synonyms-1600.webp" aria-label="Enlarge: Synonyms and Thesaurus">
+          <img src="img/synonyms-800.webp" srcset="img/synonyms-800.webp 800w, img/synonyms-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="A short list of synonyms under a double-clicked word, and the Thesaurus pane grouped by meaning.">
+        </button>
+        <figcaption><strong>Find the right word.</strong> Double-click for synonyms, or open the Thesaurus with Shift+F7.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/keytips-1600.webp" aria-label="Enlarge: KeyTips">
+          <img src="img/keytips-800.webp" srcset="img/keytips-800.webp 800w, img/keytips-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="The ribbon with small letter badges on every button, shown after pressing Alt.">
+        </button>
+        <figcaption><strong>KeyTips, as in Word.</strong> Press Alt and type the letters. They work with Urdu, Arabic and Persian keyboards too.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/goals-1600.webp" aria-label="Enlarge: Writing goals">
+          <img src="img/goals-800.webp" srcset="img/goals-800.webp 800w, img/goals-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="The writing goals dialog with a word target, a daily goal with a progress ring, a streak and sprint buttons.">
+        </button>
+        <figcaption><strong>Make writing a habit.</strong> A word target, a daily goal with a streak, and timed sprints.</figcaption>
+      </figure></li>
+      <li><figure>
+        <button class="shot" type="button" data-full="img/dark-1600.webp" aria-label="Enlarge: Dark theme">
+          <img src="img/dark-800.webp" srcset="img/dark-800.webp 800w, img/dark-1600.webp 1600w" sizes="(min-width: 900px) 540px, 92vw" width="800" height="500" loading="lazy" decoding="async" alt="Markooj in the dark theme, with equations and a table on a dark page.">
+        </button>
+        <figcaption><strong>Easy on the eyes after dark.</strong> The page, ribbon, equations and diagrams follow your theme.</figcaption>
+      </figure></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ Features ============ -->
+<section class="section" id="features" aria-labelledby="features-title">
+  <div class="wrap center">
+    <p class="eyebrow">Everything it does</p>
+    <h2 id="features-title">All the tools for a paper.<br class="br-wide"> None of the clutter.</h2>
+    <p class="sub">The full list, grouped. Each one is in the offline manual too: press F1 in Markooj.</p>
+  </div>
+  <div class="wrap-wide">
+    <div class="features">
+
+      <article class="feat">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg></div>
+        <h3>Writing help</h3>
+        <ul>
+          <li><b>Spelling</b> in US and UK English and <b>grammar</b> from Harper, all on your computer.</li>
+          <li>Checks for <b>clarity</b> (long sentences, wordy phrases, passive voice, hidden verbs, undefined abbreviations, mixed spellings), <b>engagement</b> (weak phrases, overused words, repeated sentence starts) and <b>delivery</b> (contractions, hedging, informal words).</li>
+          <li>Over 40 <b>wrong prepositions</b> that are easy to slip on in a second language: <i>discuss about</i>, <i>comprise of</i>, <i>different than</i>.</li>
+          <li>Cards with Accept, Dismiss, Ignore rule, Add to dictionary and <b>Why?</b>, plus Accept all safe fixes and a writing score.</li>
+          <li>Goals for audience, formality and domain (general, academic, business).</li>
+          <li><b>F7</b> steps through suggestions like Word's Editor; Alt+F7 jumps to the next one.</li>
+          <li><b>Synonyms</b> on a double-click and a <b>Thesaurus</b> (Shift+F7) from WordNet; optional word completion.</li>
+          <li>Word count with characters, equations and citations, and a <b>readability</b> report.</li>
+          <li>It never changes your text by itself.</li>
+        </ul>
+      </article>
+
+      <article class="feat">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M7 13h6M7 16h9"/></svg></div>
+        <h3>Word-like editing</h3>
+        <ul>
+          <li><b>Four modes</b> for one file: Word, Inline, Simple and Read (Ctrl+1 to Ctrl+4).</li>
+          <li>A <b>ribbon</b> with File, Home, Insert, Layout, References, Review, View, Developer, Add-ins and Help, ScreenTips on every control, and a reason on every dimmed one. Pin it, show tabs only, or go full screen.</li>
+          <li>Undo one step at a time, Format Painter, Styles, Find and Replace, Go To and Repeat (F4).</li>
+          <li><b>Change Case</b> with APA and Chicago Title Case; Grow and Shrink Font; one text size per document.</li>
+          <li>AutoCorrect, smart quotes, paste from Word with its formatting, and drag-and-drop pictures.</li>
+          <li>Insert diagrams (Mermaid), code with syntax colors, callouts, links, symbols, dividers, page breaks and the date.</li>
+          <li>Page layout: margins, A4, Letter or A5, one or two columns, spacing and four document themes.</li>
+          <li>Templates: research paper, lab notebook, thesis chapter, meeting notes and literature review.</li>
+          <li>Comments as margin bubbles, hidden notes, and Compare with the saved version.</li>
+          <li><b>What's this in Markdown?</b> (Ctrl+Shift+/) shows the Markdown behind any selection.</li>
+        </ul>
+      </article>
+
+      <article class="feat">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><path d="M5 4.5h10.5L19 8v11.5H5z"/><path d="M8 10h8M8 13.5h8M8 17h5"/></svg></div>
+        <h3>Research and citations</h3>
+        <ul>
+          <li><b>One numbering system</b> for equations, figures, tables and sections, in the Pandoc-crossref syntax that Pandoc and Quarto read.</li>
+          <li>Plain (1) or chapter numbers (2.3), a choice of separator and label names, in a margin of their own.</li>
+          <li><b>Insert Caption</b> and a <b>Cross-reference</b> dialog like Word's. References update themselves, preview on hover, jump on Ctrl+click and show in red with a fix when broken.</li>
+          <li><b>Citations</b> from a BibTeX library (Zotero, Mendeley, JabRef, EndNote) in APA, Chicago or IEEE, with page numbers and a bibliography that fills itself.</li>
+          <li>Footnotes and a table of contents.</li>
+          <li>File → Info keeps the title, authors, date, keywords and abstract as front matter.</li>
+        </ul>
+      </article>
+
+      <article class="feat">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><path d="M17 4H7l6 8-6 8h10"/></svg></div>
+        <h3>Math</h3>
+        <ul>
+          <li>A <b>visual equation editor</b> with a LaTeX box kept in step.</li>
+          <li>Palettes for fractions, roots, big operators, brackets, matrices with a size picker, accents, Greek, symbols, arrows and units.</li>
+          <li>Typing shortcuts such as <code>/</code> for a fraction and <code>alpha</code> for α, an on-screen math keyboard, and recent and favorite equations.</li>
+          <li>Inline and display math, with a Numbered switch and a label.</li>
+          <li><b>Math macros</b> for all documents or one: <code>\newcommand</code>, <code>\renewcommand</code>, <code>\def</code> and <code>\DeclareMathOperator</code>, with a gallery of examples.</li>
+          <li>Equations stay sharp in every export.</li>
+        </ul>
+      </article>
+
+
+      <article class="feat">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><path d="M20 7H8m0 0 3-3M8 7l3 3M4 17h12m0 0-3-3m3 3-3 3"/></svg></div>
+        <h3>Languages and right to left</h3>
+        <ul>
+          <li><b>Right-to-left writing</b> with each paragraph finding its own direction, next to English.</li>
+          <li>Right-to-left and Left-to-right buttons on the Home tab (Ctrl+Right Shift, Ctrl+Left Shift).</li>
+          <li>A document language and direction saved in the file and used in every export.</li>
+          <li>Fonts included: Noto Nastaliq Urdu, Noto Naskh Arabic and Vazirmatn.</li>
+          <li><b>Full Urdu spelling</b> with about 95,000 words, and suggestions that know which letters sound or look alike.</li>
+          <li><b>Language packs</b> for Urdu, Arabic, Punjabi (Shahmukhi) and Persian, downloaded from GitHub or installed from a file, each checked against its SHA-256 before it installs.</li>
+        </ul>
+      </article>
+
+      <article class="feat">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></div>
+        <h3>Private and offline</h3>
+        <ul>
+          <li>No account, no cloud, no analytics and no tracking.</li>
+          <li>Spelling, grammar, the Writing Assistant, the thesaurus, conversions and macros all run on your computer.</li>
+          <li>The internet is used only when you ask: for a language pack or an add-in, for web pictures you allow (off by default), and for links you click.</li>
+          <li><b>File → Recover</b> keeps the text of every unsaved document for 7 to 90 days, also after a crash.</li>
+          <li>Comments and hidden notes stay out of exports and prints unless you include them.</li>
+        </ul>
+      </article>
+
+      <article class="feat">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg></div>
+        <h3>Make it yours</h3>
+        <ul>
+          <li>Light and dark themes, or match your system.</li>
+          <li>Document font, default text size, the mode new windows start in, and Print or Web layout.</li>
+          <li>Document tabs at the top, the bottom or the left, an outline of headings, zoom, Focus and typewriter scrolling.</li>
+          <li>Turn each kind of suggestion on or off, set the long-sentence limit, and keep your own dictionary.</li>
+          <li><b>Writing goals:</b> a word target per document, a daily goal with a progress ring and a streak, 15, 25 and 45 minute sprints, and a quiet celebration.</li>
+        </ul>
+      </article>
+
+      <article class="feat">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg></div>
+        <h3>Macros and add-ins</h3>
+        <ul>
+          <li><b>Macros in Python and JavaScript</b>, like VBA in Word. Python (Pyodide) runs inside Markooj, offline, with its standard library.</li>
+          <li>A macro recorder, a macro editor with an API reference and examples, and a Python console.</li>
+          <li>Run Python code from a document, and give macros shortcuts and ribbon buttons.</li>
+          <li><b>An add-in store</b> inside Markooj: browse, install, update and remove add-ins with one click.</li>
+          <li><b>Write your own add-ins</b> in JavaScript: commands, ribbon buttons, Markdown features, status bar items, settings or an export format.</li>
+          <li>Comes with three: Readability, SI Units and Word Frequency.</li>
+        </ul>
+      </article>
+
+      <article class="feat">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M8 14h8"/></svg></div>
+        <h3>Keyboard and accessibility</h3>
+        <ul>
+          <li>Almost a hundred of <b>Word's keyboard shortcuts</b>, listed and searchable in File → Options → Keyboard.</li>
+          <li><b>KeyTips:</b> press Alt or F10 and type the letters, also with Urdu, Arabic and Persian keyboard layouts.</li>
+          <li><b>Alt+Q</b> finds any command, open document or heading by name.</li>
+          <li><b>F6</b> moves between the ribbon, tabs, outline, page and status bar.</li>
+          <li>Zoom, formatting marks, and motion that stays still when your system asks for reduced motion.</li>
+          <li>An offline manual (F1), guided tutorials on the real buttons, and a shortcut list.</li>
+        </ul>
+      </article>
+
+
+      <article class="feat feat-wide">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><path d="M7 7h10l-3-3M17 17H7l3 3"/></svg></div>
+        <h3>Open, convert and export</h3>
+        <p>Pandoc, DjVuLibre and pdf2djvu come inside Markooj, so none of this needs another program. Files from other formats open as a new Markdown document, so the original is never overwritten.</p>
+        <div class="fmt-groups">
+          <div>
+            <h4>Open and edit</h4>
+            <ul class="chips">
+              <li>Markdown</li><li>Word .docx</li><li>EPUB</li><li>HTML</li><li>Plain text</li><li>LaTeX</li><li>OpenDocument</li><li>Rich Text</li><li>reStructuredText</li><li>Org mode</li><li>MediaWiki</li><li>Typst</li><li>Jupyter</li><li>DocBook</li><li>Textile</li><li>CSV and TSV</li><li>FictionBook</li><li>OPML</li><li>Muse</li><li>txt2tags</li>
+            </ul>
+          </div>
+          <div>
+            <h4>View page by page</h4>
+            <ul class="chips"><li>PDF</li><li>DjVu</li></ul>
+            <p class="fine">With an "Edit as text" copy.</p>
+          </div>
+          <div>
+            <h4>Save as</h4>
+            <ul class="chips">
+              <li>Markdown</li><li>PDF</li><li>Word</li><li>EPUB</li><li>Web page</li><li>Plain text</li><li>LaTeX</li><li>OpenDocument</li><li>Rich Text</li><li>PowerPoint</li><li>JATS XML</li><li>reStructuredText</li><li>Org</li><li>AsciiDoc</li><li>MediaWiki</li><li>Jupyter</li><li>Typst</li><li>DjVu</li>
+            </ul>
+          </div>
+        </div>
+        <ul class="cols">
+          <li>Markdown flavors: CommonMark, GitHub, Pandoc, Obsidian, MultiMarkdown, R Markdown, Quarto and MDX. The status bar shows the one it detects, and <b>Render as</b> picks the one exports use.</li>
+          <li>Exports carry the document's properties, page layout, text size, numbering, citations, diagrams and right-to-left text.</li>
+          <li>Print with a preview, and Save as PDF.</li>
+          <li><b>Check Bundled Tools</b> shows what works if a tool ever goes missing.</li>
+        </ul>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ Languages ============ -->
+<section class="section tint" id="languages" aria-labelledby="languages-title">
+  <div class="wrap center">
+    <p class="eyebrow">Languages</p>
+    <h2 id="languages-title">Write in English.<br class="br-wide"> And in Urdu, Arabic and Punjabi.</h2>
+    <p class="sub">Markooj is made for English and every left-to-right language. On top of that, Urdu, Arabic and Punjabi get first-class support: right-to-left pages, beautiful fonts, spelling and writing checks.</p>
+  </div>
+  <div class="wrap-wide">
+    <article class="lang-en">
+      <div class="lang-en-sample" lang="en">
+        <p class="en-big">Write clearly.</p>
+        <p class="en-small">English, US and UK, built in. No pack to install.</p>
+      </div>
+      <div class="lang-en-body">
+        <h3>English <span class="native">and other left-to-right languages</span></h3>
+        <ul class="ticks">
+          <li>Spelling and grammar for US and UK English, with a <b>Why?</b> and an example for every suggestion</li>
+          <li>Long sentences, wordy phrases and wrong prepositions, gently marked</li>
+          <li>Synonyms with a right-click, and word completion when you want it</li>
+          <li>French, German, Spanish, Turkish and any other left-to-right language type, display and export correctly</li>
+        </ul>
+      </div>
+    </article>
+    <h3 class="rtl-label">First-class right to left</h3>
+    <ul class="langs">
+      <li class="lang">
+        <p class="script nastaliq" lang="ur" dir="rtl">اردو میں لکھیں</p>
+        <h3>Urdu <span class="native nastaliq" lang="ur" dir="rtl">اردو</span></h3>
+        <p>Pakistan. Full spelling with about 95,000 words, aarab and Roman spellings, letter and punctuation checks, and style hints.</p>
+      </li>
+      <li class="lang">
+        <p class="script naskh" lang="ar" dir="rtl">اكتب بالعربية</p>
+        <h3>Arabic <span class="native naskh" lang="ar" dir="rtl">العربية</span></h3>
+        <p>Modern Standard Arabic, Saudi Arabia. A starter word list with harakat and Roman spellings, and the same kinds of checks.</p>
+      </li>
+      <li class="lang">
+        <p class="script nastaliq" lang="pnb" dir="rtl">پنجابی وچ لکھو</p>
+        <h3>Punjabi <span class="native nastaliq" lang="pnb" dir="rtl">پنجابی</span></h3>
+        <p>Shahmukhi, Pakistan, right to left. A starter word list with aarab and Roman spellings, and the same kinds of checks.</p>
+      </li>
+      <li class="lang">
+        <p class="script naskh" lang="fa" dir="rtl">به فارسی بنویسید</p>
+        <h3>Persian <span class="native naskh" lang="fa" dir="rtl">فارسی</span></h3>
+        <p>Full spelling from the Lilak list of about 100,000 words, and writing rules.</p>
+      </li>
+    </ul>
+    <div class="note-card">
+      <p><strong>Growing with native speakers.</strong> The Arabic and Punjabi word lists are new and small on purpose, so Markooj only underlines a word when it is one letter away from a common word it knows. Every word is marked as drafted or checked, and the lists grow as native speakers review them. Everything is plain text you can edit in a spreadsheet, with no coding.</p>
+      <p class="links">
+        <a href="https://github.com/datakeen/markooj-language-packs">Language packs on GitHub</a>
+        <a href="https://github.com/datakeen/markooj-language-packs/blob/main/CONTRIBUTING.md">How to help with words</a>
+      </p>
+    </div>
+    <p class="credit">Urdu word list from the Urdu Spell Checker v1.0 by the Center for Language Engineering (CLE), KICS, UET Lahore (originally CRULP), used under the GNU GPL v3. <a href="https://www.cle.org.pk/software/langproc/spellcheck.htm">cle.org.pk</a></p>
+  </div>
+</section>
+
+<!-- ============ Add-ins ============ -->
+<section class="section" id="addins" aria-labelledby="addins-title">
+  <div class="wrap center">
+    <p class="eyebrow">Add-ins</p>
+    <h2 id="addins-title">Add what you need.<br class="br-wide"> One click.</h2>
+    <p class="sub">An add-in store inside Markooj. Find a tool, install it, and keep it up to date, without leaving your document.</p>
+  </div>
+  <div class="wrap-wide">
+    <ol class="steps">
+      <li class="step">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg></div>
+        <h3>Find</h3>
+        <p>Open <b>File → Add-ins → Browse</b>. Search, or look through writing, research, math, languages, export and more.</p>
+      </li>
+      <li class="step">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg></div>
+        <h3>Install in one click</h3>
+        <p>Click <b>Install</b> and it is ready. Update, turn off or remove it just as easily, or bring everything up to date with <b>Update all</b>.</p>
+      </li>
+      <li class="step">
+        <div class="feat-ic" aria-hidden="true"><svg viewBox="0 0 24 24" class="ic"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg></div>
+        <h3>Make your own</h3>
+        <p>Start from the template, publish a release from your own GitHub repository, and ask for it to be listed with one small pull request.</p>
+      </li>
+    </ol>
+    <div class="note-card">
+      <p><strong>Careful about where add-ins come from.</strong> Markooj downloads add-ins only from GitHub and checks every file against its SHA-256 checksum before it installs anything. Add-ins made by the Markooj team carry a check mark. Add-ins from the store run only after you turn on Community add-ins, because an add-in can do anything Markooj can do.</p>
+      <p class="links">
+        <a href="https://github.com/datakeen/markooj-addin-template">Add-in template</a>
+        <a href="https://github.com/datakeen/markooj-addins/blob/main/SUBMITTING.md">Submit an add-in</a>
+        <a href="https://github.com/datakeen/markooj/blob/main/docs/ADDINS.md">Guide for authors</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Download ============ -->
+<section class="section tint" id="download" aria-labelledby="download-title">
+  <div class="wrap center">
+    <p class="eyebrow">Download</p>
+    <h2 id="download-title">Free for every computer.</h2>
+    <p class="sub" id="release-line">The latest release, for Windows, macOS and Linux. <a href="https://github.com/datakeen/markooj/releases/latest">All files and notes</a></p>
+  </div>
+  <div class="wrap-wide">
+    <div class="dl-grid">
+      <article class="dl" data-os="windows">
+        <div class="dl-head">
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="ic os"><path d="M4 5.5 11 4.5v7H4zM13 4.2 20 3v8.5h-7zM4 12.5h7v7l-7-1zM13 12.5h7V21l-7-1z"/></svg>
+          <h3>Windows</h3>
+          <span class="badge" hidden>Your system</span>
+        </div>
+        <p class="dl-req">Windows 10 and 11, 64-bit</p>
+        <div class="dl-files">
+          <a class="dl-file primary" data-asset="win-setup" href="https://github.com/datakeen/markooj/releases/latest">
+            <span class="dl-name">Installer</span><span class="dl-detail" data-pattern="Markooj-{v}-win-x64-setup.exe">.exe</span>
+          </a>
+          <a class="dl-file" data-asset="win-portable" href="https://github.com/datakeen/markooj/releases/latest">
+            <span class="dl-name">Portable, no install</span><span class="dl-detail" data-pattern="Markooj-{v}-win-x64-portable.zip">.zip</span>
+          </a>
+        </div>
+        <p class="dl-tip"><b>First start:</b> the app is not code-signed yet. If Windows says "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>.</p>
+      </article>
+      <article class="dl" data-os="mac">
+        <div class="dl-head">
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="ic os"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg>
+          <h3>macOS</h3>
+          <span class="badge" hidden>Your system</span>
+        </div>
+        <p class="dl-req">Pick the one for your Mac's chip</p>
+        <div class="dl-files">
+          <a class="dl-file primary" data-asset="mac-arm64" href="https://github.com/datakeen/markooj/releases/latest">
+            <span class="dl-name">Apple chip (M1 and later)</span><span class="dl-detail" data-pattern="Markooj-{v}-mac-arm64.dmg">.dmg</span>
+          </a>
+          <a class="dl-file" data-asset="mac-x64" href="https://github.com/datakeen/markooj/releases/latest">
+            <span class="dl-name">Intel</span><span class="dl-detail" data-pattern="Markooj-{v}-mac-x64.dmg">.dmg</span>
+          </a>
+        </div>
+        <p class="dl-tip"><b>First start:</b> the app is not signed yet. Control-click Markooj in Applications and choose <b>Open</b>. On newer macOS, use <b>System Settings → Privacy &amp; Security → Open Anyway</b>.</p>
+      </article>
+      <article class="dl" data-os="linux">
+        <div class="dl-head">
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="ic os"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="m7 10 3 2.5L7 15M12.5 15.5H17"/></svg>
+          <h3>Linux</h3>
+          <span class="badge" hidden>Your system</span>
+        </div>
+        <p class="dl-req">64-bit (x86_64)</p>
+        <div class="dl-files">
+          <a class="dl-file primary" data-asset="linux-appimage" href="https://github.com/datakeen/markooj/releases/latest">
+            <span class="dl-name">AppImage, any distribution</span><span class="dl-detail" data-pattern="Markooj-{v}-linux-x86_64.AppImage">.AppImage</span>
+          </a>
+          <a class="dl-file" data-asset="linux-deb" href="https://github.com/datakeen/markooj/releases/latest">
+            <span class="dl-name">Debian and Ubuntu</span><span class="dl-detail" data-pattern="Markooj-{v}-linux-amd64.deb">.deb</span>
+          </a>
+          <a class="dl-file" data-asset="linux-tar" href="https://github.com/datakeen/markooj/releases/latest">
+            <span class="dl-name">Archive</span><span class="dl-detail" data-pattern="Markooj-{v}-linux-x64.tar.gz">.tar.gz</span>
+          </a>
+        </div>
+        <p class="dl-tip"><b>First start:</b> make the AppImage executable (right-click → Properties → Allow executing, or <code>chmod +x</code>), then open it.</p>
+      </article>
+    </div>
+    <p class="dl-foot">Prefer to build it yourself? The <a href="https://github.com/datakeen/markooj">source code</a> is on GitHub, with steps in <a href="https://github.com/datakeen/markooj/blob/main/docs/BUILDING.md">BUILDING.md</a>.</p>
+  </div>
+</section>
+
+<!-- ============ Free and private ============ -->
+<section class="section" id="free" aria-labelledby="free-title">
+  <div class="wrap center">
+    <p class="eyebrow">Free and private</p>
+    <h2 id="free-title">Your words stay yours.</h2>
+  </div>
+  <div class="wrap-wide">
+    <ul class="pillars">
+      <li>
+        <svg aria-hidden="true" viewBox="0 0 24 24" class="ic"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0M4 4l16 16"/></svg>
+        <h3>No account</h3>
+        <p>Download it and start writing. Nothing to sign up for.</p>
+      </li>
+      <li>
+        <svg aria-hidden="true" viewBox="0 0 24 24" class="ic"><path d="M7 18a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5M4 4l16 16"/></svg>
+        <h3>No upload</h3>
+        <p>Your documents, and every check of your writing, stay on your computer.</p>
+      </li>
+      <li>
+        <svg aria-hidden="true" viewBox="0 0 24 24" class="ic"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M3 3l18 18"/></svg>
+        <h3>Works offline</h3>
+        <p>Spelling, grammar, equations, conversions and macros all work without the internet.</p>
+      </li>
+      <li>
+        <svg aria-hidden="true" viewBox="0 0 24 24" class="ic"><path d="M12 3.5 4.5 6.5v5c0 4.5 3.2 8 7.5 9 4.3-1 7.5-4.5 7.5-9v-5z"/><path d="m9 12 2 2 4-4"/></svg>
+        <h3>Free and open source</h3>
+        <p>Use it, share it and change it, under the <a href="https://github.com/datakeen/markooj/blob/main/LICENSE">GNU AGPL, version 3</a> or later.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ Support ============ -->
+<section class="section tint" id="support" aria-labelledby="support-title">
+  <div class="wrap">
+    <div class="support">
+      <div class="support-text">
+        <p class="eyebrow">Get involved</p>
+        <h2 id="support-title">Help Markooj grow.</h2>
+        <p>Markooj is free, and you owe nothing for using it. The part that grows slowest is the language work: each word in the Urdu, Arabic and Punjabi lists needs a native speaker to read it, check its spelling and aarab (the vowel marks), and think about how people really type it. That takes patient human time.</p>
+        <p>If Markooj helps you, any of these makes a real difference.</p>
+      </div>
+      <ol class="support-ways">
+        <li>
+          <h3>Share it</h3>
+          <p>Tell a colleague or a student, especially someone who writes in Urdu, Arabic, Punjabi or Persian.</p>
+        </li>
+        <li>
+          <h3>Check some words</h3>
+          <p>If one of these is your language, look through a word list and mark the words you are sure of. <a href="https://github.com/datakeen/markooj-language-packs/blob/main/CONTRIBUTING.md">See how</a></p>
+        </li>
+        <li>
+          <h3>Support the work</h3>
+          <p>Help pay native-speaker reviewers and time for the next parts of the roadmap, or sponsor one language. <a href="https://tally.so/r/7XbpbP">Send a message</a></p>
+        </li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap-wide foot-in">
+    <div class="foot-brand">
+      <img src="img/logo-64.png" width="24" height="24" alt="">
+      <span>Markooj</span>
+    </div>
+    <p class="foot-copy">Copyright (C) 2026 Ahmed Bilal and contributors · <a href="https://github.com/datakeen/markooj/blob/main/LICENSE">AGPL-3.0-or-later</a></p>
+    <ul class="foot-links">
+      <li><a href="https://github.com/datakeen/markooj">GitHub</a></li>
+      <li><a href="https://github.com/datakeen/markooj/issues">Report a problem</a></li>
+      <li><a href="https://www.linkedin.com/in/abilal">LinkedIn</a></li>
+    </ul>
+  </div>
+</footer>
+
+<dialog class="lightbox" id="lightbox" aria-label="Screenshot">
+  <form method="dialog" class="lb-bar">
+    <p class="lb-cap" id="lb-cap"></p>
+    <button class="lb-btn" type="button" data-lb="prev" aria-label="Previous picture"><svg viewBox="0 0 24 24" class="ic" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button>
+    <button class="lb-btn" type="button" data-lb="next" aria-label="Next picture"><svg viewBox="0 0 24 24" class="ic" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+    <button class="lb-btn" value="close" aria-label="Close"><svg viewBox="0 0 24 24" class="ic" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </form>
+  <img id="lb-img" alt="" width="1600" height="1000">
+</dialog>
+</body>
+</html>
