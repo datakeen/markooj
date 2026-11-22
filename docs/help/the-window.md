@@ -17,7 +17,7 @@ The ribbon has the tabs you know from Word:
 | **View** | Print or Web layout, Focus, writing goals, the outline, zoom, editing mode and theme. |
 | **Developer** | Macros, the recorder, the macro editor, the Python console, math macros and add-ins. |
 | **Add-ins** | The buttons your add-ins add. |
-| **Help** | This manual (F1), Tutorials, Keyboard Shortcuts, What's New, Report a Problem, Check Tools and About Markooj. File → Help has the same. |
+| **Help** | This manual (F1), Tutorials, Keyboard Shortcuts, Welcome, What's New, Report a Problem, Check Tools and About Markooj. File → Help has the same. |
 
 Two more tabs appear only when you need them: **Table Design** and **Table Layout** show up when the cursor is in a table, in a color of their own, like Word's table tools.
 

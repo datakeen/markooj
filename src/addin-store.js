@@ -9,7 +9,7 @@
   const invoke = (ch, ...a) => mk.invoke(ch, ...a);
   const esc = app.esc || (s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])));
   const toast = (m, o) => { try { return app.ui.toast(m, o); } catch { console.log('[toast]', m); } };
-  const plainError = (e, fb) => (app.ui.plainError ? app.ui.plainError(e, fb) : String((e && e.message) || e || fb || 'Something went wrong.'));
+  const plainError = (e, fb) => (app.ui.plainError ? app.ui.plainError(e, fb) : String((e && e.message) || e || fb || 'Try that again.'));
   const svg = (name) => `<svg class="i" aria-hidden="true"><use href="#${name}"/></svg>`;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const A = app.assert || ((c, m) => { if (!c) throw new Error('Assertion failed: ' + m); });
@@ -81,10 +81,17 @@
     app.events.emit('addins:updates', updates().length);
     return S.installed;
   }
+  // A list that did not load: what to do first (network → check the connection), then what still works
+  function listError(e, what) {
+    const why = plainError(e, '');
+    const known = app.ui.friendlyError?.(e);
+    const plain = why && !known && !/\b(?:E[A-Z]{3,}|HTTP \d{3}|status \d{3}|undefined|null|TypeError)\b/.test(why);
+    return (plain ? why : (known || 'Check your internet connection, then click Try again.')) + ` ${what}`;
+  }
   async function loadIndex({ refresh = false } = {}) {
     S.loading = true; S.error = ''; rerender();
     try { S.index = await invoke('addins-index', { refresh }); }
-    catch (e) { S.error = plainError(e, 'Markooj could not reach GitHub.'); }
+    catch (e) { S.error = listError(e, 'Your installed add-ins keep working.'); S.errorDetails = app.ui.technicalText?.(e) || ''; }
     S.loading = false;
     await refreshInstalled();
     rerender();
@@ -107,11 +114,11 @@
       await refreshInstalled();
       const reload = { label: 'Reload add-ins now', run: () => app.addons.reload() };
       const started = app.addons.list.find(a => a.id === id);
-      if (started?.error) toast(`Installed “${r.name}”, but it could not start. See File → Add-ins.`, { kind: 'error', action: reload });
+      if (started?.error) toast(`Turn “${r.name}” off, or report it to its author: it installed but didn’t start. Everything else works.`, { kind: 'error', actions: [{ label: 'Turn it off', run: () => app.addons.setEnabled?.(id, false) }, { label: 'Show', run: () => open('installed') }, reload] });
       else if (wasInstalled || res.needsReload) toast(`Updated “${r.name}” to ${r.version}. Reload add-ins to use the new version.`, { kind: 'success', action: reload });
       else toast(`Installed “${r.name}”. It is on now.`, { kind: 'success', action: reload });
     } catch (err) {
-      toast(`“${name}” was not installed. ${plainError(err)}`, { kind: 'error' });
+      app.ui.fail(err, { lead: `Try installing “${name}” again.`, retry: () => install(id), still: 'Nothing was changed.' });
     } finally { S.busy.delete(id); rerender(); }
     return r;
   }
@@ -129,7 +136,7 @@
       toast(`Uninstalled “${name}”.${res.needsReload ? ' It stops fully after a reload.' : ''}`, res.needsReload ? { action: { label: 'Reload add-ins now', run: () => app.addons.reload() } } : {});
       rerender();
       return true;
-    } catch (err) { toast(plainError(err), { kind: 'error' }); return false; }
+    } catch (err) { app.ui.fail(err, { lead: 'Close any document the add-in is using, then try Uninstall again.', retry: () => uninstallNow(id, name) }); return false; }
   }
   async function updateAll() {
     const n = updates().length;
@@ -141,7 +148,7 @@
     const res = await app.addons.rescan();
     await refreshInstalled();
     const reload = { label: 'Reload add-ins now', run: () => app.addons.reload() };
-    if (r.failed.length) toast(`${r.updated.length ? `Updated ${r.updated.length}. ` : ''}${r.failed.length === 1 ? 'One add-in' : r.failed.length + ' add-ins'} could not be updated: ${r.failed[0].error}`, { kind: 'error', action: r.updated.length ? reload : undefined });
+    if (r.failed.length) toast(`Try Update all again${r.updated.length ? ` (${r.updated.length} updated)` : ''}. ${r.failed.length === 1 ? 'One add-in' : r.failed.length + ' add-ins'} didn’t update and still work${r.failed.length === 1 ? 's' : ''} in the old version: ${r.failed[0].error}`, { kind: 'error', actions: [{ label: 'Try again', run: () => updateAll() }, ...(r.updated.length ? [reload] : [])], details: r.failed.map(f => `${f.id || 'add-in'}: ${f.error}`).join('\n') });
     else toast(`Updated ${r.updated.length === 1 ? 'one add-in' : r.updated.length + ' add-ins'}.${res.needsReload ? ' Reload add-ins to use the new versions.' : ''}`, { kind: 'success', action: reload });
     rerender();
     return r;
@@ -150,14 +157,14 @@
   async function checkUpdates({ quiet = false } = {}) {
     try { app.settings.set(LAST_CHECK, Date.now()); } catch {}
     await loadIndex({ refresh: true });
-    if (S.error) { if (!quiet) toast(S.error, { kind: 'error' }); return -1; }
+    if (S.error) { if (!quiet) toast(S.error, { kind: 'warn', actions: [{ label: 'Try again', run: () => checkUpdates() }], details: S.errorDetails }); return -1; }
     const n = updates().length;
     if (n) toast(`${n === 1 ? 'An add-in update is' : n + ' add-in updates are'} ready.`, { kind: 'info', actions: [{ label: 'Update all', run: () => updateAll() }, { label: 'Show', run: () => open('installed') }] });
-    else if (!quiet) toast(S.index?.offline ? 'You seem to be offline. Showing the add-ins Markooj saw last time.' : 'All add-ins are up to date.');
+    else if (!quiet) toast(S.index?.offline ? 'Check your internet connection to look for updates. Until then Markooj shows the add-ins it saw last time.' : 'All add-ins are up to date.', S.index?.offline ? { kind: 'info', actions: [{ label: 'Try again', run: () => checkUpdates() }] } : {});
     return n;
   }
   function open(tab) { if (tab) S.tab = tab; S.details = null; app.backstage.open('addins'); }
-  function openExternal(url) { invoke('open-external', url).catch(e => toast(plainError(e), { kind: 'error' })); }
+  function openExternal(url) { invoke('open-external', url).catch(e => app.ui.fail(e, { lead: 'Open this address in your browser yourself.', hideReason: true, actions: [{ label: 'Copy link', run: () => app.ui.copyText?.(url, 'Link copied. Paste it into your browser.') }] })); }
 
   // ---------- page ----------
   function rerender() { for (const el of [...pages]) { if (el.isConnected) drawPage(el); else pages.delete(el); } }
@@ -232,8 +239,9 @@
   function statusLine() {
     const st = document.createElement('div');
     if (S.loading && !S.index) { st.className = 'mks-status'; st.textContent = 'Getting the add-in list from GitHub…'; return st; }
-    if (S.error && !S.index) { st.className = 'mks-status err'; st.textContent = S.error; return st; }
-    if (S.index?.offline) { st.className = 'mks-status warn'; st.textContent = `You seem to be offline. Showing the list Markooj saw ${S.index.fetchedAt ? 'on ' + dateText(S.index.fetchedAt) : 'last time'}.`; return st; }
+    const retry = () => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mks-btn'; b.textContent = 'Try again'; b.style.marginLeft = '8px'; b.addEventListener('click', () => loadIndex({ refresh: true })); return b; };
+    if (S.error && !S.index) { st.className = 'mks-status err'; st.textContent = S.error; st.append(retry()); return st; }
+    if (S.index?.offline) { st.className = 'mks-status warn'; st.textContent = `Check your internet connection to see new add-ins. Showing the list Markooj saw ${S.index.fetchedAt ? 'on ' + dateText(S.index.fetchedAt) : 'last time'}.`; st.append(retry()); return st; }
     return null;
   }
   function actionButton(e) {
@@ -384,7 +392,7 @@
       el.dataset.loaded = '1';
     } catch (err) {
       if (!el.isConnected) return;
-      el.innerHTML = `<p class="mks-empty" style="padding:0">${esc(e.description)}</p><p class="mks-status">${esc(plainError(err, 'The description could not be loaded.'))}</p>`;
+      el.innerHTML = `<p class="mks-empty" style="padding:0">${esc(e.description)}</p><p class="mks-status">${esc(listError(err, 'The short description above is all Markooj has for now.'))}</p>`;
     }
   }
 
@@ -392,13 +400,13 @@
   async function loadPacks() {
     if (!app.lang?.packs) return;
     S.packs.loading = true; S.packs.error = ''; rerender();
-    try { S.packs.index = await app.lang.packs.index(); } catch (e) { S.packs.error = plainError(e, 'Markooj could not reach GitHub.'); }
+    try { S.packs.index = await app.lang.packs.index(); } catch (e) { S.packs.error = listError(e, 'You can also install a pack from a file. Installed languages keep working.'); }
     try { await app.lang.packs.list(); } catch {}
     S.packs.loading = false; rerender();
   }
   function drawPacks(panel) {
     const P = app.lang?.packs;
-    if (!P) { panel.innerHTML = '<div class="mks-empty">Language packs are not available in this copy of Markooj.</div>'; return; }
+    if (!P) { panel.innerHTML = '<div class="mks-empty">Restart Markooj to use language packs. The language tools did not load this time.</div>'; return; }
     const head = document.createElement('div'); head.className = 'mks-bar';
     const mkBtn = (label, icon, fn, cls, tip, tipD) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mks-btn ' + (cls || ''); b.innerHTML = (icon ? svg(icon) : '') + esc(label); if (tip) { b.dataset.tip = tip; b.dataset.tipD = tipD; } b.addEventListener('click', fn); return b; };
     const chk = mkBtn(S.packs.loading ? 'Checking…' : S.packs.index ? 'Check again' : 'Check for language packs', 'refresh', () => loadPacks(), 'primary', 'Check for language packs', 'Ask GitHub which language packs are available.');
@@ -417,9 +425,9 @@
     panel.append(sec('Available on GitHub'));
     const avail = document.createElement('div'); avail.className = 'mks-packs';
     if (S.packs.loading && !S.packs.index) avail.innerHTML = '<div class="mks-status">Getting the language pack list from GitHub…</div>';
-    else if (S.packs.error) avail.innerHTML = `<div class="mks-status err">${esc(S.packs.error)}</div>`;
+    else if (S.packs.error) { avail.innerHTML = `<div class="mks-status err">${esc(S.packs.error)} <button type="button" class="mks-btn" data-act="retry">Try again</button></div>`; avail.querySelector('[data-act=retry]').addEventListener('click', () => loadPacks()); }
     else if (!S.packs.index) avail.innerHTML = '<div class="mks-empty">Urdu, Arabic, Punjabi (Shahmukhi) and Persian packs come from the Markooj language packs on GitHub. Click Check for language packs.</div>';
-    else if (!S.packs.index.packs.length) avail.innerHTML = '<div class="mks-empty">No language packs are published yet.</div>';
+    else if (!S.packs.index.packs.length) avail.innerHTML = '<div class="mks-empty">Check again later, or install a pack from a file. None are published yet.</div>';
     else for (const p of S.packs.index.packs) avail.append(packRow(p, { available: true, have: installed.find(x => x.code === p.code) }));
     panel.append(avail);
   }
@@ -433,7 +441,7 @@
       b.textContent = 'Remove'; b.dataset.tip = `Remove ${p.name}`; b.dataset.tipD = 'Delete this language pack from this computer. You can install it again later.';
       b.addEventListener('click', async () => {
         if (!(await app.ui.confirm(`Remove ${p.name}?`, 'The language pack is deleted from this computer. Documents in this language keep their text, direction and fonts.', { ok: 'Remove', danger: true }))) return;
-        try { await app.lang.packs.remove(p.code); toast(`${p.name} language pack removed.`); } catch (e) { toast(plainError(e), { kind: 'error' }); }
+        try { await app.lang.packs.remove(p.code); toast(`${p.name} language pack removed.`); } catch (e) { app.ui.fail(e, { lead: `Close any document that uses ${p.name}, then try Remove again.`, retry: () => app.lang.packs.remove(p.code).then(rerender) }); }
         rerender();
       });
     } else {
@@ -447,7 +455,7 @@
         b.addEventListener('click', async () => {
           S.packs.busy.add(p.code); rerender();
           try { const r = await app.lang.packs.install({ url: p.url }); toast(`${r.name || p.name} language pack installed.`); }
-          catch (e) { toast(plainError(e), { kind: 'error' }); }
+          catch (e) { app.ui.fail(e, { lead: `Try installing ${p.name} again, or install it from a file.`, retry: () => app.lang.packs.install({ url: p.url }).then(r => { toast(`${r.name || p.name} language pack installed.`); rerender(); }), actions: [{ label: 'Install from file', run: () => app.commands.run('lang.installFromFile') }], still: 'Installed languages keep working.' }); }
           S.packs.busy.delete(p.code); rerender();
         });
       }
@@ -597,7 +605,7 @@
       A(idx.addins.find(a => a.id === 'zz-bad-sha').verified === false, 'only datakeen repositories get the check mark');
 
       // refused installs leave nothing behind
-      const refuse = async (id, re) => { let err = null; try { await invoke('addins-install', { id }); } catch (x) { err = x; } A(err && re.test(plainError(err)), `${id} refused: ${err && err.message}`); };
+      const refuse = async (id, re) => { let err = null; try { await invoke('addins-install', { id }); } catch (x) { err = x; } A(err && re.test(plainError(err) + ' ' + ((mk.errorInfo && mk.errorInfo(err)?.details) || '')), `${id} refused: ${err && err.message}`); };
       await refuse('zz-bad-sha', /SHA-256/);
       await refuse('zz-bad-manifest', /manifest.*something-else/i);
       await refuse('zz-too-new', /needs Markooj 99\.0\.0/);

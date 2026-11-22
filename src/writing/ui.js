@@ -83,7 +83,7 @@
     const c = st.counts || { correctness: 0, clarity: 0, engagement: 0, delivery: 0 };
     const shown = filter === 'all' ? list : list.filter(f => f.cat === filter);
     const lang = W.languageFor(doc);
-    const status = !S.on() && !S.spell() ? 'Checking is off.' : st.status === 'checking' ? 'Checking…' : W.engine.harper === 'loading' ? 'Starting the grammar checker…' : lang.unsupported ? `Spelling and grammar are not available for “${lang.code}”. Add a language pack in File → Options → Language.` : '';
+    const status = !S.on() && !S.spell() ? 'Checking is off.' : st.status === 'checking' ? 'Checking…' : W.engine.harper === 'loading' ? 'Starting the grammar checker…' : lang.unsupported ? `Add a language pack in File → Options → Language to check “${lang.code}”. Markooj has no spelling or grammar checks for it yet.` : '';
     const safe = W.safeCount(doc);
     const scrollTop = body.querySelector('.mkw-list')?.scrollTop || 0;
     body.innerHTML = `
@@ -261,7 +261,7 @@
       const w = inp.value.trim(); thesWord = w;
       if (!w) { res.innerHTML = '<div class="mkw-empty">Type a word, or select one in your document and press Shift+F7.</div>'; return; }
       const r = await W.synonyms(w);
-      if (!r) { res.innerHTML = '<div class="mkw-empty">The thesaurus could not load.</div>'; return; }
+      if (!r) { res.innerHTML = '<div class="mkw-empty">Press Enter to try again. The thesaurus didn’t load this time; spelling and grammar checks still work.</div>'; return; }
       if (!r.groups.length) { res.innerHTML = `<div class="mkw-empty">No synonyms for “${esc(w)}”. Check the spelling, or try the base form of the word.</div>`; return; }
       res.innerHTML = (r.lemma !== w.toLowerCase() ? `<div class="mkw-th-lemma">Showing “${esc(r.lemma)}”</div>` : '') + r.groups.map(g => `<section><h4>${esc(g.pos)}</h4>${g.meanings.map(m => `<div class="mkw-th-m">${m.gloss ? `<div class="mkw-th-g">${esc(m.gloss)}</div>` : ''}<div class="mkw-chips">${m.words.map(x => `<button type="button" class="mkw-chip" data-w="${esc(x)}">${esc(x)}</button>`).join('')}</div>${m.antonyms.length ? `<div class="mkw-th-a">Antonyms: ${m.antonyms.map(x => `<button type="button" class="mkw-chip anto" data-w="${esc(x)}">${esc(x)}</button>`).join(' ')}</div>` : ''}</div>`).join('')}</section>`).join('');
     };

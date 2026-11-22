@@ -2,6 +2,14 @@
 
 Six short steps, from a blank page to a finished PDF. If you have used Word, most of this will feel familiar.
 
+## Welcome and what's new
+
+The first time you start Markooj, the **Welcome** screen shows what it can do. Each feature has a **Show me** button that starts a short guided tour on the real buttons, in a practice document, so your files are never touched. **Take the 2-minute tour** walks through the ribbon, the four modes and saving, **Open a sample document** opens a short research paper to try things on, and **Start writing** takes you to your page. Press **Esc** to close it; **Tab** and the arrow keys move between the buttons.
+
+After each update, Markooj shows **What's new** once, with the main changes of that version. **See all changes** opens the full list.
+
+Open either one any time: **Help → Welcome** or **Help → What's New**, or press **Alt+Q** and type `welcome`. To see the Welcome each time Markooj starts, tick **Show this when Markooj starts**. If you started Markooj by opening a file, a small **Welcome** (or **What's new**) button waits in the status bar instead, so your document stays in front.
+
 ## 1. Start a document
 
 Markooj opens with a blank page. To start from a ready-made layout instead, click **File**, then **New**, and pick one:

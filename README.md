@@ -169,7 +169,7 @@ Pandoc comes with every copy. On macOS and Linux, DjVu files also need the DjVu 
 
 ## Help
 
-Press **F1** in Markooj, or open the **Help** tab, for the reference manual and guided tutorials. They work offline. The same pages are in [docs/help](docs/help/index.md); start with [Getting started](docs/help/getting-started.md), or read [Markdown for Word users](docs/help/markdown-for-word-users.md).
+Press **F1** in Markooj, or open the **Help** tab, for the reference manual, guided tutorials and the Welcome screen. They work offline. The same pages are in [docs/help](docs/help/index.md); start with [Getting started](docs/help/getting-started.md), or read [Markdown for Word users](docs/help/markdown-for-word-users.md).
 
 ## Privacy
 
@@ -198,7 +198,7 @@ npm start
 
 ## What is new, and what is next
 
-Every release is listed in [CHANGELOG.md](CHANGELOG.md). Where Markooj is heading is in [ROADMAP.md](ROADMAP.md).
+Version 1.1.1 adds a Welcome screen with a guided tour for each main feature, a short What's new note after each update, and messages that lead with what you can do. Every release is listed in [CHANGELOG.md](CHANGELOG.md). Where Markooj is heading is in [ROADMAP.md](ROADMAP.md).
 
 ## Feedback and contributing
 
@@ -218,7 +218,7 @@ Markooj is free and open-source software. If it makes your writing a little easi
 
 **Where support helps most.** The Urdu, Arabic and Punjabi tools are built mostly from scratch. They grow only as fast as native speakers can give their time to check words, spellings and rules, and that time costs money. Support goes first to that work.
 
-**Get in touch:** [send me a message](https://tally.so/r/7XbpbP) to donate, to sponsor a language or a feature, or to offer to review words. It's a short form for individuals and organizations alike.
+**Get in touch:** [send me a message](https://tally.so/r/db9jlN?from=markooj-readme) to donate, to sponsor a language or a feature, or to offer to review words. It's a short form for individuals and organizations alike.
 
 ## License
 

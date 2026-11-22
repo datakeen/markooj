@@ -697,7 +697,7 @@
       if (/^(https?:|mailto:)/i.test(href)) { mk.invoke?.('open-external', href)?.catch?.(() => {}); return; }
       if (doc?.path && !/^[a-z][\w+.-]*:/i.test(href)) {
         const dir = doc.path.replace(/[\\/][^\\/]*$/, ''); const p = dir + (doc.path.includes('\\') ? '\\' : '/') + decodeURIComponent(href.split('#')[0]).replace(/\//g, doc.path.includes('\\') ? '\\' : '/');
-        app.docs.open(p).catch(err => app.ui.toast(`Could not open ${href}. ${app.ui.plainError ? app.ui.plainError(err) : (err.message || err)}`, { kind: 'error' }));
+        app.docs.open(p).catch(err => (app.ui.fail ? app.ui.fail(err, { lead: `Check that the linked file “${href}” is next to this document, or fix the link.`, hideReason: true }) : app.ui.toast(`Check that the linked file “${href}” is next to this document, or fix the link.`, { kind: 'error' })));
       }
     }
     // '$…$ ' and '\(…\) ' turn into rendered math as you type
@@ -912,7 +912,7 @@
         b.addEventListener('mousedown', e => e.preventDefault());
         b.addEventListener('click', () => {
           if (cmd === 'review.comment') return addComment();
-          if (cmd === 'ref.cite' && !app.commands.get('ref.cite')) return app.ui.toast?.('Citations need the References tools.');
+          if (cmd === 'ref.cite' && !app.commands.get('ref.cite')) return app.ui.toast?.('Use References → Cite to add citations. The citation tools are still loading.', { kind: 'info' });
           app.commands.run(cmd);
           setTimeout(updateFloatStates, 0);
         });
@@ -1315,7 +1315,7 @@
           case 'ul': return toggleList('ul');
           case 'ol': return toggleList('ol');
           case 'task': return toggleTask();
-          case 'indent': return closestIn('li') ? ex('indent') : app.ui.toast?.('Indent works on list items. Markdown has no page indents.');
+          case 'indent': return closestIn('li') ? ex('indent') : app.ui.toast?.('Click in a list item to indent it. Markdown has no page indents for plain paragraphs.', { kind: 'info' });
           case 'outdent': return closestIn('li') ? ex('outdent') : (closestIn('blockquote') ? setBlock('quote') : undefined);
           case 'quote': return setBlock('quote');
           case 'p': return setBlock('p');

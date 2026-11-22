@@ -474,7 +474,7 @@ files). Events `help:opened`, `help:page`, `help:closed`. Icons are `<symbol id=
 modes, macro, python, js-macro, equations, crossref, tables, writing, rtl, export, recover, ribbon, keys; each also has a command `tour.<camelId>`
 ("Tutorial: …", found with Alt+Q) and a section with the same title in `docs/help/tutorials.md` (smoke-tested both ways). Hidden `help.stopTour`.
 A tour runs in a scratch "Tutorial document" and puts back the mode, ribbon tab and display, File view and Writing Assistant pane when it ends.
-Settings `toursDone`, `toursOffered` (the first-launch offer shows once, only on a fresh profile, never in smoke mode). Events `tour:started`, `tour:step`,
+Settings `toursDone` (`toursOffered` is gone in 1.1.1: the Welcome screen replaced the first-launch toast). Events `tour:started`, `tour:step`,
 `tour:ended`, `tours:changed`.
 
 ### License (item 47)
@@ -486,7 +486,7 @@ of every bundled part: Pandoc, DjVuLibre (GPL-2.0-or-later) and pdf2djvu (GPL-2.
 ### Packaging
 `build.files` adds `CHANGELOG.md` (What's New reads it). `LICENSE`, `licenses/` and `THIRD_PARTY_NOTICES.md` ship only in `resources/`
 (`extraResources`; electron-builder leaves every extraResources source out of `app.asar`), and the app reads them through the `app-info` paths
-(`licenseFile`, `noticesFile`, `licensesDir`). `docs/help/**` was already listed. `docs/images/`, `marketing/`, `samples/` and `private/` are never packaged.
+(`licenseFile`, `noticesFile`, `licensesDir`). `docs/help/**` was already listed. `docs/images/`, `marketing/` and `private/` are never packaged; of `samples/` only `samples/sediment-transport/**` ships (1.1.1, Welcome → Open a sample document).
 
 ### Integration fixes (integrator 2)
 - `app.version` is read from `app-info` at boot (Options footer showed 0.2.0). Smoke timeout in main is 420 s.
@@ -654,3 +654,77 @@ Script order in `src/index.html`: `… tours.js, addin-store.js, review3-tests.j
   Screenshots `addin-store`, `addin-details`, `addin-installed`.
 - Languages: a full-spelling pack with counts, similar letters, phrases and credits; the real `ur` 2.1.0 pack from a sibling
   `markooj-language-packs/dist` in full mode (CLE credit, common words known, typos flagged with the right suggestion, speed).
+
+## 1.1.1 additions (2026-11-22): solution-first messages, quiet tool checks, Welcome
+
+The message rule (CONTRIBUTING.md → "Writing messages") applies to every toast, dialog, status line, error card and help
+text about a problem: lead with what the user can do (a button that does it when possible), then what still works,
+raw codes only under "Technical details". Optional tools never warn at start; help comes when the user tries the feature.
+
+### New files and owners
+
+| File | Owner | Purpose |
+|---|---|---|
+| `src/welcome.js`, `src/welcome.css` | **welcome** | `app.welcome`: Welcome sheet (8 feature cards with "Show me" tours), What's new after an update, status-bar chip, sample document |
+
+Script order in `src/index.html`: `… writing/tests.js, help.js, tours.js, welcome.js, addin-store.js, review3-tests.js, integration.js, app.js`;
+CSS `… help.css, tours.css, welcome.css, addin-store.css`.
+
+### Tools check (main.js)
+- `toolAnswered(id, {started, code, out})` → `{ok, version, usage, state: 'ok'|'blocked'|'failed'}` is the whole decision. A DjVuLibre
+  program (ddjvu, djvutxt, djvused, djvm, c44) that started and printed its usage text counts as working whatever its exit code: the
+  official SourceForge build for Windows prints no version for `ddjvu --help` and exits 1 (djvutxt/djvused exit 10). Markooj 1.1.0
+  wrongly reported that build as missing.
+- The startup check stays quiet. The only startup toast is for Pandoc, when it is broken and the user has exported with it 3+ times
+  (setting `toolUse.pandoc`).
+- `tools-health` adds per tool `state` ('ok'|'missing'|'failed'|'blocked'), `output` (failed), `remedy` `{text, steps:[{text, command?}], actions}`
+  (missing); top level `version`, `downloadUrl`, `issuesUrl`; `fix` is the first missing tool's remedy text. `tools-simulate-gone` also
+  returns `actions` and `details`.
+- `read-file` for DjVu adds `missingTool: 'ddjvu'` when the tools are absent. `export-formats` entries add `needs` ('pandoc'|'pdf2djvu')
+  and, when unavailable, a short `reason`.
+
+### Errors from main carry buttons
+- Main errors may carry `actions` `[{id, label, url?, text?, tool?, path?}]`, `details` and `code`. main.js wraps `ipcMain.handle`, so every
+  channel (langpack and addin channels too) sends them after an invisible marker in the message; preload strips it, so the window still
+  gets a plain Error (`e.code` set when main gave one).
+- `mk.errorInfo(e)` → `{message, actions, details, code, tool}` or null. `mk.copyText(text)` (IPC `clipboard-write`).
+- Action ids: `retry`, `save-as`, `choose-format`, `open-file`, `check-tools`, `open-url` (url), `copy` (text), `copy-details` (text),
+  `report` (url), `tool` (tool: pandoc|pdf2djvu|ddjvu), `open-folder` (path).
+- Codes: `TOOL_MISSING`, `TOOL_GONE`, `DJVU_FAILED`, `EXPORT_FAILED`, `OPEN_FAILED`, `NOT_MARKDOWN`, `NO_SAMPLE`, plus the fs codes.
+- New IPC `sample-open(name)`: copies `<appRoot>/samples/<name>/` (inside the asar when packaged) to `<userData>/samples/<name>/` when that
+  copy is missing and returns the `.md` path. Smoke only: `tools-verdict(id, probe)`, `tools-remedy-probe(id, {platform, packaged, portable})`,
+  `errors-probe(codes[])`, `errors-probe-throw`.
+
+### `app.health` (src/health.js)
+`{check, last, describe, summary, showDetails, remedy(id, r?), offer(id, opts?), runAction(action, ctx?), errorActions(e, ctx?), toastError(e, opts?),
+showError(e, opts?), markTried(id), noteUse(id), notify(r, ids?), refreshFormats, copy(text, okMsg?), detailsText(r?, id?), relevant(r)}`.
+- `remedy()` → `{id, label, state, ok, title, text, fix, steps, works, actions, details}`. `offer(id)` is the "how to get it" dialog shown when a
+  feature needs a tool (uses `app.ui.solution`; close button "Not now"). `ctx` for runAction/errorActions/toastError may give `retry, saveAs,
+  chooseFormat, openFile, onChecked(result), tool, details`.
+- Check Tools (command `help.checkTools`, label "Check Tools") is titled "Your tools are ready" or "Almost everything is ready".
+- Settings `toolsTried` (string[]), `toolUse` ({pandoc: n}).
+
+### Window helpers (src/shell.js; core.js has fallbacks)
+- `app.ui.toast(msg, {kind, action|actions, details, detailsTitle, timeout})`: `details` adds a Details button; every call is logged in
+  `app.ui.toastLog` `{msg, kind, actions, details, test, at}`. Error/warning toasts with buttons stay 10 s.
+- `app.ui.fail(e, {lead, retry, actions, still, kind, details, hideReason, ctx})`: lead, then the error's plain text (or `friendlyError`), then
+  `still`; code-like text under Details; Try again with `retry`. When `mk.errorInfo(e)` has an answer, main's message leads (no `lead` in front
+  unless `hideReason`), its buttons come along through `app.health.errorActions(e, ctx)`, and its details go under Details.
+- `app.ui.solution({title, lead, steps:[{os?, text, command?, link?}], still, details, actions, icon, kind, closeLabel})` → Promise<value>: steps for
+  this system first (Copy button per command), other systems folded, then `still`, then Technical details.
+- Also `showDetails, friendlyError, technicalText, copyText, reportProblem, isActionable(msg, {actions}), remedyVerbs, platformName`;
+  `app.messages.audit(since)` → `{checked, bad[]}`.
+- Save As: cards of unavailable formats stay clickable and call `app.exporter.export(id)`, which opens `app.health.offer(f.needs)`.
+- Smoke rule (src/app.js): an error or warning toast must have a real button (not Details/Dismiss/OK/Close) or start a sentence with a remedy
+  verb (`app.ui.remedyVerbs`); tests `messages: …` (in-app and end of run).
+
+### `app.welcome` (src/welcome.js)
+`{open('welcome'|'whatsnew', {markSeen}) → Promise<how>, close(how), isOpen, mode, startup(opts), decide({fresh, seen, version, showOnStart}),
+compareVersions, cards, highlights, highlightsFor(v), sample: {available, open}, chip: {show(mode), hide, shown}}`.
+- Fresh profile → Welcome; an update (or a 1.1.0 profile with no record) → What's new; never in smoke mode; it waits for an idle window and
+  shows a status-bar chip (status item `welcome`) instead when a file was opened at start or the user is already working.
+- Command `help.welcome` (Help tab group `help-news`, now labeled "Welcome"; File → Help card). Events `welcome:opened {mode}`,
+  `welcome:closed {mode, how}`. Settings `welcome.seenVersion`, `welcome.showOnStart` (false). Sheet z-index 84, `data-mk-keys="own"`.
+- Every release needs a `HIGHLIGHTS` entry for its version in src/welcome.js (a smoke test fails as the reminder).
+- New tour `citations` ("Citations from a BibTeX library", command `tour.citations`).
+- `scripts/make-store-images.js` writes `welcome.seenVersion` so What's new never covers the store screenshots.

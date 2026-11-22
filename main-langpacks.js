@@ -60,41 +60,49 @@ const packsDir = () => path.join(app.getPath('userData'), 'langpacks');
 const sha256 = buf => crypto.createHash('sha256').update(buf).digest('hex');
 let cachedIndex = null;
 
-function plain(msg) { const e = new Error(msg); e.plain = true; return e; }
+// Messages lead with what to do (main.js errorForIpc sends actions and details to the window; see mk.errorInfo).
+function plain(msg, actions, details) { const e = new Error(msg); e.plain = true; if (actions && actions.length) e.actions = actions; if (details) e.details = String(details).slice(0, 4000); return e; }
+const RETRY = { id: 'retry', label: 'Try again' };
+const REPORT = { id: 'report', label: 'Report this', url: 'https://github.com/datakeen/markooj-language-packs/issues' };
+// a pack that fails a check: what to do, that nothing changed, then the reason (kept for the details and the tests)
+function badPack(why) {
+  const reason = String(why).replace(/\.$/, '');
+  return plain('Try another copy of this language pack, or ask its author for a fixed one. This pack did not pass Markooj’s checks, so nothing was installed and Markooj is unchanged.', [{ id: 'copy-details', label: 'Copy details', text: reason }, REPORT], reason);
+}
 // English and every English variety map onto the built-in en-US / en-GB languages
 const isBuiltinCode = code => /^en(?:[-_]|$)/i.test(String(code || ''));
 
 /** GET over https with a timeout, following GitHub's redirects only to GitHub hosts. Node's https is used on purpose:
  *  the window's session blocks web requests unless "Load pictures from the web" is on, and this is a separate, explicit action. */
-function httpsGet(url, { timeout = 15000, max = MAX_ZIP, redirects = 5, notFound = 'GitHub has no such language pack yet (404).' } = {}) {
+function httpsGet(url, { timeout = 15000, max = MAX_ZIP, redirects = 5, notFound = 'Choose another pack from the list in File → Options → Language. This one is not on GitHub yet.' } = {}) {
   return new Promise((resolve, reject) => {
     let u;
-    try { u = new URL(url); } catch { return reject(plain('That download address is not valid.')); }
-    if (u.protocol !== 'https:' || !ALLOWED_HOSTS.has(u.hostname)) return reject(plain(`Language packs only download from GitHub (got ${u.hostname}).`));
+    try { u = new URL(url); } catch { return reject(plain('Choose the pack again from the list in File → Options → Language. This download address is not valid.')); }
+    if (u.protocol !== 'https:' || !ALLOWED_HOSTS.has(u.hostname)) return reject(plain(`Choose the pack from the list in File → Options → Language, or install it from a file. Language packs only download from GitHub (this address is on ${u.hostname}).`));
     const req = https.get(u, { headers: { 'User-Agent': 'Markooj language packs', Accept: 'application/octet-stream, application/json' }, timeout }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
-        if (redirects <= 0) return reject(plain('GitHub sent too many redirects.'));
+        if (redirects <= 0) return reject(plain('Try again in a few minutes. GitHub did not send the download this time.', [RETRY], 'too many redirects'));
         return resolve(httpsGet(new URL(res.headers.location, u).href, { timeout, max, redirects: redirects - 1, notFound }));
       }
       if (res.statusCode === 404) { res.resume(); return reject(plain(notFound)); }
-      if (res.statusCode !== 200) { res.resume(); return reject(plain(`GitHub answered ${res.statusCode}. Try again later.`)); }
+      if (res.statusCode !== 200) { res.resume(); return reject(plain('Try again in a few minutes. GitHub is not answering normally right now.', [RETRY], `HTTP ${res.statusCode} for ${u.href}`)); }
       const len = Number(res.headers['content-length'] || 0);
-      if (len > max) { res.destroy(); return reject(plain('The download is larger than a language pack can be.')); }
+      if (len > max) { res.destroy(); return reject(plain('Try another pack, or report this pack. The download is larger than a language pack can be, so Markooj stopped it.', [REPORT])); }
       const chunks = []; let got = 0;
-      res.on('data', c => { got += c.length; if (got > max) { res.destroy(); reject(plain('The download is larger than a language pack can be.')); } else chunks.push(c); });
+      res.on('data', c => { got += c.length; if (got > max) { res.destroy(); reject(plain('Try another pack, or report this pack. The download is larger than a language pack can be, so Markooj stopped it.', [REPORT])); } else chunks.push(c); });
       res.on('end', () => resolve(Buffer.concat(chunks)));
       res.on('error', e => reject(offline(e)));
     });
-    req.on('timeout', () => { req.destroy(); reject(plain('GitHub did not answer in time. Check your internet connection and try again.')); });
+    req.on('timeout', () => { req.destroy(); reject(plain('Check your internet connection, then try again. GitHub did not answer in time.', [RETRY])); });
     req.on('error', e => reject(offline(e)));
   });
 }
 function offline(e) {
   if (e && e.plain) return e;
   const c = e && e.code;
-  if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ECONNRESET|ETIMEDOUT/.test(String(c))) return plain('You seem to be offline: Markooj can’t reach GitHub. Check your internet connection, or install a language pack from a file.');
-  return plain('The download failed: ' + ((e && e.message) || e));
+  if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ECONNRESET|ETIMEDOUT/.test(String(c))) return plain('Check your internet connection and try again, or install a language pack from a file. You seem to be offline: Markooj can’t reach GitHub.', [RETRY], String(c));
+  return plain('Check your internet connection, then try again. The download stopped before it finished.', [RETRY], String((e && (e.code || e.message)) || e));
 }
 
 const count = v => (v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.floor(Number(v)) : null);
@@ -144,8 +152,8 @@ function normalizeIndex(o) {
 }
 async function fetchIndex() {
   // a 404 here means the list itself is not published yet, not that one pack is missing
-  const buf = await httpsGet(INDEX_URL, { timeout: 12000, max: 2 * 1024 * 1024, notFound: 'No language packs are published on GitHub yet. You can install one from a file.' });
-  let o; try { o = JSON.parse(buf.toString('utf8')); } catch { throw plain('The language pack list from GitHub could not be read.'); }
+  const buf = await httpsGet(INDEX_URL, { timeout: 12000, max: 2 * 1024 * 1024, notFound: 'Install a language pack from a file for now. No language packs are published on GitHub yet.' });
+  let o; try { o = JSON.parse(buf.toString('utf8')); } catch { throw plain('Try again in a few minutes. The language pack list from GitHub could not be read.', [RETRY]); }
   cachedIndex = { ...normalizeIndex(o), source: 'github', fetchedAt: Date.now() };
   return cachedIndex;
 }
@@ -171,7 +179,7 @@ const shortText = (v, max) => typeof v === 'string' && v.length <= max && !CTRL_
 const strList = (v, maxItems, maxLen) => Array.isArray(v) && v.length <= maxItems && v.every(s => shortText(s, maxLen) && s.length > 0);
 /** A table file ({fields, rows}): fields are short lowercase names, every row has one cell per field. */
 function checkTable(o, what, need, maxRows, cell) {
-  const bad = why => plain(`The language pack’s ${what} is not in the expected shape (${why}), so nothing was installed.`);
+  const bad = why => badPack(`The language pack’s ${what} is not in the expected shape (${why})`);
   if (!o || typeof o !== 'object' || Array.isArray(o)) throw bad('not an object');
   const { fields, rows } = o;
   if (!Array.isArray(fields) || !fields.length || fields.length > 32 || !fields.every(f => typeof f === 'string' && FIELD_RE.test(f)) || new Set(fields).size !== fields.length) throw bad('fields');
@@ -208,7 +216,7 @@ function checkPhrases(o) {
 }
 /** similar.json: {groups: [{kind: 'sound' | 'shape', letters: [2–64 letters of 1–4 characters each]}]} */
 function checkSimilar(o) {
-  const bad = why => plain(`The language pack’s similar letters (similar.json) are not in the expected shape (${why}), so nothing was installed.`);
+  const bad = why => badPack(`The language pack’s similar letters (similar.json) are not in the expected shape (${why})`);
   if (!o || typeof o !== 'object' || Array.isArray(o)) throw bad('not an object');
   if (!Array.isArray(o.groups) || o.groups.length > 500) throw bad('no list of groups');
   o.groups.forEach((g, i) => {
@@ -223,7 +231,7 @@ function checkSimilar(o) {
 function checkRoman(o) {
   if (o && typeof o === 'object' && !Array.isArray(o) && !o.fields && o.map && typeof o.map === 'object' && !Array.isArray(o.map)) {
     const keys = Object.keys(o.map);
-    if (keys.length > 20000) throw plain('The language pack’s Roman letter map (roman.json) is not in the expected shape (rows), so nothing was installed.');
+    if (keys.length > 20000) throw badPack('The language pack’s Roman letter map (roman.json) is not in the expected shape (rows)');
     o = { fields: ['roman', 'letters', 'note'], rows: keys.map(k => [k, o.map[k], null]) };
   }
   return checkTable(o, 'Roman letter map (roman.json)', ['roman', 'letters'], 20000, (f, v) => {
@@ -234,7 +242,7 @@ function checkRoman(o) {
 }
 /** rules.json: {rules: [{id, category, pattern, flags, replace, message, why, …}]} */
 function checkRules(o) {
-  const bad = why => plain(`The language pack’s rules (rules.json) are not in the expected shape (${why}), so nothing was installed.`);
+  const bad = why => badPack(`The language pack’s rules (rules.json) are not in the expected shape (${why})`);
   if (!o || typeof o !== 'object' || !Array.isArray(o.rules) || o.rules.length > 20000) throw bad('no list of rules');
   for (const r of o.rules) {
     if (!r || typeof r !== 'object' || Array.isArray(r)) throw bad('a rule is not an object');
@@ -245,7 +253,7 @@ function checkRules(o) {
 function checkClitics(c) {
   if (c == null) return { prefix: [], suffix: [] };
   if (typeof c !== 'object' || (c.prefix != null && !strList(c.prefix, 400, 12)) || (c.suffix != null && !strList(c.suffix, 400, 12))) {
-    throw plain('The language pack’s clitics (prefix and suffix lists) are not in the expected shape, so nothing was installed.');
+    throw badPack('The language pack’s clitics (prefix and suffix lists) are not in the expected shape');
   }
   return { prefix: c.prefix || [], suffix: c.suffix || [] };
 }
@@ -257,60 +265,60 @@ function namedFiles(m) {
 
 /** Check and unpack a pack zip. Nothing is written unless every check passes. */
 async function installZip(buf, { expectSha, origin } = {}) {
-  if (!Buffer.isBuffer(buf) || !buf.length) throw plain('The language pack file is empty.');
-  if (buf.length > MAX_ZIP) throw plain('That file is too large to be a language pack.');
+  if (!Buffer.isBuffer(buf) || !buf.length) throw plain('Download the language pack again: this file is empty.');
+  if (buf.length > MAX_ZIP) throw plain('Choose the language pack .zip file. This file is too large to be a language pack.');
   const sum = sha256(buf);
   if (expectSha && sum !== String(expectSha).toLowerCase()) {
-    throw plain(`The language pack failed its safety check (SHA-256 does not match${origin ? ' ' + origin : ''}). It may be damaged or changed, so nothing was installed.`);
+    throw plain('Download the language pack again. This copy did not pass Markooj’s safety check: it may be damaged or changed. Nothing was installed, so Markooj is unchanged.', [RETRY], `SHA-256 does not match${origin ? ' ' + origin : ''}: ${sum}, expected ${expectSha}`);
   }
   const JSZip = require('jszip');
-  let zip; try { zip = await JSZip.loadAsync(buf); } catch { throw plain('That file is not a Markooj language pack (not a zip file).'); }
+  let zip; try { zip = await JSZip.loadAsync(buf); } catch { throw plain('Choose a Markooj language pack .zip file. This file is not a Markooj language pack (not a zip file).'); }
   const root = packsDir();
   const probe = path.join(root, '__probe__');
   // 1. every name must stay inside the target folder (zip-slip)
   const entries = [];
   for (const [name, f] of Object.entries(zip.files)) {
-    if (f.dir) { if (!safeEntry(name.replace(/\/+$/, ''), probe)) throw plain(`The language pack has an unsafe file path (${name}), so nothing was installed.`); continue; }
-    if (!safeEntry(name, probe)) throw plain(`The language pack has an unsafe file path (${name}), so nothing was installed.`);
+    if (f.dir) { if (!safeEntry(name.replace(/\/+$/, ''), probe)) throw badPack(`The language pack has an unsafe file path (${name})`); continue; }
+    if (!safeEntry(name, probe)) throw badPack(`The language pack has an unsafe file path (${name})`);
     entries.push([name, f]);
   }
   // 2. the manifest
   const mf = zip.file('manifest.json');
-  if (!mf) throw plain('That zip has no manifest.json, so it is not a Markooj language pack.');
-  let manifest; try { manifest = JSON.parse(await mf.async('string')); } catch { throw plain('The language pack manifest could not be read.'); }
-  if (!manifest || !CODE_RE.test(String(manifest.code || ''))) throw plain('The language pack does not say which language it is for.');
+  if (!mf) throw plain('Choose a Markooj language pack .zip file. This zip has no manifest.json, so it is not a Markooj language pack.');
+  let manifest; try { manifest = JSON.parse(await mf.async('string')); } catch { throw badPack('The language pack manifest could not be read'); }
+  if (!manifest || !CODE_RE.test(String(manifest.code || ''))) throw badPack('The language pack manifest does not say which language it is for');
   // English (US and UK) is built into Markooj: a pack can never replace it
-  if (isBuiltinCode(manifest.code)) throw plain(`English is built into Markooj, so a language pack cannot replace it (this pack says “${manifest.code}”). Nothing was installed.`);
+  if (isBuiltinCode(manifest.code)) throw plain(`Pick English in File → Options → Language: it is built into Markooj, so a language pack cannot replace it (this pack says “${manifest.code}”). Nothing was installed.`);
   const format = manifest.format == null ? 1 : Number(manifest.format);
-  if (!Number.isInteger(format) || format < 1) throw plain('The language pack manifest has an unknown format.');
-  if (format > PACK_FORMAT) throw plain(`This language pack needs a newer Markooj (pack format ${format}). Update Markooj, then install it again.`);
-  if (!manifest.files || typeof manifest.files !== 'object' || Array.isArray(manifest.files)) throw plain('The language pack manifest lists no files.');
+  if (!Number.isInteger(format) || format < 1) throw badPack('The language pack manifest has an unknown format');
+  if (format > PACK_FORMAT) throw plain(`Update Markooj, then install this language pack again: it needs a newer Markooj (pack format ${format}). Nothing was installed.`, [{ id: 'open-url', label: 'Get the newest Markooj', url: 'https://datakeen.github.io/markooj/#download' }]);
+  if (!manifest.files || typeof manifest.files !== 'object' || Array.isArray(manifest.files)) throw badPack('The language pack manifest lists no files');
   const mode = spellingModeOf(manifest.spelling);
-  if (manifest.spelling && typeof manifest.spelling === 'object' && manifest.spelling.mode != null && manifest.spelling.mode !== 'off' && !mode) throw plain(`The language pack asks for a spelling mode Markooj does not know (${String(manifest.spelling.mode).slice(0, 20)}).`);
+  if (manifest.spelling && typeof manifest.spelling === 'object' && manifest.spelling.mode != null && manifest.spelling.mode !== 'off' && !mode) throw plain(`Update Markooj, or try another copy of this pack: it asks for a spelling mode this Markooj does not know (${String(manifest.spelling.mode).slice(0, 20)}). Nothing was installed.`);
   const named = namedFiles(manifest);
   for (const [k, v] of Object.entries(named)) {
     if (v == null) continue;
-    if (typeof v !== 'string' || !safeEntry(v, probe) || !Object.prototype.hasOwnProperty.call(manifest.files, v)) throw plain(`The language pack names a ${k} file its manifest does not list (${String(v).slice(0, 60)}), so nothing was installed.`);
+    if (typeof v !== 'string' || !safeEntry(v, probe) || !Object.prototype.hasOwnProperty.call(manifest.files, v)) throw badPack(`The language pack names a ${k} file its manifest does not list (${String(v).slice(0, 60)})`);
   }
   // full spelling reads lexicon.json when the pack has one (format 2), else the Hunspell .aff/.dic
-  if (mode === 'full' && !(named.aff && named.dic) && !(format >= 2 && named.lexicon)) throw plain('The language pack asks for full spelling but has no word list (lexicon.json, or .aff and .dic), so nothing was installed.');
-  if (mode === 'near-miss' && !named.lexicon) throw plain('The language pack asks for near-miss spelling but has no word list (lexicon.json), so nothing was installed.');
+  if (mode === 'full' && !(named.aff && named.dic) && !(format >= 2 && named.lexicon)) throw badPack('The language pack asks for full spelling but has no word list (lexicon.json, or .aff and .dic)');
+  if (mode === 'near-miss' && !named.lexicon) throw badPack('The language pack asks for near-miss spelling but has no word list (lexicon.json)');
   const clitics = checkClitics(manifest.clitics);
   // 3. every file is listed with its SHA-256, and nothing unlisted comes along
   let total = 0; const out = [];
   for (const [name, f] of entries) {
     if (name === 'manifest.json') continue;
     const want = manifest.files[name];
-    if (!want) throw plain(`The language pack has a file its manifest does not list (${name}), so nothing was installed.`);
+    if (!want) throw badPack(`The language pack has a file its manifest does not list (${name})`);
     const data = await f.async('nodebuffer');
-    total += data.length; if (total > MAX_UNPACKED) throw plain('The language pack unpacks to more than a language pack can be.');
+    total += data.length; if (total > MAX_UNPACKED) throw badPack('The language pack unpacks to more than a language pack can be');
     const w = typeof want === 'string' ? want : want.sha256;
-    if (sha256(data) !== String(w).toLowerCase()) throw plain(`A file in the language pack is damaged or was changed (${name}: SHA-256 does not match), so nothing was installed.`);
+    if (sha256(data) !== String(w).toLowerCase()) throw plain('Download the language pack again. A file in this copy is damaged or was changed. Nothing was installed, so Markooj is unchanged.', [RETRY], `${name}: SHA-256 does not match`);
     out.push([name, data]);
   }
-  for (const name of Object.keys(manifest.files)) if (!out.find(([n]) => n === name)) throw plain(`The language pack is missing ${name}.`);
+  for (const name of Object.keys(manifest.files)) if (!out.find(([n]) => n === name)) throw badPack(`The language pack is missing ${name}`);
   // 3b. the JSON files have the shapes Markooj reads (checked before anything is written)
-  const json = (name, what) => { try { return JSON.parse(out.find(([n]) => n === name)[1].toString('utf8').replace(/^﻿/, '')); } catch { throw plain(`The language pack’s ${what} (${name}) could not be read, so nothing was installed.`); } };
+  const json = (name, what) => { try { return JSON.parse(out.find(([n]) => n === name)[1].toString('utf8').replace(/^﻿/, '')); } catch { throw badPack(`The language pack’s ${what} (${name}) could not be read`); } };
   if (named.rules) checkRules(json(named.rules, 'rules'));
   const given = [manifest.stats, manifest.counts].find(x => x && typeof x === 'object' && !Array.isArray(x));
   let stats = given ? { words: count(given.words), checked: count(given.checked) } : null;
@@ -333,7 +341,7 @@ async function installZip(buf, { expectSha, origin } = {}) {
   fs.mkdirSync(tmp, { recursive: true });
   try {
     for (const [name, data] of out) {
-      const dest = safeEntry(name, tmp); if (!dest) throw plain('Unsafe file path in the language pack.');
+      const dest = safeEntry(name, tmp); if (!dest) throw badPack('The language pack has an unsafe file path');
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.writeFileSync(dest, data);
     }
@@ -384,39 +392,39 @@ ipcMain.handle('langpack-index', async () => fetchIndex());
 ipcMain.handle('langpack-install', async (_e, o = {}) => {
   if (o.url) {
     const url = String(o.url);
-    if (!url.startsWith(RELEASE_BASE)) throw plain('Language packs only install from the Markooj releases on GitHub.');
+    if (!url.startsWith(RELEASE_BASE)) throw plain('Choose the pack from the list in File → Options → Language, or install it from a file. Language packs only install from the Markooj releases on GitHub.');
     const idx = cachedIndex || await fetchIndex();
     const entry = idx.packs.find(p => p.url === url || RELEASE_BASE + p.file === url);
-    if (!entry) throw plain('That language pack is not in the list on GitHub.');
+    if (!entry) throw plain('Refresh the list in File → Options → Language and choose the pack again. That language pack is not in the list on GitHub any more.', [RETRY]);
     const buf = await httpsGet(url);
     return installZip(buf, { expectSha: entry.sha256, origin: 'the list on GitHub' });
   }
   if (o.file) {
     const file = path.resolve(String(o.file));
-    if (!/\.zip$/i.test(file)) throw plain('Pick a language pack .zip file.');
-    let st; try { st = fs.statSync(file); } catch { throw plain('That file could not be found.'); }
-    if (st.size > MAX_ZIP) throw plain('That file is too large to be a language pack.');
+    if (!/\.zip$/i.test(file)) throw plain('Choose a language pack .zip file.');
+    let st; try { st = fs.statSync(file); } catch { throw plain('Choose the file again: it may have been moved or deleted.'); }
+    if (st.size > MAX_ZIP) throw plain('Choose the language pack .zip file. This file is too large to be a language pack.');
     const expect = o.sha256 || siblingIndexSha(file);
     return installZip(fs.readFileSync(file), { expectSha: expect, origin: o.sha256 ? 'the expected value' : 'index.json' });
   }
   if (o.data) return installZip(Buffer.from(String(o.data), 'base64'), { expectSha: o.sha256 || null, origin: 'the expected value' });
-  throw plain('Nothing to install.');
+  throw plain('Choose a language pack from the list or from a file.');
 });
 ipcMain.handle('langpack-list', () => listInstalled());
 ipcMain.handle('langpack-remove', (_e, code) => {
   const c = String(code || '');
-  if (!CODE_RE.test(c)) throw plain('Unknown language pack.');
+  if (!CODE_RE.test(c)) throw plain('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.');
   const dir = path.join(packsDir(), c);
-  if (path.dirname(dir) !== packsDir()) throw plain('Unknown language pack.');
+  if (path.dirname(dir) !== packsDir()) throw plain('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.');
   fs.rmSync(dir, { recursive: true, force: true });
   return true;
 });
 function installedPack(code) {
   const c = String(code || '');
-  if (!CODE_RE.test(c) || isBuiltinCode(c)) throw plain('Unknown language pack.');
+  if (!CODE_RE.test(c) || isBuiltinCode(c)) throw plain('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.');
   const dir = path.join(packsDir(), c);
-  if (path.dirname(dir) !== packsDir()) throw plain('Unknown language pack.');
-  let m; try { m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')); } catch { throw plain('That language pack is not installed.'); }
+  if (path.dirname(dir) !== packsDir()) throw plain('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.');
+  let m; try { m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')); } catch { throw plain('Install the language pack first, from File → Options → Language. It is not installed.'); }
   const read = rel => { if (!rel || typeof rel !== 'string') return null; const p = safeEntry(rel, dir); return p && fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
   return { dir, m, read };
 }

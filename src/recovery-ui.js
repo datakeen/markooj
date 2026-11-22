@@ -211,7 +211,7 @@ select.rui-in{padding-right:6px}
     const card = h(`<section class="rui-card" aria-label="Document properties"><div class="rui-sec">${icon('info')} Properties</div></section>`);
     left.appendChild(card);
     if (!editable) {
-      card.appendChild(h(`<p class="rui-note">${doc.kind === 'pdf' || doc.kind === 'djvu' ? `This ${doc.kind.toUpperCase()} file is shown read-only. To edit its text, use “Edit as text”, then set properties on the new document.` : 'This document is read-only.'}</p>`));
+      card.appendChild(h(`<p class="rui-note">${doc.kind === 'pdf' || doc.kind === 'djvu' ? `This ${doc.kind.toUpperCase()} file is shown read-only. To edit its text, use “Edit as text”, then set properties on the new document.` : 'To change these properties, use “Edit as text” to make an editable copy. This document is read-only.'}</p>`));
     }
     const ro = editable ? '' : ' readonly';
     const dateVal = asText(val('date'));
@@ -298,7 +298,7 @@ select.rui-in{padding-right:6px}
     }
     async function save() {
       const d = app.docs.get ? app.docs.get(doc.id) || doc : doc;
-      if (!fm()) { toast('Properties cannot be saved: the front matter helper is missing.', { kind: 'error' }); return false; }
+      if (!fm()) { toast('Restart Markooj, then save the properties again. The front matter tools did not load this time.', { kind: 'error' }); return false; }
       const text = fm().write(d.text || '', collect());
       d.setText(text, 'info');
       if (state) { state.textContent = 'Saved in the document'; state.classList.remove('dirty'); }
@@ -321,7 +321,7 @@ select.rui-in{padding-right:6px}
             if (p.toLowerCase().startsWith(dir.toLowerCase() + '\\') || p.toLowerCase().startsWith(dir.toLowerCase() + '/')) rel = p.slice(dir.length + 1).replace(/\\/g, '/');
           }
           F('bibliography').value = rel; markDirty();
-        } catch (e) { toast(e.message, { kind: 'error' }); }
+        } catch (e) { app.ui.fail(e, { lead: 'Type the bibliography file name into the box instead, or try Browse again.' }); }
       });
       root.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); save(); } });
       form.addEventListener('submit', e => { e.preventDefault(); save(); });
@@ -333,11 +333,11 @@ select.rui-in{padding-right:6px}
     right.appendChild(fileCard);
     if (doc.path) {
       const p = h(`<div><div class="rui-path">${esc(doc.path)}</div><div class="rui-row" style="margin-bottom:14px"><button type="button" class="rui-btn" data-act="reveal">${icon('open')} Show in folder</button></div></div>`);
-      p.querySelector('[data-act=reveal]').addEventListener('click', () => invoke('reveal', doc.path).catch(e => toast(e.message, { kind: 'error' })));
+      p.querySelector('[data-act=reveal]').addEventListener('click', () => invoke('reveal', doc.path).catch(e => app.ui.fail(e, { lead: 'Check that the file is still there. Copy its path to find it.', hideReason: true, actions: [{ label: 'Copy path', run: () => app.ui.copyText?.(doc.path, 'Path copied') }] })));
       fileCard.appendChild(p);
     } else {
       const p = h(`<div><div class="rui-path">Not saved yet.</div><div class="rui-row" style="margin-bottom:14px"><button type="button" class="rui-btn primary" data-act="saveas">${icon('save')} Save…</button></div></div>`);
-      p.querySelector('[data-act=saveas]').addEventListener('click', async () => { try { app.backstage.close(); await app.docs.save(doc); } catch (e) { toast(e.message, { kind: 'error' }); } });
+      p.querySelector('[data-act=saveas]').addEventListener('click', async () => { try { app.backstage.close(); await app.docs.save(doc); } catch (e) { app.ui.fail(e, { lead: 'Try saving again, or choose another folder.', retry: () => app.docs.save(doc) }); } });
       fileCard.appendChild(p);
     }
     const c = countWords(doc.text || '');
@@ -359,7 +359,7 @@ select.rui-in{padding-right:6px}
           dl.querySelector('[data-f=size]').textContent = fmtSize(info.size);
           dl.querySelector('[data-f=created]').textContent = fullDate(info.created);
           dl.querySelector('[data-f=modified]').textContent = fullDate(info.modified);
-        } else dl.querySelector('[data-f=size]').textContent = 'File not found on disk';
+        } else dl.querySelector('[data-f=size]').textContent = 'Save to write it again (the file is no longer on disk)';
       } catch {}
     } else {
       dl.querySelector('[data-f=size]').textContent = fmtSize(new Blob([doc.text || '']).size);
@@ -407,7 +407,7 @@ select.rui-in{padding-right:6px}
 
   async function openEntry(e) {
     const full = await invoke('recovery-get', e.docId);
-    if (!full) { toast('That recovered text is no longer available.', { kind: 'warn' }); return null; }
+    if (!full) { toast('Pick another item in File → Recover. This one was already removed (recovered text is kept for a limited time).', { kind: 'warn' }); return null; }
     const existing = full.path && app.docs.list().find(d => d.path && d.path.toLowerCase() === full.path.toLowerCase());
     if (existing) {
       const v = await app.ui.dialog({ title: `“${existing.title}” is already open`, body: 'Replace its text with the recovered text, or open the recovered text as a separate copy?', buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Open as copy', value: 'copy' }, { label: 'Replace text', value: 'replace', primary: true }] });
@@ -436,7 +436,7 @@ select.rui-in{padding-right:6px}
   async function compareEntry(e) {
     const full = await invoke('recovery-get', e.docId);
     let disk = '';
-    try { disk = await invoke('read-text', full.path); } catch { toast('The original file could not be read.', { kind: 'error' }); return; }
+    try { disk = await invoke('read-text', full.path); } catch (err) { app.ui.fail(err, { lead: 'Click Open to get the recovered text back. Compare needs the original file, which Markooj can’t read right now.', hideReason: true, actions: [{ label: 'Open', run: () => openEntry(e) }] }); return; }
     const rows = diffLines(disk, full.text || '');
     const changed = rows.filter(r => r.t === 'add' || r.t === 'del').length;
     const body = h(`<div><div class="rui-legend"><span class="l-del">Only in the file on disk</span><span class="l-add">Only in the recovered text</span></div><div class="rui-diff" role="region" aria-label="Differences" tabindex="0"></div></div>`);
@@ -489,8 +489,8 @@ select.rui-in{padding-right:6px}
           <button type="button" class="rui-btn ghost icon" data-act="delete" title="Delete this recovered text" aria-label="Delete">${icon('x')}</button>
           <button type="button" class="rui-btn primary" data-act="open">Open</button>
         </div></article>`);
-      item.querySelector('[data-act=open]').addEventListener('click', () => openEntry(e).catch(err => toast(err.message, { kind: 'error' })));
-      item.querySelector('[data-act=compare]')?.addEventListener('click', () => compareEntry(e).catch(err => toast(err.message, { kind: 'error' })));
+      item.querySelector('[data-act=open]').addEventListener('click', () => openEntry(e).catch(err => app.ui.fail(err, { lead: 'Try Open again. The recovered text is still kept.', retry: () => openEntry(e) })));
+      item.querySelector('[data-act=compare]')?.addEventListener('click', () => compareEntry(e).catch(err => app.ui.fail(err, { lead: 'Click Open to get the recovered text back.', actions: [{ label: 'Open', run: () => openEntry(e) }] })));
       item.querySelector('[data-act=delete]').addEventListener('click', async () => {
         if (!(await app.ui.confirm('Delete this recovered text?', `“${e.title}” will be deleted from the recovery store. This cannot be undone.`, { ok: 'Delete', danger: true }))) return;
         await invoke('recovery-delete', e.docId).catch(() => {});
@@ -510,7 +510,7 @@ select.rui-in{padding-right:6px}
 
   async function openFolder() {
     try { const dir = await invoke('recovery-dir'); await invoke('open-folder', dir); }
-    catch (e) { toast(e.message || 'The recovery folder could not be opened.', { kind: 'error' }); }
+    catch (e) { app.ui.fail(e, { lead: 'Use File → Recover to open recovered text. The folder didn’t open this time.', hideReason: true, retry: () => openFolder() }); }
   }
 
   // ---------- Options → Recovery ----------
@@ -572,8 +572,8 @@ select.rui-in{padding-right:6px}
     if (!crashed.length) return;
     crashedCount = crashed.length;
     app.status.refresh?.();
-    toast(crashed.length === 1 ? `Recovered documents available: “${crashed[0].title}”` : `Recovered documents available (${crashed.length})`,
-      { kind: 'info', duration: 9000, action: { label: 'Open', run: () => app.backstage.open('recover') }, actions: [{ label: 'Open', run: () => app.backstage.open('recover') }] });
+    toast(crashed.length === 1 ? `Open File → Recover to get back your unsaved text from “${crashed[0].title}”.` : `Open File → Recover to get back unsaved text from ${crashed.length} documents.`,
+      { kind: 'info', timeout: 12000, actions: [{ label: 'Open Recover', run: () => app.backstage.open('recover') }] });
     for (const e of crashed) invoke('recovery-mark-closed', e.docId, { crashed: true }).catch(() => {});
   }
   app.events.on('ready', () => setTimeout(checkCrashed, 600));

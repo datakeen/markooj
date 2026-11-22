@@ -704,7 +704,7 @@
     if (!doc || doc.readOnly || rep == null) return false;
     try { if (doc === app.docs.active()) app.editors.active()?.flush?.(); } catch {}
     const at = locate(doc.text, f);
-    if (!at) { app.ui.toast('The text changed. Markooj is checking it again.', { kind: 'info' }); schedule(doc, 0); return false; }
+    if (!at) { app.ui.toast('Try the fix again in a moment. The text changed, so Markooj is checking it again.', { kind: 'info' }); schedule(doc, 0); return false; }
     const next = doc.text.slice(0, at[0]) + rep + doc.text.slice(at[1]);
     doc.setText(next, 'writing');
     const st = state(doc); st.all = st.all.filter(x => x.id !== f.id); st.findings = st.findings.filter(x => x.id !== f.id); st.counts = counts(st.findings); st.score = R.score(st.findings, st.words);

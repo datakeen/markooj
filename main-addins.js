@@ -52,7 +52,16 @@ const SMOKE = process.argv.includes('--smoke');
 const addonsDir = () => path.join(app.getPath('userData'), 'addons');
 const cacheFile = () => path.join(app.getPath('userData'), 'addins-index.json');
 const sha256 = buf => crypto.createHash('sha256').update(buf).digest('hex');
-function plain(msg) { const e = new Error(msg); e.plain = true; return e; }
+// Messages lead with what to do (main.js errorForIpc sends actions and details to the window; see mk.errorInfo).
+function plain(msg, actions, details) { const e = new Error(msg); e.plain = true; if (actions && actions.length) e.actions = actions; if (details) e.details = String(details).slice(0, 4000); return e; }
+const RETRY = { id: 'retry', label: 'Try again' };
+const GET_MARKOOJ = { id: 'open-url', label: 'Get the newest Markooj', url: 'https://datakeen.github.io/markooj/#download' };
+// an add-in that fails a check: what to do, that nothing changed, then the reason (kept for the details and the tests)
+function badAddin(why) {
+  const reason = String(why).replace(/\.$/, '');
+  return plain('Try again later, or tell the add-in’s author (its project page has the address). This add-in did not pass Markooj’s checks, so nothing was installed and Markooj is unchanged.', [{ id: 'copy-details', label: 'Copy details', text: reason }], reason);
+}
+const OFFLINE = 'Check your internet connection, then try again. You seem to be offline: Markooj can’t reach GitHub.';
 
 // ---------- versions ----------
 function parseSemver(v) {
@@ -76,17 +85,17 @@ let mock = null; // smoke mode only: {index, files: Map(url → Buffer), offline
 function offline(e) {
   if (e && e.plain) return e;
   const c = e && e.code;
-  if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ECONNRESET|ETIMEDOUT/.test(String(c))) return plain('You seem to be offline: Markooj can’t reach GitHub. Check your internet connection and try again.');
-  return plain('The download failed: ' + ((e && e.message) || e));
+  if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ECONNRESET|ETIMEDOUT/.test(String(c))) return plain(OFFLINE, [RETRY], String(c));
+  return plain('Check your internet connection, then try again. The download stopped before it finished.', [RETRY], String((e && (e.code || e.message)) || e));
 }
 /** GET over https with a timeout and a size cap, following redirects only to the allowed hosts. */
-function httpsGet(url, { hosts = DOWNLOAD_HOSTS, max = MAX_TOTAL, redirects = 5, notFound = 'GitHub has no such file (404).', tooBig = 'The download is larger than an add-in can be.' } = {}) {
+function httpsGet(url, { hosts = DOWNLOAD_HOSTS, max = MAX_TOTAL, redirects = 5, notFound = 'Try again later, or refresh the add-in list. The file is not on GitHub right now.', tooBig = 'Try another add-in, or tell its author: the download is larger than an add-in can be, so Markooj stopped it.' } = {}) {
   return new Promise((resolve, reject) => {
     let u;
-    try { u = new URL(url); } catch { return reject(plain('That download address is not valid.')); }
-    if (u.protocol !== 'https:' || !hosts.has(u.hostname)) return reject(plain(`Add-ins only download from GitHub (got ${u.hostname || 'no host'}).`));
+    try { u = new URL(url); } catch { return reject(plain('Choose the add-in again from File → Add-ins → Browse. This download address is not valid.')); }
+    if (u.protocol !== 'https:' || !hosts.has(u.hostname)) return reject(plain(`Open the add-in’s project page in your browser instead. Add-ins only download from GitHub (this address is on ${u.hostname || 'no host'}).`));
     if (mock) {
-      if (mock.offline) return reject(plain('You seem to be offline: Markooj can’t reach GitHub. Check your internet connection and try again.'));
+      if (mock.offline) return reject(plain(OFFLINE, [RETRY]));
       const buf = mock.files.get(u.href);
       if (!buf) return reject(plain(notFound));
       if (buf.length > max) return reject(plain(tooBig));
@@ -95,11 +104,11 @@ function httpsGet(url, { hosts = DOWNLOAD_HOSTS, max = MAX_TOTAL, redirects = 5,
     const req = https.get(u, { headers: { 'User-Agent': 'Markooj add-ins', Accept: 'application/octet-stream, application/json, text/plain' }, timeout: TIMEOUT }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
-        if (redirects <= 0) return reject(plain('GitHub sent too many redirects.'));
+        if (redirects <= 0) return reject(plain('Try again in a few minutes. GitHub did not send the download this time.', [RETRY], 'too many redirects'));
         return resolve(httpsGet(new URL(res.headers.location, u).href, { hosts, max, redirects: redirects - 1, notFound, tooBig }));
       }
       if (res.statusCode === 404) { res.resume(); return reject(plain(notFound)); }
-      if (res.statusCode !== 200) { res.resume(); return reject(plain(`GitHub answered ${res.statusCode}. Try again later.`)); }
+      if (res.statusCode !== 200) { res.resume(); return reject(plain('Try again in a few minutes. GitHub is not answering normally right now.', [RETRY], `HTTP ${res.statusCode} for ${u.href}`)); }
       const len = Number(res.headers['content-length'] || 0);
       if (len > max) { res.destroy(); return reject(plain(tooBig)); }
       const chunks = []; let got = 0;
@@ -107,7 +116,7 @@ function httpsGet(url, { hosts = DOWNLOAD_HOSTS, max = MAX_TOTAL, redirects = 5,
       res.on('end', () => resolve(Buffer.concat(chunks)));
       res.on('error', e => reject(offline(e)));
     });
-    req.on('timeout', () => { req.destroy(); reject(plain('GitHub did not answer in time. Check your internet connection and try again.')); });
+    req.on('timeout', () => { req.destroy(); reject(plain('Check your internet connection, then try again. GitHub did not answer in time.', [RETRY])); });
     req.on('error', e => reject(offline(e)));
   });
 }
@@ -166,9 +175,9 @@ function readCache() {
   try { const o = JSON.parse(fs.readFileSync(cacheFile(), 'utf8')); return { ...normalizeIndex(o.index || o), fetchedAt: Number(o.fetchedAt) || 0 }; } catch { return null; }
 }
 async function fetchIndex() {
-  const buf = await httpsGet(INDEX_URL, { max: MAX_INDEX, notFound: 'No add-ins are listed on GitHub yet. Check again later.', tooBig: 'The add-in list from GitHub is larger than expected.' });
-  let o; try { o = JSON.parse(buf.toString('utf8').replace(/^﻿/, '')); } catch { throw plain('The add-in list from GitHub could not be read.'); }
-  if (!o || typeof o !== 'object' || Number(o.format) > 1) throw plain('The add-in list on GitHub needs a newer Markooj. Update Markooj to browse add-ins.');
+  const buf = await httpsGet(INDEX_URL, { max: MAX_INDEX, notFound: 'Check again later: no add-ins are listed on GitHub yet.', tooBig: 'Try again later: the add-in list from GitHub is larger than expected.' });
+  let o; try { o = JSON.parse(buf.toString('utf8').replace(/^﻿/, '')); } catch { throw plain('Try again in a few minutes. The add-in list from GitHub could not be read.', [RETRY]); }
+  if (!o || typeof o !== 'object' || Number(o.format) > 1) throw plain('Update Markooj to browse add-ins: the add-in list on GitHub needs a newer Markooj. Your installed add-ins keep working.', [GET_MARKOOJ]);
   const fetchedAt = Date.now();
   cachedIndex = { ...normalizeIndex(o), source: 'github', fetchedAt };
   // the last good list stays on disk, so the store can still be browsed offline
@@ -195,7 +204,7 @@ async function indexForInstall() {
 // ---------- manifests ----------
 /** Check an add-in's manifest.json; returns a clean copy or throws a plain error. */
 function checkManifest(m, entry) {
-  const bad = why => plain(`The add-in’s manifest is not valid (${why}), so nothing was installed.`);
+  const bad = why => badAddin(`The add-in’s manifest is not valid: ${why}`);
   if (!m || typeof m !== 'object' || Array.isArray(m)) throw bad('not an object');
   if (!ID_RE.test(String(m.id || ''))) throw bad('id must be 3–40 lowercase letters, digits or dashes');
   if (entry && m.id !== entry.id) throw bad(`its id “${String(m.id).slice(0, 40)}” is not “${entry.id}”`);
@@ -234,49 +243,49 @@ function checkManifest(m, entry) {
 function readInstall(dir) { try { const o = JSON.parse(fs.readFileSync(path.join(dir, '.install.json'), 'utf8')); return o && typeof o === 'object' ? o : null; } catch { return null; } }
 function readManifest(dir) { try { return JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8').replace(/^﻿/, '')); } catch { return null; } }
 function folderOf(id) {
-  if (!ID_RE.test(String(id || ''))) throw plain('Unknown add-in.');
+  if (!ID_RE.test(String(id || ''))) throw plain('Choose the add-in from File → Add-ins. Markooj does not know this one.');
   const dir = path.join(addonsDir(), String(id));
-  if (path.dirname(dir) !== addonsDir()) throw plain('Unknown add-in.');
+  if (path.dirname(dir) !== addonsDir()) throw plain('Choose the add-in from File → Add-ins. Markooj does not know this one.');
   return dir;
 }
 const busy = new Set();
 async function install(id) {
   const target = folderOf(id);
-  if (busy.has(id)) throw plain('That add-in is already being installed.');
+  if (busy.has(id)) throw plain('Wait a moment: that add-in is already being installed.');
   busy.add(id);
   try {
     const idx = await indexForInstall();
     const entry = idx.addins.find(a => a.id === id);
-    if (!entry) throw plain('That add-in is not in the list on GitHub.');
-    if (compareVersions(entry.minMarkooj, appVersion()) > 0) throw plain(`“${entry.name}” needs Markooj ${entry.minMarkooj} or newer (this is ${appVersion()}). Update Markooj first.`);
+    if (!entry) throw plain('Refresh File → Add-ins → Browse and choose the add-in again. It is not in the list on GitHub any more.', [RETRY]);
+    if (compareVersions(entry.minMarkooj, appVersion()) > 0) throw plain(`Update Markooj, then install “${entry.name}” again: it needs Markooj ${entry.minMarkooj} or newer (this is ${appVersion()}).`, [GET_MARKOOJ]);
     // a folder add-in wins over a file with the same id, so a community add-in must never take the place of one that
     // comes with Markooj (readability, word-frequency, si-units …)
-    if (!entry.verified && fs.existsSync(path.join(__dirname, 'addons', id + '.js'))) throw plain(`“${entry.name}” uses the name (id “${id}”) of an add-in that comes with Markooj, so it was not installed.`);
+    if (!entry.verified && fs.existsSync(path.join(__dirname, 'addons', id + '.js'))) throw plain(`Use the “${id}” add-in that comes with Markooj (File → Add-ins → Installed). “${entry.name}” has the same name, so it was not installed.`);
     const prev = fs.existsSync(target) ? readInstall(target) : null;
-    if (fs.existsSync(target) && (!prev || prev.source !== 'store')) throw plain(`An add-in folder named “${id}” is already there and did not come from the store, so Markooj left it alone.`);
+    if (fs.existsSync(target) && (!prev || prev.source !== 'store')) throw plain(`Rename or remove your own “${id}” folder in the add-ins folder first, then try again. It did not come from the store, so Markooj left it alone.`, [RETRY]);
     const fetchAsset = async (a, max) => {
-      if (a.size > max) throw plain(`${a.name} is larger than an add-in file can be, so nothing was installed.`);
+      if (a.size > max) throw badAddin(`${a.name} is larger than an add-in file can be`);
       // never more bytes than the list says (a file swapped on GitHub after the list was built stops downloading there)
-      const buf = await httpsGet(a.url, { max: Math.min(max, a.size), notFound: `GitHub has no ${a.name} for “${entry.name}” ${entry.version} (404).` });
-      if (buf.length !== a.size) throw plain(`${a.name} is not the size the list says, so nothing was installed.`);
-      if (sha256(buf) !== a.sha256) throw plain(`“${entry.name}” failed its safety check (${a.name}: SHA-256 does not match the list). It may be damaged or changed, so nothing was installed.`);
+      const buf = await httpsGet(a.url, { max: Math.min(max, a.size), notFound: `Try again later, or tell the add-in’s author. “${entry.name}” ${entry.version} is not complete on GitHub right now, so nothing was installed.` });
+      if (buf.length !== a.size) throw plain(`Try again: ${a.name} did not arrive complete (it is not the size the list says). Nothing was installed.`, [RETRY]);
+      if (sha256(buf) !== a.sha256) throw plain(`Try again later, or tell the add-in’s author. This copy of “${entry.name}” did not pass Markooj’s safety check, so nothing was installed.`, [RETRY], `${a.name}: SHA-256 does not match the list`);
       return buf;
     };
     // 1. the manifest decides what else is needed
     const ma = entry.assets.find(a => a.name === 'manifest.json');
     const mbuf = await fetchAsset(ma, MAX_MANIFEST);
-    let raw; try { raw = JSON.parse(mbuf.toString('utf8').replace(/^﻿/, '')); } catch { throw plain('The add-in’s manifest could not be read, so nothing was installed.'); }
+    let raw; try { raw = JSON.parse(mbuf.toString('utf8').replace(/^﻿/, '')); } catch { throw badAddin('The add-in’s manifest could not be read'); }
     const manifest = checkManifest(raw, entry);
-    if (compareVersions(manifest.minMarkooj, appVersion()) > 0) throw plain(`“${entry.name}” needs Markooj ${manifest.minMarkooj} or newer (this is ${appVersion()}). Update Markooj first.`);
+    if (compareVersions(manifest.minMarkooj, appVersion()) > 0) throw plain(`Update Markooj, then install “${entry.name}” again: it needs Markooj ${manifest.minMarkooj} or newer (this is ${appVersion()}).`, [GET_MARKOOJ]);
     // 2. main.js, styles.css and the data files the manifest lists, each checked against the list
     const want = [['main.js', MAX_MAIN, true], ['styles.css', MAX_CSS, false], ...manifest.files.map(f => [f.name, MAX_TOTAL, true])];
     const out = [['manifest.json', mbuf]]; let total = mbuf.length;
     for (const [name, max, required] of want) {
       const a = entry.assets.find(x => x.name === name);
-      if (!a) { if (required) throw plain(`The release of “${entry.name}” has no ${name}, so nothing was installed.`); continue; }
+      if (!a) { if (required) throw badAddin(`The release of “${entry.name}” has no ${name}`); continue; }
       const f = manifest.files.find(x => x.name === name);
-      if (f && f.size != null && a.size && f.size !== a.size) throw plain(`${name} is not the size its manifest says, so nothing was installed.`);
-      total += a.size; if (total > MAX_TOTAL) throw plain('The add-in is larger than 50 MB, so nothing was installed.');
+      if (f && f.size != null && a.size && f.size !== a.size) throw badAddin(`${name} is not the size its manifest says`);
+      total += a.size; if (total > MAX_TOTAL) throw badAddin('The add-in is larger than 50 MB');
       out.push([name, await fetchAsset(a, max)]);
     }
     // 3. write a temporary folder, then swap it in
@@ -290,21 +299,21 @@ async function install(id) {
       fs.writeFileSync(path.join(tmp, '.install.json'), JSON.stringify(info, null, 2));
       const had = fs.existsSync(target);
       // checked again here: a folder the user put there during the download is never moved aside and deleted
-      if (had) { const now = readInstall(target); if (!now || now.source !== 'store') throw plain(`An add-in folder named “${id}” is already there and did not come from the store, so Markooj left it alone.`); }
+      if (had) { const now = readInstall(target); if (!now || now.source !== 'store') throw plain(`Rename or remove your own “${id}” folder in the add-ins folder first, then try again. It did not come from the store, so Markooj left it alone.`, [RETRY]); }
       if (had) fs.renameSync(target, old);
       try { fs.renameSync(tmp, target); }
       catch (e) { if (had) { try { fs.renameSync(old, target); } catch {} } throw e; }
       if (had) fs.rm(old, { recursive: true, force: true }, () => {});
-    } catch (e) { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {} throw e.plain ? e : plain('The add-in could not be saved: ' + e.message); }
+    } catch (e) { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {} throw e.plain ? e : plain('Free some disk space or close other programs, then try again. The add-in could not be saved; nothing was installed.', [RETRY], `${e.code || ''} ${e.message}`.trim()); }
     return { id, name: manifest.name, version: manifest.version, dir: target, updated: !!prev, previous: prev ? prev.version || null : null };
   } finally { busy.delete(id); }
 }
 
 async function uninstall(id) {
   const dir = folderOf(id);
-  if (!fs.existsSync(dir)) throw plain('That add-in is not installed.');
+  if (!fs.existsSync(dir)) throw plain('Refresh File → Add-ins → Installed: that add-in is not installed any more.');
   const info = readInstall(dir);
-  if (!info || info.source !== 'store') throw plain('Only add-ins installed from the store can be removed here. Delete other add-ins in the add-ins folder.');
+  if (!info || info.source !== 'store') throw plain('Delete this add-in from the add-ins folder yourself (File → Add-ins → Open folder). Only add-ins installed from the store can be removed here.');
   // a test run never fills the real trash
   if (SMOKE) { fs.rmSync(dir, { recursive: true, force: true }); return true; }
   try { await shell.trashItem(dir); return true; }
@@ -348,9 +357,9 @@ async function listInstalled() {
 ipcMain.handle('addins-index', (_e, o = {}) => getIndex({ refresh: !!(o && o.refresh) }));
 ipcMain.handle('addins-readme', async (_e, ref) => {
   let url = '';
-  if (ref && typeof ref === 'object' && ref.id) { const idx = await indexForInstall(); const e = idx.addins.find(a => a.id === ref.id); if (!e) throw plain('That add-in is not in the list.'); url = e.readmeUrl; }
+  if (ref && typeof ref === 'object' && ref.id) { const idx = await indexForInstall(); const e = idx.addins.find(a => a.id === ref.id); if (!e) throw plain('Refresh File → Add-ins → Browse and choose the add-in again. It is not in the list any more.', [RETRY]); url = e.readmeUrl; }
   else url = String((ref && ref.url) || ref || '');
-  const buf = await httpsGet(url, { hosts: README_HOSTS, max: MAX_README, redirects: 0, notFound: 'This add-in has no README yet.', tooBig: 'The README is too long to show here. Open the project page instead.' });
+  const buf = await httpsGet(url, { hosts: README_HOSTS, max: MAX_README, redirects: 0, notFound: 'Open the project page for details: this add-in has no README yet.', tooBig: 'Open the project page to read about this add-in: its README is too long to show here.' });
   return buf.toString('utf8').replace(/^﻿/, '');
 });
 ipcMain.handle('addins-install', (_e, o = {}) => install(String((o && o.id) || o || '')));
@@ -369,16 +378,16 @@ ipcMain.handle('addins-update-all', async () => {
 ipcMain.handle('addins-folder-list', () => listFolders().map(f => {
   const read = (n, max) => { try { const p = path.join(f.dir, n); const st = fs.statSync(p); if (st.size > max) return null; return fs.readFileSync(p, 'utf8').replace(/^﻿/, ''); } catch { return null; } };
   const code = read('main.js', MAX_MAIN);
-  return { id: f.id, dir: f.dir, manifest: f.manifest, install: f.install, code: code || '', css: read('styles.css', MAX_CSS) || '', error: code == null ? 'main.js is missing or too large.' : null };
+  return { id: f.id, dir: f.dir, manifest: f.manifest, install: f.install, code: code || '', css: read('styles.css', MAX_CSS) || '', error: code == null ? 'Add a main.js (at most 2 MB) to this add-in folder, then reload. It is missing or too large.' : null };
 }));
 ipcMain.handle('addins-file', (_e, id, name, opts = {}) => {
   const dir = folderOf(id);
   const m = readManifest(dir) || {};
   const n = String(name || '');
   const listed = Array.isArray(m.files) && m.files.some(f => f && f.name === n);
-  if (!listed || !FILE_RE.test(n)) throw plain(`The add-in’s manifest does not list a file named “${n.slice(0, 60)}”.`);
+  if (!listed || !FILE_RE.test(n)) throw plain(`List “${n.slice(0, 60)}” in the add-in’s manifest (files) to read it. The manifest does not list a file with that name.`);
   const p = path.join(dir, n);
-  if (path.dirname(p) !== dir) throw plain('Unsafe file name.');
+  if (path.dirname(p) !== dir) throw plain('Use a plain file name with letters, digits, dots and dashes. This file name is not safe.');
   const buf = fs.readFileSync(p);
   return opts && opts.encoding === 'base64' ? buf.toString('base64') : buf.toString('utf8');
 });

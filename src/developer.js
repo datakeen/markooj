@@ -411,8 +411,8 @@
         const t = rest.trim();
         const looksLikeUse = /\$|\\\(|^\\[A-Za-z]/.test(t);
         errors.push({ line, text: t, message: looksLikeUse
-          ? 'This line is not a definition. Start a definition with \\newcommand, \\renewcommand, \\def or \\DeclareMathOperator, for example \\newcommand{\\R}{\\mathbb{R}}.'
-          : `“${short(t)}” is not a definition. Write one definition per line, for example \\newcommand{\\R}{\\mathbb{R}}.` });
+          ? 'Start a definition with \\newcommand, \\renewcommand, \\def or \\DeclareMathOperator, for example \\newcommand{\\R}{\\mathbb{R}}.'
+          : `Write one definition per line, for example \\newcommand{\\R}{\\mathbb{R}}. “${short(t)}” is not a definition.` });
         i = lineEnd(i); continue;
       }
       i += m[0].length;
@@ -423,7 +423,7 @@
         // the name: {\R}, \R, or {R} (the backslash is added)
         if (s[i] === '{') {
           const g = readGroup();
-          if (g === undefined) fail(`The name after ${cmd} is missing its closing brace }.`);
+          if (g === undefined) fail(`Add the closing brace } after the name in ${cmd}{…}.`);
           const raw = g.trim();
           if (!raw) fail(`${cmd} needs a name in braces, like ${cmd}{\\R}{…}.`);
           if (CS_NAME_RE.test(raw)) name = raw;
@@ -442,7 +442,7 @@
         } else if (kind === 'DeclareMathOperator') {
           if (s[i] !== '{') fail(`After ${name}, put the operator’s text in braces, like ${cmd}${star ? '*' : ''}{${name}}{${name.slice(1)}}.`);
           const body = readGroup();
-          if (body === undefined) fail(`The text of ${name} is missing a closing brace }.`);
+          if (body === undefined) fail(`Add a closing brace } at the end of the text of ${name}.`);
           info.source = s.slice(start, i).trim();
           define(name, `\\operatorname${star ? '*' : ''}{${body.trim()}}`, { ...info, args: 0 });
         } else if (/^[gex]?def$/.test(kind)) {
@@ -451,13 +451,13 @@
           if (s[i] !== '{') fail(`After \\${kind}${name}, put the definition in braces, like \\def${name}{\\mathbb{R}}.`);
           let n = 0;
           if (params) {
-            if (!/^(#\d)+$/.test(params)) fail(`\\def with a pattern like ${short(params)} is not supported. Use \\newcommand{${name}}[2]{…} instead.`);
+            if (!/^(#\d)+$/.test(params)) fail(`Use \\newcommand{${name}}[2]{…} instead: \\def with a pattern like ${short(params)} isn’t supported.`);
             const ds = params.match(/\d/g).map(Number);
-            if (ds.some((d, k) => d !== k + 1)) fail(`The arguments of ${name} must be numbered in order: #1#2#3.`);
+            if (ds.some((d, k) => d !== k + 1)) fail(`Number the arguments of ${name} in order: #1#2#3.`);
             n = ds.length;
           }
           const body = readGroup();
-          if (body === undefined) fail(`The definition of ${name} is missing a closing brace }. Check that every { has a matching }.`);
+          if (body === undefined) fail(`Add a closing brace } to the definition of ${name}: every { needs a matching }.`);
           const used = maxArg(body);
           if (used > n) notes.push({ line, text: lineText(start), kind: 'warn', name, message: `${name} uses #${used} but takes ${n ? plural(n, 'argument') : 'no arguments'}. Write \\def${name}${Array.from({ length: used }, (_, k) => '#' + (k + 1)).join('')}{…}.` });
           info.source = s.slice(start, i).trim();
@@ -466,19 +466,19 @@
           let n = 0, opt = null;
           if (s[i] === '[') {
             const a = readBracket();
-            if (a === undefined) fail(`The [ after ${name} is missing its closing ].`);
-            if (!/^\s*\d\s*$/.test(a)) fail(`The number of arguments must be 0 to 9, like [2]. Found [${short(a)}].`);
+            if (a === undefined) fail(`Add the closing ] after the [ that follows ${name}.`);
+            if (!/^\s*\d\s*$/.test(a)) fail(`Use a number of arguments from 0 to 9, like [2]. Found [${short(a)}].`);
             n = Number(a.trim()); skipGap();
             if (s[i] === '[') {
               opt = readBracket();
-              if (opt === undefined) fail(`The default value after ${name}[${n}] is missing its closing ].`);
+              if (opt === undefined) fail(`Add the closing ] after the default value of ${name}[${n}].`);
               if (n < 1) fail(`${name} has a default value but no arguments. Write [1] before the default, like ${cmd}{${name}}[1][x]{…}.`);
               skipGap();
             }
           }
           if (s[i] !== '{') fail(`After ${name}${n ? `[${n}]` : ''}, put the definition in braces, like ${cmd}{${name}}{\\mathbb{R}}.`);
           const raw = readGroup();
-          if (raw === undefined) fail(`The definition of ${name} is missing a closing brace }. Check that every { has a matching }.`);
+          if (raw === undefined) fail(`Add a closing brace } to the definition of ${name}: every { needs a matching }.`);
           let body = raw.trim();
           const used = maxArg(body);
           if (used > n) notes.push({ line, text: lineText(start), kind: 'warn', name, message: `${name} uses #${used} but says it takes ${n ? plural(n, 'argument') : 'no arguments'}. Write [${used}] after the name.` });
@@ -588,7 +588,7 @@
   // =====================================================================================
   let currentRun = null;
   function checkStop() { if (currentRun?.stopped) throw new Error('Stopped'); }
-  function activeDoc() { checkStop(); const d = app.docs.active(); if (!d) throw new Error('No document is open.'); return d; }
+  function activeDoc() { checkStop(); const d = app.docs.active(); if (!d) throw new Error('Open or create a document first, then run the macro again.'); return d; }
   function editableDoc() {
     const d = activeDoc();
     if (d.kind !== 'markdown' || d.readOnly) throw new Error(`“${d.title}” is read-only. Use “Edit as text” to get an editable copy first.`);
@@ -658,7 +658,7 @@
       }
       const ed = app.editors?.active?.();
       if (ed?.replaceSelection) { ed.replaceSelection(text); return true; }
-      throw new Error('Could not find the selection. Click in the document and try again.');
+      throw new Error('Click in the document and try again. Markooj couldn’t find the selection.');
     },
     replace(find, repl, opts) {
       const d = editableDoc(); const o = { all: true, case: true, regex: false, ...normOpts(opts) };
@@ -973,9 +973,11 @@ def _guard_stop():
     toast('Starting Python…');
     py.loading = (async () => {
       const base = pyBase();
-      const mod = await import(base + 'pyodide.mjs');
+      let mod;
+      // Python ships inside Markooj (node_modules/pyodide): a missing file means an incomplete copy, anything else is worth a retry
+      try { mod = await import(base + 'pyodide.mjs'); } catch (e) { throw Object.assign(new Error(String(e && e.message || e)), { pyMissing: true }); }
       const loader = mod.loadPyodide || window.loadPyodide;
-      if (!loader) throw new Error('Python could not be found in this copy of Markooj.');
+      if (!loader) throw Object.assign(new Error('pyodide.mjs has no loadPyodide'), { pyMissing: true });
       const p = await loader({ indexURL: base, stdout: s => emitOut('out', s), stderr: s => emitOut('err', s) });
       try { p.setStdout({ batched: s => emitOut('out', s) }); p.setStderr({ batched: s => emitOut('err', s) }); } catch {}
       p.registerJsModule('_markooj_js', { ...api, should_stop: () => !!currentRun?.stopped });
@@ -987,7 +989,14 @@ def _guard_stop():
       // behind runPythonAsync, and on the main thread nothing could set the buffer anyway.
       py.inst = p; setPyState('ready');
       return p;
-    })().catch(e => { py.loading = null; setPyState('error'); throw new Error('Python could not start: ' + (e.message || e)); });
+    })().catch(e => {
+      py.loading = null; setPyState('error');
+      const err = new Error(e && e.pyMissing
+        ? 'Install Markooj again to run Python macros: this copy is missing its Python files. JavaScript macros still work.'
+        : 'Try running it again. Python didn’t start this time; if it keeps failing, restart Markooj. JavaScript macros still work.');
+      err.details = String(e && (e.stack || e.message) || e); err.pyStart = true; err.mkLine = null;
+      throw err;
+    });
     return py.loading;
   }
 
@@ -1056,7 +1065,7 @@ def _guard_stop():
       } catch (e) {
         const message = (e && e.message) || String(e);
         sink('err', message, e && e.mkLine);
-        return { ok: false, error: message, line: (e && e.mkLine) || null };
+        return { ok: false, error: message, line: (e && e.mkLine) || null, pyStart: !!(e && e.pyStart), details: e && e.details };
       } finally {
         ctx.done = true; if (currentRun === ctx) currentRun = null; notifyRun();
       }
@@ -1127,9 +1136,17 @@ def _guard_stop():
   }
   async function runSaved(name) {
     const m = store.get(name);
-    if (!m) { toast(`There is no macro called “${name}”.`, { kind: 'warn' }); return; }
+    if (!m) { toast(`Pick a macro from Developer → Macros (Alt+F8). “${name}” isn’t saved on this computer.`, { kind: 'warn', actions: [{ label: 'Open Macros', run: () => openMacrosDialog() }] }); return; }
     const r = await runMacro(m);
-    if (!r.ok) toast(`Macro “${m.name}” stopped: ${r.error.split('\n').pop()}`, { kind: 'error' });
+    if (!r.ok && !/^Stopped\.?$/i.test(String(r.error).trim())) {
+      const actions = [{ label: 'Try again', run: () => runSaved(name) }];
+      if (r.pyStart) toast(r.error, { kind: 'error', actions, details: r.details });
+      else {
+        const last = String(r.error).trim().split('\n').pop();
+        actions.push({ label: 'Edit macro', run: () => openEditor(m.name) });
+        toast(`Open “${m.name}” in the Macro Editor to fix ${r.line ? 'line ' + r.line : 'it'}, then run it again. ${m.lang === 'python' ? 'Python' : 'JavaScript'} says: ${last}`, { kind: 'error', actions, details: r.error });
+      }
+    }
     return r;
   }
 
@@ -1235,7 +1252,7 @@ def _guard_stop():
     try { app.editors?.active?.()?.flush?.(); } catch {}
     rec.on = false; const steps = rec.steps.slice(); rec.steps = [];
     recChanged();
-    if (!steps.some(s => s.kind !== 'note')) { if (ask) toast('Recording stopped. Nothing was recorded: use ribbon buttons or type while recording.'); return null; }
+    if (!steps.some(s => s.kind !== 'note')) { if (ask) toast('To record a macro, click Record, then use ribbon buttons or type. This recording had no steps, so it was not saved.'); return null; }
     lang = lang || app.settings.get('macroLang', 'python');
     let m = { name: name || nextMacroName(), lang, code: buildRecorded(steps, lang), shortcut: '', ribbon: false };
     if (ask) {
@@ -1253,7 +1270,7 @@ def _guard_stop():
     }
     if (save) {
       try { m = await store.save(m); toast(`Saved macro “${m.name}”. Run it from Developer → Macros (Alt+F8).`); }
-      catch (e) { toast(e.message, { kind: 'error' }); }
+      catch (e) { app.ui.fail(e, { lead: /^Use /.test(String(e && e.message)) ? '' : 'Try saving the macro again.', actions: [{ label: 'Open in Macro Editor', run: () => openEditor(null, { lang: m.lang, code: m.code, name: m.name }) }] }); }
     }
     return m;
   }
@@ -1926,7 +1943,7 @@ def _guard_stop():
         const card = h('div', { class: 'mkd-mcard' + (r.error ? ' bad' : ''), role: 'button', tabindex: '0', 'data-tip': 'Show this definition', onclick: () => code.gotoLine(def.line) },
           h('div', { class: 'mkd-mres' }, h('code', null, def.name), plain('→', 'mkd-marrow'), r.error ? plain('Can’t draw it', 'mkd-mstate bad') : h('span', { class: 'r', html: r.html })),
           h('div', { class: 'mkd-mtype' }, plain('Type ', 'mkd-hint'), h('code', null, `$${sample}$`)));
-        if (r.error) card.append(h('div', { class: 'mkd-mmsg bad' }, `The definition of ${def.name} has a problem: ${r.error}`));
+        if (r.error) card.append(h('div', { class: 'mkd-mmsg bad' }, `Fix the definition of ${def.name}: ${r.error}`));
         prevEl.append(card);
       }
     }
@@ -2182,9 +2199,9 @@ def _guard_stop():
     A(opt.macros['\\deriv'] === '\\frac{d #1}{d x}' && opt.notes.some(n => /default/.test(n.message)), 'optional default: ' + JSON.stringify(opt));
     const bad = parseMathDetailed('\\newcommand{\\bad}{\\mathbb{R}\n\\newcommand{\\ok}{1}\n$x$\n\\newcommand{\\f}[x]{#1}');
     A(bad.macros['\\ok'] === '1', 'a broken line does not stop the next one');
-    A(/missing a closing brace/.test(bad.errors[0]?.message) && bad.errors[0].line === 1, 'says the brace is missing: ' + JSON.stringify(bad.errors[0]));
-    A(/not a definition/.test(bad.errors[1]?.message) && bad.errors[1].line === 3, 'says the line is not a definition');
-    A(/must be 0 to 9/.test(bad.errors[2]?.message), 'says what is wrong with [x]');
+    A(/closing brace/.test(bad.errors[0]?.message) && bad.errors[0].line === 1, 'says the brace is missing: ' + JSON.stringify(bad.errors[0]));
+    A(/definition/.test(bad.errors[1]?.message) && bad.errors[1].line === 3, 'says the line is not a definition');
+    A(/0 to 9/.test(bad.errors[2]?.message), 'says what is wrong with [x]');
     A(typeof mathMacros() === 'object', 'mathMacros() returns an object');
   });
   app.tests.register('developer: \\DeclareMathOperator renders with KaTeX', () => {

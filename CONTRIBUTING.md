@@ -39,6 +39,23 @@ If the problem is about a converted file (Word, PDF, LaTeX …), a small sample 
 - **Interface text:** short, plain and friendly, in US English (color, center, license), with Word's names where Word has the same thing. No jargon where an everyday word works.
 - **Tests:** add `app.tests.register('area: what it checks', …)` for what you change.
 
+## Writing messages
+
+Every message the user sees (toasts, dialogs, status text, error cards, tool checks, failed opens and exports, add-in and language-pack errors, and help text about errors) follows these rules:
+
+1. **Lead with what the user can do, not with what went wrong.** Calm, short, plain US English, in the second person.
+2. **Give the fix as a button when you can** (Try again, Open settings, Copy command, Download, Open folder, Choose another file, Save as another format, Turn on …), otherwise as concrete steps. Steps that differ by system get one line each for Windows, macOS and Linux, with a Copy button for commands. Link only to official pages, such as [djvu.sourceforge.net](https://djvu.sourceforge.net/) or [pandoc.org/installing.html](https://pandoc.org/installing.html).
+3. **Then say what still works**, in one short clause.
+4. **Never blame the user, and never lead with a raw code.** Technical details go under a collapsed **Technical details**.
+5. **Offer the fix that matches the cause.** Do not say "reinstall" when the tool is there but failed a check; offer **Check again** or **Report this**, with the details copied.
+6. **Stay quiet at start.** An optional tool the user has never used is not worth a startup toast. Help at the moment they try the feature (opening a `.djvu` file, picking DjVu in Save As), and keep the full status in **Help → Check Tools**. A startup message is only for something that blocks normal writing, and it is solution-first too.
+
+| Instead of | Write |
+| --- | --- |
+| DjVuLibre is missing from this copy of Markooj. Off for now: Viewing DjVu files. | To open DjVu files, Markooj needs the free DjVuLibre tools. **[Get DjVuLibre] [How to install]** Everything else works. |
+| Export failed: pandoc exited with code 1. | Markooj couldn't save this as Word. **[Try again] [Save as PDF]** Your document is safe. *(Technical details: …)* |
+| Invalid file. | Markooj can't read this file. **[Choose another file]** It may be damaged, or saved in a format Markooj doesn't open yet. |
+
 ## Code of conduct
 
 Be kind and patient. Assume good intent, explain instead of judging, and remember that many people here write in their second or third language.

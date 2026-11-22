@@ -57,6 +57,7 @@
 .mka-big p{margin:0;color:var(--text-2);font-size:12.5px}
 .mka-chip{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--hover);color:var(--text-2)}
 .mka-chip.user{background:var(--accent-soft);color:var(--accent)}
+.mka-err-acts{display:flex;gap:6px;margin-top:6px;font-family:var(--font,system-ui)}
 .mka-err{font:12px/1.45 var(--mono,monospace);color:#d92d20;background:rgba(255,59,48,.08);border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
 .mka-sec{font:600 13px var(--font,system-ui);color:var(--text-2);margin:30px 0 12px}
 .mka-guide{background:var(--surface);border:.5px solid var(--line);border-radius:14px;padding:18px 20px}
@@ -216,7 +217,8 @@
     state.loaded = true;
     refresh();
     const bad = state.list.filter(a => a.error);
-    if (bad.length) toast(`${bad.length === 1 ? `The add-in “${bad[0].name}” has` : `${bad.length} add-ins have`} a problem. See File → Add-ins.`, { kind: 'warn' });
+    if (bad.length === 1) problemToast(bad[0]);
+    else if (bad.length) toast(`Open File → Add-ins to turn off the ${bad.length} add-ins that didn’t start. Everything else works.`, { kind: 'warn', actions: [{ label: 'Open Add-ins', run: () => app.backstage.open('addins') }] });
     resolveReady(state.list);
     return state.list;
   }
@@ -255,6 +257,29 @@
     return out;
   }
 
+  // ---------- an add-in that did not start: Turn it off · Show error · Report to the author ----------
+  function authorUrl(a) {
+    const repo = String(a.repo || a.meta?.repo || '');
+    if (/^[\w.-]+\/[\w.-]+$/.test(repo)) return `https://github.com/${repo}/issues`;
+    for (const u of [a.meta?.bugs, a.bugs, a.homepage, a.meta?.homepage]) if (/^https:\/\//.test(String(u || ''))) return String(u);
+    return null;
+  }
+  function problemActions(a) {
+    const report = `Add-in: ${a.name}${a.version ? ' ' + a.version : ''}\nMarkooj ${app.version || ''}\n\n${a.error || ''}`;
+    return [
+      { label: 'Turn it off', run: () => setEnabled(a.id, false) },
+      { label: 'Show error', run: () => app.ui.showDetails ? app.ui.showDetails({ title: `Turn off “${a.name}”, or report it to its author`, message: 'The add-in didn’t start. Everything else in Markooj works.', details: report, report: false }) : toast(String(a.error), { kind: 'info' }) },
+      { label: 'Report to the author', run: async () => {
+        const url = authorUrl(a);
+        if (app.ui.copyText) await app.ui.copyText(report, url ? 'Error copied. Paste it into the report.' : 'Error copied. Send it to the add-in’s author.');
+        if (url) mk.invoke('open-external', url).catch(() => {});
+      } },
+    ];
+  }
+  function problemToast(a, how) {
+    toast(`${how === 'installed' ? `Installed “${a.name}”. ` : ''}Turn “${a.name}” off, or report it to its author: it didn’t start. Everything else works.`, { kind: how === 'installed' ? 'error' : 'warn', actions: problemActions(a) });
+  }
+
   function setEnabled(id, on) {
     const a = state.list.find(x => x.id === id); if (!a) return;
     if (on && isBlocked(a)) {
@@ -265,7 +290,7 @@
     a.enabled = !!on;
     const off = disabled(); if (on) off.delete(id); else off.add(id);
     setSetting('disabledAddons', [...off]);
-    if (on && !a.running) { runEntry(a); if (a.error) toast(`“${a.name}” could not start: ${a.error}`, { kind: 'error' }); else toast(`“${a.name}” is on.`); }
+    if (on && !a.running) { runEntry(a); if (a.error) problemToast(a); else toast(`“${a.name}” is on.`); }
     else if (!on && a.running) { removeStyles(a.id); state.needsReload = true; offerReload(`“${a.name}” turns off fully after a reload.`); }
     else if (on && a.running) { injectStyles(a); toast(`“${a.name}” is on.`); }
     else if (!on) removeStyles(a.id);
@@ -353,7 +378,11 @@
   async function install() {
     let name = null;
     try { name = await mk.invoke('addon-install'); }
-    catch (e) { toast(/No handler/i.test(e.message) ? 'Installing add-ins is not available in this build.' : e.message, { kind: 'error' }); return; }
+    catch (e) {
+      if (/No handler/i.test(e.message)) toast('Use the Add-in store (File → Add-ins → Browse) to add add-ins. Installing from a file needs the desktop app.', { kind: 'warn', actions: [{ label: 'Browse add-ins', run: () => app.backstage.open('addins') }] });
+      else app.ui.fail(e, { lead: 'Choose the add-in’s .js file again.', retry: () => install() });
+      return;
+    }
     if (!name) return;
     const id = String(name).replace(/\.js$/i, '');
     const was = state.list.find(x => x.id === id);
@@ -365,15 +394,15 @@
     state.list = state.list.filter(a => a.id !== id).concat(e).sort((a, b) => a.name.localeCompare(b.name));
     const off = disabled(); off.delete(id); setSetting('disabledAddons', [...off]);
     runEntry(e);
-    if (e.error) toast(`Installed “${e.name}”, but it could not start. See File → Add-ins.`, { kind: 'error' });
+    if (e.error) problemToast(e, 'installed');
     else toast(`Installed “${e.name}”.`);
     refresh();
   }
   async function openFolder() {
     let dir = state.dir;
     if (!dir) { try { dir = (await mk.invoke('user-addons'))?.dir; } catch {} }
-    if (!dir) { toast('The add-ins folder is not available in this build.', { kind: 'warn' }); return; }
-    try { await mk.invoke('open-folder', dir); } catch (e) { toast(e.message, { kind: 'error' }); }
+    if (!dir) { toast('Use Install from file to add an add-in. The add-ins folder opens only in the desktop app.', { kind: 'warn' }); return; }
+    try { await mk.invoke('open-folder', dir); } catch (e) { app.ui.fail(e, { lead: `Open this folder yourself: ${dir}`, actions: [{ label: 'Copy path', run: () => app.ui.copyText(dir, 'Path copied') }] }); }
   }
 
   // ---------- UI ----------
@@ -381,7 +410,7 @@
     const card = document.createElement('div');
     card.className = 'mka-card'; card.tabIndex = 0; card.setAttribute('role', 'button');
     card.title = [a.name, a.description, a.error ? 'Problem: ' + a.error : ''].filter(Boolean).join('\n');
-    card.innerHTML = `<div class="mka-ic" style="background:${colorFor(a)}">${svg(a.icon)}</div><div class="mka-txt"><b>${esc(a.name)}</b><span>${esc(a.error ? 'Could not start. Click for details.' : a.enabled && isBlocked(a) ? 'Waits for community add-ins. Click for details.' : a.description || a.file)}</span></div>`;
+    card.innerHTML = `<div class="mka-ic" style="background:${colorFor(a)}">${svg(a.icon)}</div><div class="mka-txt"><b>${esc(a.name)}</b><span>${esc(a.error ? 'Click to see why it didn’t start, or turn it off.' : a.enabled && isBlocked(a) ? 'Waits for community add-ins. Click for details.' : a.description || a.file)}</span></div>`;
     const tg = document.createElement('button');
     tg.className = 'mka-toggle' + (a.enabled ? ' on' : ''); tg.setAttribute('role', 'switch'); tg.setAttribute('aria-checked', String(a.enabled));
     tg.setAttribute('aria-label', (a.enabled ? 'Turn off ' : 'Turn on ') + a.name); tg.title = a.enabled ? 'On' : 'Off';
@@ -446,7 +475,13 @@
       c.innerHTML = `<div class="top"><div class="mka-ic" style="background:${colorFor(a)}">${svg(a.icon)}</div><div style="flex:1;min-width:0"><b>${esc(a.name)}${a.verified ? verifiedBadge() : ''}</b><small>${esc([a.version && 'Version ' + a.version, a.author].filter(Boolean).join(' · ') || a.file)}</small></div></div>
         <p>${esc(a.description || 'No description.')}</p>
         <div class="mka-foot">${sourceChip(a)}<span class="mka-chip">${esc(a.folder ? a.id + '/' : a.file)}</span><span class="grow"></span></div>`;
-      if (a.error) { const er = document.createElement('div'); er.className = 'mka-err'; er.textContent = 'Could not start: ' + a.error; c.append(er); }
+      if (a.error) {
+        const er = document.createElement('div'); er.className = 'mka-err';
+        er.textContent = 'Turn this add-in off, or report it to its author. Everything else works. It didn’t start: ' + a.error;
+        const row = document.createElement('div'); row.className = 'mka-err-acts';
+        for (const act of problemActions(a).filter(x => x.label !== 'Show error')) { const b = document.createElement('button'); b.type = 'button'; b.className = 'mka-mini'; b.textContent = act.label; b.addEventListener('click', ev => { ev.stopPropagation(); act.run(); }); row.append(b); }
+        er.append(row); c.append(er);
+      }
       else if (a.enabled && isBlocked(a)) {
         const n = document.createElement('div'); n.className = 'mka-note';
         n.innerHTML = '<span>Community add-ins are off, so this add-in does not run yet.</span>';
@@ -495,7 +530,7 @@ app.ribbon.addGroup('addins', {
         <tr><td>app.events.on('doc:changed', fn)</td><td>React to edits. Also doc:active, doc:saved, ready.</td></tr>
         <tr><td>markooj.doc / markooj.ui</td><td>The same easy document API that macros use (doc.text, doc.insert, ui.toast…).</td></tr>
       </table>`;
-    const copy = btn('Copy example', 'copy', async () => { try { await navigator.clipboard.writeText(example); toast('Example copied.'); } catch { toast('Could not copy.', { kind: 'warn' }); } });
+    const copy = btn('Copy example', 'copy', async () => { await app.ui.copyText(example, 'Example copied.'); });
     copy.style.marginTop = '12px';
     guide.append(copy);
     page.append(sec, guide);

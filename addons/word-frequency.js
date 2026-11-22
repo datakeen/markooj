@@ -63,7 +63,7 @@ app.commands.register('wordfreq.insert', {
     const minLength = body.querySelector('#wf-l').checked ? 3 : 1;
     app.settings.set('wordfreq.n', limit); app.settings.set('wordfreq.skip', skipCommon);
     const res = topWords(d.text, { limit, skipCommon, minLength });
-    if (!res.rows.length) { app.ui.toast('No words to count yet.'); return; }
+    if (!res.rows.length) { app.ui.toast('Write some text first, then count the words again.'); return; }
     const table = '\n\n' + toTable(res) + '\n\n: Most frequent words\n';
     if (markooj?.doc) markooj.doc.insert(table);
     else app.editors.active()?.insert(table);

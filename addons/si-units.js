@@ -74,14 +74,14 @@ app.commands.register('siunits.format', {
     const sel = markooj?.doc ? markooj.doc.selection : (app.editors.active()?.getSelection()?.text || '');
     if (sel && sel.trim()) {
       const r = formatUnits(sel);
-      if (!r.count) { app.ui.toast('No numbers with units found in the selection.'); return; }
+      if (!r.count) { app.ui.toast('Select text with numbers and units, like 9.81 m/s2, then try again. The selection has none.'); return; }
       if (markooj?.doc) markooj.doc.replace_selection(r.text);
       else app.editors.active()?.replaceSelection(r.text);
       app.ui.toast(`Formatted ${r.count} ${r.count === 1 ? 'quantity' : 'quantities'}.`);
       return;
     }
     const r = formatUnits(d.text);
-    if (!r.count) { app.ui.toast('No numbers with units found.'); return; }
+    if (!r.count) { app.ui.toast('Type numbers with units, like 9.81 m/s2, then try again. This document has none yet.'); return; }
     const ok = await app.ui.confirm('Format the whole document?', `Nothing is selected. Format all ${r.count} numbers with units in “${d.title}”? You can undo this.`);
     if (!ok) return;
     d.setText(r.text, 'addin');

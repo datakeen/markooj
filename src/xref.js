@@ -473,18 +473,18 @@
     let it = opts.item ? findItem(model, opts.item) || findItem(model, opts.item.label) : null;
     if (!it && opts.element) it = itemForElement(opts.element, model);
     if (!it && opts.from) it = model.byLabel.get(opts.from);
-    if (!it) { app.ui.toast('Markooj could not find that item in the document.', { kind: 'warn' }); return null; }
+    if (!it) { app.ui.toast('Click the equation, picture or table again, then try once more. It moved while you were editing.', { kind: 'warn' }); return null; }
     const kind = it.kind;
     const taken = new Set(model.byLabel.keys());
     let label = opts.label === undefined ? it.label : (opts.label || '').trim();
     if (label && !label.includes(':')) label = `${kind}:${label}`;
-    if (label && label !== it.label && taken.has(label)) { app.ui.toast(`The label ${label} is already used. Pick another one.`, { kind: 'warn' }); return null; }
-    if (label && !validLabel(kind, label)) { app.ui.toast(`Labels start with ${kind}: and use letters, digits, - . or _ (for example ${kind}:flume).`, { kind: 'warn' }); return null; }
+    if (label && label !== it.label && taken.has(label)) { app.ui.toast(`Pick another label: ${label} is already used.`, { kind: 'warn' }); return null; }
+    if (label && !validLabel(kind, label)) { app.ui.toast(`Use a label that starts with ${kind}: and has only letters, digits, - . or _ (for example ${kind}:flume).`, { kind: 'warn' }); return null; }
     if (opts.numbered === true && !label && !(kind === 'eq' && (it.env || model.cfg.numberAll))) label = suggestLabel(kind, it, taken);
     if (opts.numbered === false && kind !== 'eq') label = '';
     if ((kind === 'fig' || kind === 'tbl') && opts.caption != null && !label && opts.numbered !== false) label = suggestLabel(kind, { ...it, caption: opts.caption }, taken);
     let next = rewriteItem(text, it, { label, caption: opts.caption, numbered: opts.numbered, position: opts.position, cfg: model.cfg });
-    if (next == null) { app.ui.toast('That item could not be changed in the Markdown.', { kind: 'warn' }); return null; }
+    if (next == null) { app.ui.toast('Use Simple mode (Ctrl+3) to change this label in the Markdown yourself. Markooj couldn’t rewrite it safely.', { kind: 'warn' }); return null; }
     if (it.label && label && it.label !== label) next = renameRefs(next, it.label, label);
     if (next !== text) doc.setText(next, 'xref');
     invalidate();
@@ -634,7 +634,7 @@
     const t = targetEl(label, root);
     const doc = activeDoc();
     const it = doc && modelFor(doc).byLabel.get(label);
-    if (!t && !it) { app.ui.toast(`Nothing in this document is labeled ${label}.`, { kind: 'warn' }); return false; }
+    if (!t && !it) { app.ui.toast(`Add the label ${label} to an equation, picture or table, or pick another reference. Nothing has this label yet.`, { kind: 'warn', actions: [{ label: 'Insert Caption', run: () => app.commands.run('xref.caption') }] }); return false; }
     if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); flash(t.closest('.mk-math-block') || t); }
     if (it && it.line != null && app.mode === 'simple') { try { app.editors.active()?.scrollToLine?.(it.line); } catch {} }
     return true;
@@ -696,8 +696,8 @@
       if (!it || it.num == null) {
         const kind = KIND_NAME[k.split(':')[0]] || 'item';
         const sug = suggestions(k, model);
-        html += `<div class="mkx-card-sec broken"><div class="mkx-card-h"><span class="mkx-badge bad">${icon('warn')}Not found</span><code>${esc(k)}</code></div>
-          <p>${it ? `This ${kind.toLowerCase()} has no number yet. Give it a label in References → Insert Caption.` : `No ${kind.toLowerCase()} in this document is labeled <b>${esc(k)}</b>.`}</p>
+        html += `<div class="mkx-card-sec broken"><div class="mkx-card-h"><span class="mkx-badge bad">${icon('warn')}Fix this reference</span><code>${esc(k)}</code></div>
+          <p>${it ? `This ${kind.toLowerCase()} has no number yet. Give it a label in References → Insert Caption.` : `Pick a label below, or add <b>${esc(k)}</b> to ${kind === 'Equation' ? 'an' : 'a'} ${kind.toLowerCase()}. Nothing in this document has this label yet.`}</p>
           ${sug.length ? `<div class="mkx-card-fix">${sug.map(s => `<button type="button" class="mkx-chip" data-from="${esc(k)}" data-fix="${esc(s.label)}">Use ${esc(fullLabel(s, model.cfg))} <code>${esc(s.label)}</code></button>`).join('')}</div>` : ''}</div>`;
         continue;
       }
@@ -837,7 +837,7 @@
 
   /** Word-like Cross-reference dialog. args: {kind, label, mode} */
   async function crossrefDialog(args = {}) {
-    const doc = activeDoc(); if (!doc) { app.ui.toast('Open or create a Markdown document first.', { kind: 'warn' }); return; }
+    const doc = activeDoc(); if (!doc) { app.ui.toast('Open or create a Markdown document first.', { kind: 'warn', actions: [{ label: 'New document', run: () => app.commands.run('file.new') }] }); return; }
     const caret = caretInfo(doc);
     let model = decorateModel(build(currentText(doc), config(doc)));
     const prefs = lastPrefs();
@@ -951,7 +951,7 @@
     const caret = opts.caret || caretInfo(doc);
     let model = decorateModel(build(currentText(doc), config(doc)));
     let it = opts.item ? (findItem(model, opts.item) || (opts.item.label && model.byLabel.get(opts.item.label))) : model.byLabel.get(opts.target || opts.label);
-    if (!it) { app.ui.toast('That item is no longer in the document.', { kind: 'warn' }); return null; }
+    if (!it) { app.ui.toast('Pick another item: that one is no longer in the document.', { kind: 'warn' }); return null; }
     const mode = opts.mode || (it.kind === 'sec' ? 'text' : it.kind === 'fn' ? 'fn' : 'full');
     let label = it.label;
     const needsLabel = it.kind !== 'fn' && !label;
@@ -976,7 +976,7 @@
 
   /** Insert Caption (like Word): picks the selected figure, table or equation; adds or edits its caption and label. */
   async function captionDialog(args = {}) {
-    const doc = activeDoc(); if (!doc) { app.ui.toast('Open or create a Markdown document first.', { kind: 'warn' }); return; }
+    const doc = activeDoc(); if (!doc) { app.ui.toast('Open or create a Markdown document first.', { kind: 'warn', actions: [{ label: 'New document', run: () => app.commands.run('file.new') }] }); return; }
     let model = decorateModel(build(currentText(doc), config(doc)));
     let it = args.label ? model.byLabel.get(args.label) : args.element ? itemForElement(args.element, model) : itemAtCaret(doc, model);
     const cands = model.items.filter(i => i.kind === 'fig' || i.kind === 'tbl' || i.kind === 'eq');
@@ -1096,7 +1096,7 @@
     let text = currentText(doc);
     let model = decorateModel(build(text, config(doc)));
     const fixed = model.eqs.filter(i => i.block && i.fixed && /^\d+(?:[.\-]\d+)?$/.test(String(i.tag)) && !i.label);
-    if (!fixed.length) { app.ui.toast('No fixed equation numbers to convert.'); return 0; }
+    if (!fixed.length) { app.ui.toast('All equation numbers are already automatic. Nothing needed converting.'); return 0; }
     const taken = new Set(model.byLabel.keys());
     const lines = text.split('\n'); const renames = [];
     for (const it of [...fixed].reverse()) {

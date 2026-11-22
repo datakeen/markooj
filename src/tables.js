@@ -409,9 +409,9 @@
   /** Run one table operation where the caret is. */
   async function run(op, args = {}) {
     const c = await locate();
-    if (!c) { toast('Click in a table first.'); return null; }
+    if (!c) { toast('Click in a table first.', { kind: 'info' }); return null; }
     const r = TB.apply(c.text, c.line, op, { row: c.row, col: c.col, ...args });
-    if (!r) { toast('Click in a table first.'); return null; }
+    if (!r) { toast('Click in a table first.', { kind: 'info' }); return null; }
     await commit(c, r.text, r.deleted ? { line: r.line } : { line: r.line, row: r.row, col: r.col, select: args.select });
     try { app.events.emit('table:changed', { op, args, line: r.line }); } catch {}
     return r;
@@ -490,7 +490,7 @@
   async function setStyle(v) {
     const d = app.docs.active(); if (!d || d.readOnly) return;
     try { edNow()?.flush?.(); } catch {}
-    const set = E.setFrontMatter; if (!set) { toast('Table styles need the front matter helper.'); return; }
+    const set = E.setFrontMatter; if (!set) { toast('Restart Markooj to use table styles. The front matter tools did not load this time.', { kind: 'warn' }); return; }
     const nt = set(d.text, { 'table-style': !v || v === 'default' ? null : v });
     if (nt !== d.text) d.setText(nt, 'table-style');
     paintSoon();
@@ -606,7 +606,7 @@
   TB.insertPicker = insertPicker;
 
   async function toTextDialog() {
-    const c = await locate(); if (!c) { toast('Click in a table first.'); return; }
+    const c = await locate(); if (!c) { toast('Click in a table first.', { kind: 'info' }); return; }
     const box = radios('mkt-sep', [['tab', 'Tabs'], ['comma', 'Commas'], ['semicolon', 'Semicolons'], ['para', 'Paragraph marks (one cell per paragraph)']], app.settings.get('tableTextSep', 'tab'));
     const v = await modal({ title: 'Convert Table to Text', body: fieldEl('Separate text with', box), buttons: [{ label: 'Cancel', value: null }, { label: 'OK', primary: true, value: () => radioValue(box) }] });
     if (!v) return;
@@ -629,10 +629,10 @@
   }
   async function fromTextDialog() {
     const sel = await selectedLines();
-    if (!sel) { toast('Select the lines to turn into a table first.'); return; }
+    if (!sel) { toast('Select the lines to turn into a table first.', { kind: 'info' }); return; }
     const lines = linesOf(sel.text).slice(sel.from, sel.to);
-    if (!lines.some(l => l.trim())) { toast('Select the lines to turn into a table first. Put tabs or commas between the columns.'); return; }
-    if (lines.some(l => /^\s*(```|~~~|\$\$)/.test(l))) { toast('The selection has code or math blocks. Select plain lines of text.'); return; }
+    if (!lines.some(l => l.trim())) { toast('Select the lines to turn into a table first. Put tabs or commas between the columns.', { kind: 'info' }); return; }
+    if (lines.some(l => /^\s*(```|~~~|\$\$)/.test(l))) { toast('Select plain lines of text. The selection has code or math blocks.', { kind: 'info' }); return; }
     const guess = TB.guessSeparator(lines);
     const box = radios('mkt-sep2', [['auto', 'Automatic'], ['tab', 'Tabs'], ['comma', 'Commas'], ['semicolon', 'Semicolons'], ['spaces', 'Two or more spaces'], ['pipe', 'Pipes ( | )']], 'auto');
     const head = document.createElement('label'); head.className = 'mkt-check'; const hc = document.createElement('input'); hc.type = 'checkbox'; hc.checked = app.settings.get('tableTextHeader', true) !== false; head.append(hc, document.createTextNode(' The first line is the header row'));
@@ -653,7 +653,7 @@
     await commit({ e: sel.e, mode: sel.mode, text: sel.text }, nt, { line: sel.from + before.length, row: 0, col: 0 });
   }
   async function sortDialog() {
-    const c = await locate(); if (!c) { toast('Click in a table first.'); return; }
+    const c = await locate(); if (!c) { toast('Click in a table first.', { kind: 'info' }); return; }
     const m = TB.parse(c.text, c.line); if (!m) return;
     const sel = document.createElement('select'); sel.className = 'mk-input';
     m.header.forEach((h, i) => { const o = document.createElement('option'); o.value = i; o.textContent = plainCell(h) || `Column ${i + 1}`; if (i === c.col) o.selected = true; sel.appendChild(o); });
@@ -670,9 +670,9 @@
   async function select(kind) {
     const e = edNow(); if (!e) return;
     const mode = modeOf(e);
-    if (typeof e.selectTableCells === 'function' && mode !== 'simple') { const ok = await e.selectTableCells(kind); if (ok === false) toast('Click in a table first.'); return; }
-    const c = await locate(e); if (!c) { toast('Click in a table first.'); return; }
-    if (kind === 'col') { toast('Column selection works in Word mode. Here you can select a row or the whole table.'); return; }
+    if (typeof e.selectTableCells === 'function' && mode !== 'simple') { const ok = await e.selectTableCells(kind); if (ok === false) toast('Click in a table first.', { kind: 'info' }); return; }
+    const c = await locate(e); if (!c) { toast('Click in a table first.', { kind: 'info' }); return; }
+    if (kind === 'col') { toast('Switch to Word mode (Ctrl+1) to select a column. Here you can select a row or the whole table.', { kind: 'info' }); return; }
     await commit(c, c.text, { line: c.line, row: c.row, col: c.col, select: kind === 'row' ? 'row' : 'table' });
   }
 

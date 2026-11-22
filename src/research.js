@@ -337,7 +337,7 @@ html.mkr-hide-comments .mk-comment{display:none}
 
   // =================================================================== document + editor helpers
   const activeDoc = () => { const d = app.docs.active(); return d && d.kind === 'markdown' ? d : null; };
-  function needDoc() { const d = activeDoc(); if (!d) app.ui.toast('Open or create a Markdown document first.', { kind: 'warn' }); return d; }
+  function needDoc() { const d = activeDoc(); if (!d) app.ui.toast('Open or create a Markdown document first.', { kind: 'warn', actions: [{ label: 'New document', run: () => app.commands.run('file.new') }] }); return d; }
   const editor = () => app.editors.active();
   const isActive = doc => app.docs.active() === doc;
   function caret(doc) {
@@ -539,7 +539,7 @@ html.mkr-hide-comments .mk-comment{display:none}
       const loc = c.getAttribute('data-locator') || '';
       const missing = keys.filter(k => !bib[k]);
       c.classList.toggle('mkr-missing', missing.length > 0);
-      c.title = missing.length ? `Not in your library: ${missing.join(', ')}` : keys.map(k => noDot(bib[k].title)).join(' · ');
+      c.title = missing.length ? `Add ${missing.map(k => '@' + k).join(', ')} to your bibliography, or double-click to pick a key from the list. (Not in your library yet.)` : keys.map(k => noDot(bib[k].title)).join(' · ');
       let txt;
       if (style === 'ieee') {
         const ns = keys.map(k => (bib[k] ? num(k) : null));
@@ -663,7 +663,7 @@ html.mkr-hide-comments .mk-comment{display:none}
       const doc = needDoc(); if (!doc) return;
       const text = syncFromEditor(doc);
       const next = updateTocText(text);
-      if (next == null) { app.ui.toast('There is no table of contents yet. Click Contents to add one.', { kind: 'warn' }); return; }
+      if (next == null) { app.ui.toast('Click Contents to add a table of contents first.', { kind: 'warn', actions: [{ label: 'Add contents', run: () => app.commands.run('ref.toc') }] }); return; }
       if (next !== text) doc.setText(next, 'research');
       app.ui.toast('Table of contents updated');
     },
@@ -707,7 +707,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     const surf = app.mode === 'word' ? surface() : null;
     if (surf) {
       const list = [...surf.querySelectorAll(kind === 'fn' ? 'sup.footnote-ref, .footnote-ref' : '.mk-comment')];
-      if (!list.length) return app.ui.toast(kind === 'fn' ? 'No footnotes in this document' : 'No comments in this document');
+      if (!list.length) return app.ui.toast(kind === 'fn' ? 'Add a footnote with References → Footnote. This document has none yet.' : 'Add a comment with Review → New Comment. This document has none yet.', { kind: 'info' });
       const s = getSelection(); const here = s && s.rangeCount && surf.contains(s.anchorNode) ? s.getRangeAt(0) : null;
       const cmp = el => { try { return here ? here.comparePoint(el, 0) : (dir > 0 ? 1 : -1); } catch { return 0; } };
       const target = (dir > 0 ? list.find(el => cmp(el) === 1) : [...list].reverse().find(el => cmp(el) === -1)) || list[dir > 0 ? 0 : list.length - 1];
@@ -719,7 +719,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     }
     const text = doc.text, A = analyze(text);
     const spots = kind === 'fn' ? A.fnRefs : A.comments.filter(c => /^<!--\s*comment:/i.test(c[2]));
-    if (!spots.length) return app.ui.toast(kind === 'fn' ? 'No footnotes in this document' : 'No comments in this document');
+    if (!spots.length) return app.ui.toast(kind === 'fn' ? 'Add a footnote with References → Footnote. This document has none yet.' : 'Add a comment with Review → New Comment. This document has none yet.', { kind: 'info' });
     const c = caret(doc);
     let k = dir > 0 ? spots.findIndex(x => x[0] >= (c ? c.end : 0)) : spots.map(x => x[1] <= (c ? c.start : text.length)).lastIndexOf(true);
     if (k < 0) k = dir > 0 ? 0 : spots.length - 1;
@@ -742,7 +742,7 @@ html.mkr-hide-comments .mk-comment{display:none}
       <label class="mkr-field">${icon('search')}<input class="q" placeholder="Search by author, year, title or key" spellcheck="false" aria-label="Search references"></label>
       <div class="mkr-list" role="listbox" aria-multiselectable="true" tabindex="-1"></div>
       <div class="mkr-foot"><label>Page or section <input class="loc" placeholder="e.g. 4 or ch. 2"></label><span class="grow"></span><span class="pv"></span></div>
-      <div class="mkr-note">${st.files.length ? `Library: ${esc(st.files.map(baseName).join(', '))} · ${fmtNum(all.length)} references` : 'No library linked to this document yet.'} Click to pick several; they are cited together.</div>`;
+      <div class="mkr-note">${st.files.length ? `Library: ${esc(st.files.map(baseName).join(', '))} · ${fmtNum(all.length)} references` : 'Click Library to link a .bib file; no library is linked to this document yet.'} Click to pick several; they are cited together.</div>`;
     const q = body.querySelector('.q'), listEl = body.querySelector('.mkr-list'), loc = body.querySelector('.loc'), pv = body.querySelector('.pv');
     const keysNow = () => (picked.length ? picked : (shown[act] ? [shown[act].key] : (/^[\w:.#$%&\-+?<>~/]+$/.test(q.value.trim()) && q.value.trim() && !all.length ? [q.value.trim()] : [])));
     const preview = () => { const k = keysNow(); pv.innerHTML = k.length ? `Inserts <code>${esc(citeMarkdown(k, loc.value))}</code>` : ''; };
@@ -807,12 +807,16 @@ html.mkr-hide-comments .mk-comment{display:none}
   async function pickLibrary(doc) {
     let file = null;
     try { file = await mk.invoke('pick-file', [{ name: 'BibTeX library', extensions: ['bib', 'bibtex'] }, { name: 'All files', extensions: ['*'] }]); }
-    catch (e) { app.ui.toast('Could not open the file picker: ' + (e.message || e), { kind: 'error' }); return false; }
+    catch (e) { app.ui.fail(e, { lead: 'Try Library again, or type the file name after bibliography: in the front matter.', hideReason: true, retry: () => pickLibrary(doc) }); return false; }
     if (!file) return false;
     let count = 0;
     try { const src = await mk.invoke('read-text', file); count = Object.keys(mk.parseBib ? mk.parseBib(String(src)) : {}).length; }
-    catch (e) { app.ui.toast('That file could not be read: ' + (e.message || e), { kind: 'error' }); return false; }
-    if (!count) { const go = await app.ui.confirm('No references found', `${baseName(file)} does not look like a BibTeX file (no @article{…} entries). Link it anyway?`); if (!go) return false; }
+    catch (e) { app.ui.fail(e, { lead: `Choose another .bib file. Markooj can’t read ${baseName(file)}.`, actions: [{ label: 'Choose another file', run: () => pickLibrary(doc) }], still: 'Your citations stay as they are.' }); return false; }
+    if (!count) {
+      const go = await app.ui.dialog({ title: 'Choose a BibTeX file', body: `<p>Choose a .bib file with entries such as @article{…}. ${app.esc(baseName(file))} has no references Markooj can read.</p>`, buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Link anyway', value: 'link' }, { label: 'Choose another…', value: 'again', primary: true }], cancelValue: 'cancel' });
+      if (go === 'again') return pickLibrary(doc);
+      if (go !== 'link') return false;
+    }
     const rel = doc.path ? relPath(dirOf(doc.path), file) : null;
     const value = (rel || file).replace(/\\/g, '/');
     const text = syncFromEditor(doc);
@@ -822,7 +826,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     return true;
   }
   cmd('ref.library', { label: 'Choose citation library (.bib)', icon: 'bib', isEnabled: mdOnly, run: () => { const d = needDoc(); return d && pickLibrary(d); } });
-  cmd('ref.reloadLibrary', { label: 'Reload citation library', icon: 'bib', isEnabled: mdOnly, async run() { const d = needDoc(); if (!d) return; const st = await loadBib(d, true); app.ui.toast(st && st.files.length ? `Reloaded ${fmtNum(Object.keys(st.entries).length)} references` : 'No library linked yet'); } });
+  cmd('ref.reloadLibrary', { label: 'Reload citation library', icon: 'bib', isEnabled: mdOnly, async run() { const d = needDoc(); if (!d) return; const st = await loadBib(d, true); st && st.files.length ? app.ui.toast(`Reloaded ${fmtNum(Object.keys(st.entries).length)} references`) : app.ui.toast('Click Library to link a .bib file first.', { kind: 'info', actions: [{ label: 'Choose library', run: () => app.commands.run('ref.library') }] }); } });
   cmd('ref.style', {
     label: 'Citation style', icon: 'cite', isEnabled: mdOnly,
     async run(args) {
@@ -879,7 +883,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     return out;
   }
   // the old dialog lived here; the Word-like Cross-reference dialog is xref.crossref
-  cmd('ref.crossref', { label: 'Insert cross-reference', icon: 'xref', palette: false, isEnabled: mdOnly, run: a => (app.commands.get('xref.crossref') ? app.commands.run('xref.crossref', a) : app.ui.toast('Cross-references are not available.', { kind: 'warn' })) });
+  cmd('ref.crossref', { label: 'Insert cross-reference', icon: 'xref', palette: false, isEnabled: mdOnly, run: a => (app.commands.get('xref.crossref') ? app.commands.run('xref.crossref', a) : app.ui.toast('Restart Markooj to use cross-references. The cross-reference tools did not load this time.', { kind: 'warn' })) });
   cmd('ref.numberEquations', { label: 'Number all equations', icon: 'sigma', palette: false, isActive: () => !!app.xref?.config?.().numberAll, run: a => app.commands.run('xref.numberAll', a) });
 
   // =================================================================== commands: Review
@@ -948,7 +952,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     run() {
       const doc = needDoc(); if (!doc) return;
       const text = syncFromEditor(doc), list = reviewComments(text);
-      if (!list.length) return app.ui.toast('No comments in this document');
+      if (!list.length) return app.ui.toast('Add a comment with Review → New Comment. This document has none yet.', { kind: 'info' });
       let k = -1;
       const surf = app.mode === 'word' ? surface() : null;
       if (surf) {
@@ -973,7 +977,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     async run() {
       const doc = needDoc(); if (!doc) return;
       const text = syncFromEditor(doc), list = reviewComments(text);
-      if (!list.length) return app.ui.toast('No comments in this document');
+      if (!list.length) return app.ui.toast('Add a comment with Review → New Comment. This document has none yet.', { kind: 'info' });
       if (!(await app.ui.confirm('Delete all comments?', `This removes ${list.length} comment${list.length === 1 ? '' : 's'}. Undo (Ctrl+Z) brings them back.`))) return;
       let out = text;
       for (const [a, b] of [...list].reverse()) { let s = a, e = b; if (out[e] === '\n' && (s === 0 || out[s - 1] === '\n')) e++; else if (out[s - 1] === ' ') s--; out = out.slice(0, s) + out.slice(e); }
@@ -1029,7 +1033,7 @@ html.mkr-hide-comments .mk-comment{display:none}
       const now = syncFromEditor(doc);
       let saved = doc.savedText || '', from = 'the last save';
       if (doc.path && !doc.convertedFrom) { try { saved = String(await mk.invoke('read-text', doc.path)); from = 'the file on disk'; } catch {} }
-      else if (!doc.path) { app.ui.toast('This document has not been saved yet, so there is nothing to compare with.', { kind: 'warn' }); return; }
+      else if (!doc.path) { app.ui.toast('Save the document first. Compare shows what changed since the last save.', { kind: 'warn', actions: [{ label: 'Save', run: () => app.commands.run('file.save') }] }); return; }
       const d = diffLines(saved.replace(/\r\n/g, '\n').split('\n'), now.replace(/\r\n/g, '\n').split('\n'));
       const adds = d.filter(x => x.t === '+').length, dels = d.filter(x => x.t === '-').length;
       const body = document.createElement('div'); body.className = 'mkr-dlg';

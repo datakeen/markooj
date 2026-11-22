@@ -39,7 +39,12 @@
     list() { return [...cmdMap.values()]; },
     async run(id, args) {
       const c = cmdMap.get(id);
-      if (!c) { console.warn('Unknown command', id); ui.toast(`Command not available: ${id}`, { kind: 'warn' }); return; }
+      if (!c) {
+        console.warn('Unknown command', id);
+        // usually a macro or a shortcut that points at an add-in which is off or removed
+        ui.toast(`Turn on the add-in that adds “${id}”, or check the macro or shortcut that runs it. Everything else works.`, { kind: 'warn', actions: [{ label: 'Open Add-ins', run: () => backstage.open('addins') }] });
+        return;
+      }
       if (c.isEnabled && !c.isEnabled()) return;
       // typing the Word editor has not committed yet must be in doc.text before a command reads or rewrites it
       try { editors.active()?.flush?.(); } catch {}
@@ -48,13 +53,17 @@
         events.emit('command:ran', { id, args });
         events.emit('ribbon:changed');
         return r;
-      } catch (e) { console.error(e); ui.toast(plainError(e), { kind: 'error' }); }
+      } catch (e) {
+        console.error(e);
+        // the command's own message when it is plain English; code-like text only under Details
+        ui.fail(e, { retry: () => commands.run(id, args) });
+      }
     },
   };
   // Error text for people: no "Error invoking remote method 'x':" or "Error:" prefixes from Electron
   function plainError(e, fallback) {
     const s = String((e && e.message) || e || '').replace(/^Error invoking remote method '[^']+':\s*/, '').replace(/^(?:\w*Error:\s*)+/, '').trim();
-    return s || fallback || 'Something went wrong.';
+    return s || fallback || 'Try that again.';
   }
 
   // ---------- ribbon / backstage / options / status registries ----------
@@ -185,7 +194,7 @@
       const text = doc.text;
       let r = await mk.invoke('write-text', doc.path, text, opts.force || doc.mtime == null ? undefined : { expectMtime: doc.mtime });
       if (r && typeof r === 'object' && r.conflict) {
-        const v = await ui.dialog({ title: `“${doc.title}” changed on disk`, body: 'This file changed on disk since you opened it (another program, a co-author or a sync service changed it). Saving now replaces those changes.', buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Save as Copy…', value: 'copy' }, { label: 'Overwrite', value: 'overwrite', danger: true }], cancelValue: 'cancel' });
+        const v = await ui.dialog({ title: `Choose how to save “${doc.title}”`, body: '<p>Save as Copy keeps both versions. Overwrite replaces the copy on disk.</p><p>Another program, a co-author or a sync service changed this file after you opened it.</p>', buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Overwrite', value: 'overwrite', danger: true }, { label: 'Save as Copy…', value: 'copy', primary: true }], cancelValue: 'cancel' });
         if (v === 'copy') return docs.saveAs(doc, { copy: true });
         if (v !== 'overwrite') return false;
         r = await mk.invoke('write-text', doc.path, text);
@@ -267,6 +276,10 @@
     async confirm(title, text) { return window.confirm(`${title}\n\n${text || ''}`); },
     popover() {},
     plainError,
+    // shell replaces these with the real toast, dialog and details helpers
+    fail(e, o = {}) { const m = [o.lead, plainError(e, 'Try that again.')].filter(Boolean).join(' '); ui.toast(m, { kind: o.kind || 'error', actions: o.retry ? [{ label: 'Try again', run: o.retry }] : o.actions }); },
+    async solution(o = {}) { ui.toast([o.lead, o.still].filter(Boolean).join(' '), { kind: o.kind || 'info' }); return 'close'; },
+    friendlyError: () => null,
   };
 
   // ---------- tests ----------

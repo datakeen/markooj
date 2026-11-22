@@ -106,11 +106,11 @@
   }
 
   function openExternal(url) {
-    return mk.invoke('open-external', url).then(() => true, e => { toast(`Couldn’t open the browser. ${app.ui.plainError ? app.ui.plainError(e) : e.message}`, { kind: 'error' }); return false; });
+    return mk.invoke('open-external', url).then(() => true, e => { toast('Copy the link and paste it into your browser. Markooj could not open the browser this time.', { kind: 'warn', actions: [{ label: 'Copy link', run: () => copyText(url, 'Link copied. Paste it into your browser.') }], details: app.ui.plainError ? app.ui.plainError(e) : String(e && e.message || e) }); return false; });
   }
   async function copyText(text, msg) {
     try { await navigator.clipboard.writeText(text); toast(msg || 'Copied'); return true; }
-    catch { toast('Couldn’t copy to the clipboard.', { kind: 'warn' }); return false; }
+    catch { toast('Try Copy again, or select the text and press Ctrl+C. The clipboard did not answer this time.', { kind: 'warn' }); return false; }
   }
 
   // =====================================================================
@@ -243,6 +243,24 @@
     }
     // Urdu, Arabic and Persian examples read right to left
     for (const b of el.querySelectorAll('p, li, blockquote, td, th, h1, h2, h3, h4')) if (!b.hasAttribute('dir')) b.setAttribute('dir', 'auto');
+    // "Welcome and what's new" (getting started) and links to it (Help home): a button that opens the Welcome screen
+    if (app.commands.get('help.welcome')) {
+      const welcomeBtn = () => {
+        const b = h('button', { type: 'button', class: 'btn sm mkh-welcome-btn', 'data-tip': 'Open the Welcome screen', 'data-tip-d': 'What Markooj can do, with a short guided tour for each feature. Help closes while it shows.' },
+          h('span', { html: icon('sparkle') }), 'Open the Welcome screen');
+        b.addEventListener('click', () => { close(); setTimeout(() => app.commands.run('help.welcome'), 240); });
+        return b;
+      };
+      for (const hd of el.querySelectorAll('h2, h3')) {
+        if (!/^welcome and what.?s new$/i.test(hd.textContent.trim()) || hd.nextElementSibling?.classList.contains('mkh-welcome-btn')) continue;
+        hd.after(welcomeBtn());
+      }
+      for (const a of el.querySelectorAll('a[href*="#welcome-and-what"]')) {
+        const block = a.closest('p, li');
+        if (!block || block.querySelector('.mkh-welcome-btn') || block.nextElementSibling?.classList.contains('mkh-welcome-btn')) continue;
+        if (block.tagName === 'LI') block.append(' ', welcomeBtn()); else block.after(welcomeBtn());
+      }
+    }
     // the Tutorials page: each section whose title is a guided tour gets a button that runs it
     if (key === HELP_DIR + 'tutorials.md' && typeof app.tours?.list === 'function') {
       const byTitle = new Map(app.tours.list().map(t => [t.title.toLowerCase(), t]));
@@ -367,7 +385,7 @@
     if (V.query) return; // the search results stay until the box is cleared
     side.innerHTML = '';
     if (!m || !m.ok) {
-      side.append(h('div', { class: 'mkh-side-note', text: 'The manual pages are not included in this copy.' }));
+      side.append(h('div', { class: 'mkh-side-note', text: 'Read the manual online on the project page: this copy does not include its pages.' }));
       return;
     }
     for (const s of m.sections) {
@@ -402,7 +420,7 @@
       else text = await fetchText(key);
     } catch {
       if (key === HELP_DIR + 'index.md') { text = fallbackHome(); }
-      else text = `# Page not found\n\nThis help page is not included in this copy of Markooj: \`${key.split('/').pop()}\`.\n\n[Back to Help home](${relFrom(key, HELP_DIR + 'index.md')})`;
+      else text = `# Read this page online\n\nGo [back to Help home](${relFrom(key, HELP_DIR + 'index.md')}) and search for the topic, or read the manual on the [project page](${PROJECT}/tree/main/docs/help). This copy of Markooj does not include \`${key.split('/').pop()}\`.`;
     }
     if (seq !== V.seq) return;
     V.key = key; V.hash = opts.hash || '';
@@ -428,7 +446,7 @@
   }
   const relFrom = (fromKey, toKey) => { const a = fromKey.split('/'); a.pop(); const b = toKey.split('/'); while (a.length && b.length > 1 && a[0] === b[0]) { a.shift(); b.shift(); } return '../'.repeat(a.length) + b.join('/'); };
   function fallbackHome() {
-    return `# Markooj Help\n\nThe reference manual is not included in this copy of Markooj. You can read it online at [github.com/datakeen/markooj](${PROJECT}/tree/main/docs/help).\n\n` +
+    return `# Markooj Help\n\nRead the reference manual online at [github.com/datakeen/markooj](${PROJECT}/tree/main/docs/help). This copy of Markooj does not include it.\n\n` +
       'Other help that works offline:\n\n- **Tutorials**: Help → Tutorials shows step-by-step tours in the app.\n- **Keyboard shortcuts**: Help → Keyboard Shortcuts.\n- **Search**: press Alt+Q and type what you want to do.\n';
   }
   function renderPager(m) {
@@ -456,7 +474,7 @@
     const r = resolveKey(href, V.key);
     if (r && /\.(md|markdown)$/i.test(r.key)) { show(r.key, { hash: r.hash }); return; }
     if (r && /^licenses\//.test(r.key)) { viewFile(r.key, r.key.split('/').pop()); return; }
-    toast('This link points to a file that is not part of the help.', { kind: 'info' });
+    toast('Use the Help home page or search to find this topic: the link points to a file outside the help.', { kind: 'info' });
   }
 
   // ---------- search ----------
@@ -541,7 +559,7 @@
     const css = `body{font:12pt/1.55 Charter,Cambria,Georgia,serif;color:#111;margin:18mm}h1,h2,h3{font-family:-apple-system,"Segoe UI",sans-serif;line-height:1.25}
       code,pre{font-family:Consolas,monospace;font-size:10pt}pre{background:#f5f5f7;padding:8px;border-radius:4px;white-space:pre-wrap}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px 8px}img{max-width:100%}a{color:#0a52e0}kbd{border:1px solid #bbb;border-radius:3px;padding:0 4px;font:10pt sans-serif}`;
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${css}</style></head><body>${V.article.innerHTML}</body></html>`;
-    try { await mk.invoke('print', { html, title }); } catch (e) { toast('Couldn’t print. ' + (e.message || ''), { kind: 'error' }); }
+    try { await mk.invoke('print', { html, title }); } catch (e) { toast('Try printing again, or check that a printer is set up in your system settings. The help stays open.', { kind: 'error', actions: [{ label: 'Try again', run: () => printPage() }], details: app.ui.plainError ? app.ui.plainError(e) : String(e && e.message || e) }); }
   }
 
   /** Show a license or notices file in the viewer: Markdown files are drawn, others shown as plain text. */
@@ -549,7 +567,7 @@
     let text = null;
     if (absPath) { try { text = await mk.invoke('read-text', absPath); } catch {} }
     if (text == null) { try { text = await fetchText(pathOrKey); } catch {} }
-    if (text == null) { toast(`${title || 'This file'} is not included in this copy of Markooj.`, { kind: 'warn' }); return false; }
+    if (text == null) { toast(`Read ${title || 'this file'} on the project page: this copy of Markooj does not include it.`, { kind: 'warn', actions: [{ label: 'Open project page', run: () => app.commands.run('help.projectPage') }] }); return false; }
     const key = 'about:' + pathOrKey;
     virtual.set(key, { title: title || prettyName(pathOrKey), text: /\.md$/i.test(pathOrKey) ? text : text.replace(/\r\n/g, '\n'), kind: /\.md$/i.test(pathOrKey) ? 'md' : 'text' });
     return open(key);
@@ -651,7 +669,7 @@
       ],
       onOpen: () => setTimeout(() => search.focus(), 40),
     }).then(async v => {
-      if (v === 'print') { try { await mk.invoke('print', { html: shortcutsHtml(rows), title: 'Markooj keyboard shortcuts' }); } catch (e) { toast('Couldn’t print. ' + (e.message || ''), { kind: 'error' }); } }
+      if (v === 'print') { try { await mk.invoke('print', { html: shortcutsHtml(rows), title: 'Markooj keyboard shortcuts' }); } catch (e) { toast('Try printing again, or check that a printer is set up in your system settings.', { kind: 'error', actions: [{ label: 'Try again', run: () => mk.invoke('print', { html: shortcutsHtml(rows), title: 'Markooj keyboard shortcuts' }).catch(() => {}) }], details: app.ui.plainError ? app.ui.plainError(e) : String(e && e.message || e) }); } }
       if (v === 'manual') { const m = await manual().catch(() => null); const k = m?.pages.find(p => /keyboard/i.test(p.key))?.key; open(k || undefined); }
       return v;
     });
@@ -683,7 +701,7 @@
     const f = await aboutFacts();
     const box = h('div', { class: 'mkh-new' });
     if (!latest) {
-      box.append(h('p', { text: 'The list of changes is not included in this copy. You can read it on the project page.' }));
+      box.append(h('p', { text: 'Read the list of changes on the project page. This copy does not include it.' }));
       const v = await app.ui.dialog({ title: 'What’s new', icon: 'mkh-i-new', body: box, buttons: [{ label: 'Project Page', value: 'web', left: true }, { label: 'OK', value: true, primary: true }] });
       if (v === 'web') openExternal(PROJECT + '/releases');
       return v;
@@ -852,7 +870,7 @@
   function tutorialsList(onStart) {
     const T = app.tours;
     const box = h('div', { class: 'mkh-tours', role: 'list' });
-    if (!T || typeof T.list !== 'function') { box.append(h('p', { class: 'mkh-side-note', text: 'Tutorials are not included in this copy.' })); return box; }
+    if (!T || typeof T.list !== 'function') { box.append(h('p', { class: 'mkh-side-note', text: 'Read the tutorials in the online manual on the project page. This copy does not include them.' })); return box; }
     for (const t of T.list()) {
       const done = !!T.isDone?.(t.id);
       const b = h('button', { type: 'button', class: 'mkh-tour' + (done ? ' done' : ''), role: 'listitem', 'data-tour': t.id, 'aria-label': `${t.title}, ${t.minutes} min${done ? ', done' : ''}` },
@@ -904,7 +922,8 @@
     { type: 'big', command: 'help.tutorials', label: 'Tutorials', icon: 'mkh-i-tour' },
     { type: 'big', command: 'help.shortcuts', label: 'Shortcuts', icon: 'mkh-i-keys' },
   ] });
-  app.ribbon.addGroup('help', { id: 'help-news', label: 'Updates', order: 20, items: [
+  app.ribbon.addGroup('help', { id: 'help-news', label: 'Welcome', order: 20, items: [
+    { type: 'big', command: 'help.welcome', label: 'Welcome', icon: 'sparkle' },
     { type: 'big', command: 'help.whatsNew', label: 'What’s New', icon: 'mkh-i-new' },
   ] });
   app.ribbon.addGroup('help', { id: 'help-feedback', label: 'Feedback', order: 30, items: [
@@ -932,6 +951,7 @@
       bigCard('help.manual', 'Reference manual', 'Every feature explained, with search.', 'mkh-i-book', '<kbd>F1</kbd>'),
       bigCard('help.tutorials', 'Tutorials', 'Guided tours on the real buttons.', 'mkh-i-tour'),
       bigCard('help.shortcuts', 'Keyboard shortcuts', 'Search or print the full list.', 'mkh-i-keys'),
+      bigCard('help.welcome', 'Welcome', 'The main features, with a tour for each.', 'sparkle'),
       bigCard('help.whatsNew', 'What’s new', 'Changes in this version.', 'mkh-i-new'),
       bigCard('help.reportProblem', 'Report a problem', 'Tell us on GitHub.', 'mkh-i-bug', icon('mkh-i-ext', 'i x')),
       bigCard('help.projectPage', 'Project page', 'Downloads, source code and news.', 'mkh-i-home', icon('mkh-i-ext', 'i x')));
@@ -1020,7 +1040,7 @@
       await show(p.key, { push: true });
       A(V.key === p.key, 'shows ' + p.key);
       A(V.article.textContent.trim().length > 20, 'page has text: ' + p.key);
-      A(!/Page not found/.test(V.article.querySelector('h1')?.textContent || ''), 'page found: ' + p.key);
+      A(!/Page not found|Read this page online/.test(V.article.querySelector('h1')?.textContent || ''), 'page found: ' + p.key);
     }
     // back and forward
     if (m.pages.length > 1) {

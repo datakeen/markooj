@@ -66,7 +66,7 @@ fs.writeFileSync(path.join(PROFILE, 'settings.json'), JSON.stringify({
   proofingLanguage: 'en-US', writingAssistant: true, writingAutocomplete: false, recent: [], remoteImages: false,
   // words of the field that the bundled English dictionary does not know (a researcher would have added them)
   writingDictionary: ['barrage', 'bedload', 'Ctrl', 'deaired', 'hydrograph', 'hydrographs', 'sieved'],
-  dailyWordGoal: 500, writingLog, writingMet, goalsCelebrate: false, toursOffered: true,
+  dailyWordGoal: 500, writingLog, writingMet, goalsCelebrate: false, 'welcome.seenVersion': require('../package.json').version,
   mathMacros: [
     '% Sets and vectors', '\\newcommand{\\R}{\\mathbb{R}}', '\\newcommand{\\N}{\\mathbb{N}}', '\\newcommand{\\vect}[1]{\\mathbf{#1}}',
     '% Calculus', '\\newcommand{\\dd}{\\mathrm{d}}', '\\newcommand{\\pdv}[2]{\\frac{\\partial #1}{\\partial #2}}',

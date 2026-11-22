@@ -1,7 +1,7 @@
 {
   "name": "markooj",
   "productName": "Markooj",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A calm, Word-like Markdown editor and viewer for researchers.",
   "homepage": "https://datakeen.github.io/markooj/",
   "bugs": {
@@ -52,6 +52,7 @@
       "fonts/**",
       "docs/help/**",
       "CHANGELOG.md",
+      "samples/sediment-transport/**",
       "!**/*.map",
       "!**/*.d.ts",
       "!**/*.d.mts",

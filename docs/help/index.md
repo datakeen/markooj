@@ -2,7 +2,7 @@
 
 Markooj is a Markdown editor that works like Microsoft Word. You click and type on a page, use the ribbon you already know, and Markooj writes plain Markdown for you. Everything happens on your own computer, and this manual works offline.
 
-New here? Start with **[Getting started](getting-started.md)**. It takes about ten minutes.
+New here? Start with **[Getting started](getting-started.md)**. It takes about ten minutes. The [Welcome screen](getting-started.md#welcome-and-whats-new) shows the main features, with a short guided tour for each.
 
 ## Learn
 

@@ -106,6 +106,161 @@
   //  UI primitives: toast, dialog, prompt, confirm, popover, menu, tooltip
   // =====================================================================
   const toastLayer = $('#toastLayer');
+  // ---- messages: solution first ----
+  // Every error or warning says what the user can do (a button, or a sentence that starts with one of these verbs),
+  // then what still works; raw error text stays under "Technical details". Smoke-tested through `toastLog`.
+  const REMEDY_VERBS = ['Try', 'Choose', 'Open', 'Save', 'Install', 'Turn', 'Check', 'Copy', 'Click', 'Press', 'Use', 'Add', 'Remove', 'Close', 'Restart', 'Download', 'Get', 'Pick', 'Select',
+    // verbs that main's messages (main.js, main-langpacks.js, main-addins.js) start with
+    'Free', 'Allow', 'Repair', 'Unzip', 'Wait', 'Rename', 'Refresh', 'Update', 'Give', 'Delete', 'List', 'Run', 'Put', 'Ask', 'Move', 'Let', 'Enter'];
+  const REMEDY_RE = new RegExp('\\b(?:' + REMEDY_VERBS.join('|') + ')\\b');
+  const NOT_A_REMEDY = /^(?:details|technical details|show details|dismiss|ok|close)$/i;
+  const toastLog = [];
+  /** true when a message tells the user what to do: a real action button, or a remedy verb in the text */
+  function isActionable(msg, opts = {}) {
+    const acts = [].concat(opts.action || [], opts.actions || []).filter(a => a && a.label && !NOT_A_REMEDY.test(String(a.label).trim()));
+    return acts.length > 0 || REMEDY_RE.test(String(msg ?? ''));
+  }
+  // error text that reads like code: never shown first, only under Technical details
+  const TECH_RE = /\b(?:TypeError|ReferenceError|SyntaxError|RangeError|undefined|null|NaN|E[A-Z]{3,}|HTTP \d{3}|status \d{3}|errno|is not a function|Cannot read propert\w*|Unexpected token|at \w+ \(|\[object \w+\])|\bNo handler\b|\bstack\b/;
+  /** A plain sentence for common system errors (what to do), or null */
+  function friendlyError(e) {
+    const s = String((e && (e.code ? e.code + ' ' : '') + (e.message || '')) || e || '');
+    if (/\bENOENT\b|no such file/i.test(s)) return 'Check that the file is still there. It may have been moved, renamed or deleted.';
+    if (/\bE(?:ACCES|PERM)\b|permission denied|operation not permitted/i.test(s)) return 'Choose a folder you can write to (such as Documents), or close the file in other programs and try again.';
+    if (/\bEBUSY\b|resource busy|being used by another process/i.test(s)) return 'Close the file in the other program, then try again.';
+    if (/\bENOSPC\b|no space left/i.test(s)) return 'Free up some disk space, then try again.';
+    if (/\bE(?:NOTFOUND|CONNRESET|CONNREFUSED|AI_AGAIN|TIMEDOUT)\b|ETIMEDOUT|Failed to fetch|fetch failed|net::ERR_|network|offline|timed out/i.test(s)) return 'Check your internet connection, then try again.';
+    return null;
+  }
+  function technicalText(e) {
+    if (e == null) return '';
+    if (typeof e === 'string') return e;
+    const parts = [];
+    // errors from main may carry their raw text separately (preload's mk.errorInfo, when present)
+    try { const info = mk.errorInfo?.(e); if (info?.details) return [info.code ? 'Code: ' + info.code : '', String(info.details)].filter(Boolean).join('\n'); } catch {}
+    if (e.code) parts.push('Code: ' + e.code);
+    if (e.details) parts.push(String(e.details));
+    parts.push(String(e.stack || e.message || e));
+    return parts.join('\n');
+  }
+  async function copyText(text, okMsg) {
+    try { await navigator.clipboard.writeText(String(text ?? '')); if (okMsg) toast(okMsg, { timeout: 1600 }); return true; }
+    catch { toast('Press Ctrl+C to copy: select the text first. The clipboard did not answer this time.', { kind: 'warn' }); return false; }
+  }
+  /** Copies the technical details and opens Help → Report a Problem (or the bug page) */
+  async function reportProblem(details, what) {
+    const text = [what ? 'What happened: ' + what : '', `Markooj ${app.version || ''} on ${navigator.platform || ''}`, details ? '\n' + details : ''].filter(Boolean).join('\n');
+    await copyText(text, 'Details copied. Paste them into your report.');
+    if (app.commands.get('help.reportProblem')) app.commands.run('help.reportProblem', { details: text });
+  }
+  function detailsEl(text) {
+    const d = h('details.mk-tech');
+    d.append(h('summary', { text: 'Technical details' }), h('pre', { text: String(text || '') }));
+    return d;
+  }
+  /** A dialog with the message, then the technical details folded away (Copy details, Report this) */
+  async function showDetails({ title = 'Details', message = '', details = '', report = true } = {}) {
+    const body = h('div');
+    if (message) body.append(h('p', { text: message }));
+    body.append(detailsEl(details));
+    body.querySelector('details').open = !message;
+    const v = await dialog({ title, body, wide: true, buttons: [...(report ? [{ label: 'Report this', value: 'report', left: true }] : []), { label: 'Copy details', value: 'copy' }, { label: 'Close', value: 'close', primary: true }], cancelValue: 'close' });
+    if (v === 'copy') await copyText(details, 'Details copied.');
+    if (v === 'report') await reportProblem(details, message);
+    return v;
+  }
+  const PLATFORM = mk.platform === 'darwin' ? 'macOS' : mk.platform === 'win32' ? 'Windows' : 'Linux';
+  /**
+   * solution({title, lead, steps:[{os?, text, command?, link?:{label, url}}], still, details, actions:[{label, value?, run?, primary?}], icon, kind})
+   * A dialog that leads with the fix: steps for this computer first (each command has a Copy button), then what still works,
+   * then the technical details folded away. Resolves with the value of the button the user picked.
+   */
+  async function solution(o = {}) {
+    const body = h('div.mk-solution');
+    if (o.lead) body.append(h('p.mk-sol-lead', { text: o.lead }));
+    const steps = (o.steps || []).filter(Boolean);
+    if (steps.length) {
+      const mine = steps.filter(s => !s.os || s.os === PLATFORM), others = steps.filter(s => s.os && s.os !== PLATFORM);
+      const list = h('ol.mk-sol-steps');
+      const addStep = (s, into) => {
+        const li = h('li');
+        if (s.os) li.append(h('b', { text: s.os + ': ' }));
+        if (s.text) li.append(document.createTextNode(s.text));
+        if (s.command) {
+          const row = h('div.mk-sol-cmd');
+          row.append(h('code', { text: s.command }), h('button.btn', { type: 'button', text: 'Copy', onclick: () => copyText(s.command, 'Command copied. Paste it into a terminal.') }));
+          li.append(row);
+        }
+        if (s.link) li.append(document.createTextNode(' '), h('a', { href: '#', text: s.link.label || s.link.url, onclick: ev => { ev.preventDefault(); mk.invoke('open-external', s.link.url).catch(() => copyText(s.link.url, 'Link copied. Paste it into your browser.')); } }));
+        into.append(li);
+      };
+      mine.forEach(s => addStep(s, list));
+      body.append(list);
+      if (others.length) {
+        const more = h('details.mk-sol-other');
+        more.append(h('summary', { text: 'Steps for other systems' }));
+        const l2 = h('ul.mk-sol-steps'); others.forEach(s => addStep(s, l2)); more.append(l2);
+        body.append(more);
+      }
+    }
+    if (o.still) body.append(h('p.mk-sol-still', { text: o.still }));
+    if (o.details) body.append(detailsEl(o.details));
+    const acts = (o.actions || []).filter(Boolean);
+    const buttons = acts.map((a, i) => ({ label: a.label, value: a.value ?? ('act' + i), primary: !!a.primary, left: !!a.left }));
+    buttons.push({ label: o.closeLabel || 'Close', value: 'close', primary: !acts.some(a => a.primary) });
+    toastLog.push({ msg: [o.title, o.lead].filter(Boolean).join(' — '), kind: o.kind || 'dialog', actions: acts.map(a => a.label), dialog: true, test: app.tests?.current || null, at: Date.now() });
+    const v = await dialog({ title: o.title || '', body, icon: o.icon, kind: o.kind, wide: !!(steps.length || o.details), buttons, cancelValue: 'close' });
+    const picked = acts.find((a, i) => (a.value ?? ('act' + i)) === v);
+    if (picked?.run) { try { await picked.run(); } catch (e) { fail(e); } }
+    return v;
+  }
+  /**
+   * fail(error, {lead, retry, actions, still, kind, details}) — the toast for something that did not work.
+   * Shows `lead` (what to do) and, when the error's own text is plain English, that text after it; code-like
+   * text and the stack go under Details. Adds Try again when `retry` is given, else Report this for unknown errors.
+   */
+  function fail(e, o = {}) {
+    // An error from main that carries its own fix (mk.errorInfo): its message already leads with what to do, so no
+    // `lead` goes in front of it; its buttons come along (run through app.health), and its raw text goes under Details.
+    let info = null;
+    try { info = mk.errorInfo?.(e) || null; } catch {}
+    if (info && info.message) {
+      // hideReason: the caller's lead is the better fix here (a broken link in a document), main's buttons still come along
+      let msg = o.hideReason && o.lead ? o.lead : (app.ui.plainError(e, '') || info.message);
+      if (o.still && !msg.includes(o.still)) msg += ' ' + o.still;
+      msg = msg.replace(/\s+/g, ' ').trim();
+      if (!/[.!?…]$/.test(msg)) msg += '.';
+      const ctx = { ...(o.ctx || {}), retry: o.retry || (o.ctx && o.ctx.retry) };
+      const own = [].concat(o.actions || []).filter(Boolean);
+      const ownOpens = own.some(a => /^(Open|Choose)\b/.test(String(a.label)));
+      const fromMain = (app.health?.errorActions ? app.health.errorActions(e, ctx) : [])
+        .filter(a => !(ownOpens && a.label === 'Choose another file') && !own.some(b => b.label === a.label));
+      const actions = [];
+      if (o.retry && !(info.actions || []).some(a => a && a.id === 'retry')) actions.push({ label: 'Try again', run: o.retry });
+      actions.push(...fromMain, ...own);
+      const details = o.details ?? technicalText(e);
+      const shown = details ? actions.slice(0, 2) : actions.slice(0, 3);
+      if (!shown.length && !details) shown.push({ label: 'Report this', run: () => reportProblem(details, msg) });
+      return toast(msg, { kind: o.kind || 'error', actions: shown, details: details && details !== msg ? details : '', detailsTitle: o.detailsTitle, timeout: o.timeout });
+    }
+    const raw = app.ui.plainError(e, '');
+    const plain = raw && !TECH_RE.test(raw) ? raw : '';
+    const known = friendlyError(e);
+    const parts = [];
+    if (o.lead) parts.push(o.lead);
+    if (plain && !(o.lead && o.lead.includes(plain)) && !o.hideReason) parts.push(plain);
+    else if (!plain && known && !(o.lead && o.lead.includes(known))) parts.push(known);
+    if (!parts.length) parts.push('Try that again. If it keeps happening, report it with the details.');
+    if (o.still) parts.push(o.still);
+    let msg = parts.join(' ').replace(/\s+/g, ' ').trim();
+    if (!/[.!?…]$/.test(msg)) msg += '.';
+    const actions = [];
+    if (o.retry) actions.push({ label: 'Try again', run: o.retry });
+    actions.push(...[].concat(o.actions || []).filter(Boolean));
+    const details = o.details ?? technicalText(e);
+    if (!actions.length && !plain && !known) actions.push({ label: 'Report this', run: () => reportProblem(details, msg) });
+    return toast(msg, { kind: o.kind || 'error', actions, details: details && details !== msg ? details : '', detailsTitle: o.detailsTitle, timeout: o.timeout });
+  }
   function toast(msg, opts = {}) {
     if (typeof opts === 'string') opts = { kind: opts };
     const kind = opts.kind === 'warning' ? 'warn' : (opts.kind || 'success');
@@ -115,13 +270,16 @@
     el.querySelector('.tmsg').textContent = String(msg ?? '');
     let timer;
     const close = () => { clearTimeout(timer); el.classList.remove('show'); setTimeout(() => el.remove(), 360); };
-    const actions = [].concat(opts.action || [], opts.actions || []);
+    const actions = [].concat(opts.action || [], opts.actions || []).filter(a => a && a.label);
+    toastLog.push({ msg: String(msg ?? ''), kind, actions: actions.map(a => a.label), details: !!opts.details, test: app.tests?.current || null, at: Date.now() });
+    if (toastLog.length > 600) toastLog.splice(0, toastLog.length - 600);
+    if (opts.details && actions.length < 3) actions.push({ label: 'Details', run: () => showDetails({ title: opts.detailsTitle || 'Details', message: String(msg ?? ''), details: opts.details }) });
     for (const a of actions) el.append(h('button.tact', { text: a.label, onclick: async () => { close(); try { await a.run?.(); } catch (e) { console.error(e); } } }));
     if (actions.length || kind === 'error') el.append(h('button.tx', { html: icon('x'), 'aria-label': 'Dismiss', onclick: close }));
     toastLayer.append(el);
     while (toastLayer.children.length > 3) toastLayer.firstElementChild.remove();
     raf(() => raf(() => el.classList.add('show')));
-    const ms = opts.timeout ?? (actions.length ? 7000 : kind === 'error' ? 6000 : 2600);
+    const ms = opts.timeout ?? (actions.length ? (kind === 'error' || kind === 'warn' ? 10000 : 7000) : kind === 'error' ? 6000 : 2600);
     const arm = () => { clearTimeout(timer); if (ms > 0) timer = setTimeout(close, ms); };
     el.addEventListener('mouseenter', () => clearTimeout(timer));
     el.addEventListener('mouseleave', arm);
@@ -284,7 +442,7 @@
       else if (it.hint) b.append(h('small', { text: it.hint }));
       if (it.disabled) b.classList.add('disabled');
       if (it.title) b.title = it.title;
-      b.addEventListener('click', async () => { closePopover(); try { await it.run?.(); } catch (e) { console.error(e); toast(e.message || String(e), { kind: 'error' }); } });
+      b.addEventListener('click', async () => { closePopover(); try { await it.run?.(); } catch (e) { console.error(e); fail(e, { retry: () => it.run?.() }); } });
       btns.push(b); wrap.append(b);
     }
     const p = popover(anchor, wrap, { ...opts, className: 'menu' + (opts.className ? ' ' + opts.className : ''), role: 'menu', restoreFocus: document.activeElement });
@@ -345,7 +503,8 @@
   document.addEventListener('keydown', hideTip, true);
   document.addEventListener('scroll', hideTip, true);
 
-  Object.assign(app.ui, { toast, dialog, prompt, confirm, popover, closePopover, menu, contextMenu, hideTip });
+  Object.assign(app.ui, { toast, dialog, prompt, confirm, popover, closePopover, menu, contextMenu, hideTip,
+    fail, solution, showDetails, friendlyError, technicalText, copyText, reportProblem, isActionable, toastLog, remedyVerbs: REMEDY_VERBS, platformName: PLATFORM });
 
   // =====================================================================
   //  Segmented control
@@ -521,9 +680,9 @@
     if (typeof c.why === 'function') { const w = safe(() => c.why(), ''); if (w) return String(w); }
     if (!doc) return 'Open or create a document first.';
     if (doc.kind !== 'markdown') return 'PDF and DjVu files can’t be edited here. Use Edit as text to make an editable copy.';
-    if (doc.readOnly) return 'This document is read-only.';
+    if (doc.readOnly) return 'Use Edit as text to make an editable copy. This document is read-only.';
     if (readMode) return 'Read mode is for reading. Press Esc to go back to editing.';
-    return 'Not available right now.';
+    return 'Click in the document first, or select what this command works on.';
   }
   app.ribbon.whyDisabled = whyDisabled;
   function setDimmed(el, why) {
@@ -1025,7 +1184,7 @@
       { label: 'Rename…', icon: 'track', disabled: !!doc.path, title: doc.path ? 'Use Save As to rename a saved file' : '', run: async () => { const t = await prompt('Rename document', 'Title', doc.title); if (t && t.trim()) { doc.title = t.trim(); updateTabState(doc); updateTitle(); } } },
       { sep: 1 },
       { label: 'Reveal in folder', icon: 'folder', disabled: !doc.path, run: () => mk.invoke('reveal', doc.path) },
-      { label: 'Copy path', icon: 'copy', disabled: !doc.path, run: async () => { try { await navigator.clipboard.writeText(doc.path); toast('Path copied'); } catch { toast('Could not copy the path', { kind: 'error' }); } } },
+      { label: 'Copy path', icon: 'copy', disabled: !doc.path, run: async () => { await copyText(doc.path, 'Path copied'); } },
     ]);
   }
   function wireTabContainer(c) {
@@ -1457,7 +1616,11 @@
 
   async function fallbackView(doc, err) {
     if (doc.kind !== 'markdown') {
-      host.append(h('div.host-empty', { html: `<div><b>Can’t show this ${esc(extOf(doc).toUpperCase())} file yet</b>The page viewer did not load.${err ? '<br>' + esc(err.message || err) : ''}</div>` }));
+      const box = h('div.host-empty', { html: `<div><b>Close this tab and open the ${esc(extOf(doc).toUpperCase())} file again</b>The page viewer didn’t load this time. Your other documents work as usual.</div>` });
+      const row = h('div', { style: 'display:flex;gap:8px;justify-content:center;margin-top:10px' });
+      row.append(h('button.btn.primary', { type: 'button', text: 'Try again', onclick: () => { const p = doc.path; app.docs.close(doc.id, { force: true }).then(() => p && app.docs.open(p)).catch(e2 => fail(e2)); } }));
+      if (err) row.append(h('button.btn', { type: 'button', text: 'Details', onclick: () => showDetails({ title: 'Details', message: 'The page viewer didn’t load.', details: technicalText(err) }) }));
+      box.firstElementChild.append(row); host.append(box);
       return;
     }
     const wrap = h('div.pages.host-fallback'), page = h('article.page.mk-page');
@@ -1690,7 +1853,7 @@
   }
   /** Merge keys into a doc's YAML front matter (uses preload's mk.frontMatter). */
   function setFrontMatter(doc, patch) {
-    if (!mk.frontMatter || doc.readOnly) { toast('This document can’t store settings.', { kind: 'warn' }); return false; }
+    if (!mk.frontMatter || doc.readOnly) { toast('Open a Markdown document to save this setting. PDF, DjVu and read-only files can’t store it.', { kind: 'warn' }); return false; }
     const fm = mk.frontMatter.parse(doc.text);
     const meta = { ...(fm.meta || {}) };
     for (const [k, v] of Object.entries(patch)) { if (v == null || v === '') delete meta[k]; else meta[k] = v; }
@@ -1830,10 +1993,17 @@
   function movePal(d) { if (!palItems.length) return; palIdx = Math.max(0, Math.min(palItems.length - 1, palIdx + d)); markPal(); }
   async function runPal(i) {
     const it = palItems[i]; if (!it) return;
-    if (it.disabled) { toast(`${it.label} isn’t available right now.`, { kind: 'info' }); return; }
+    if (it.disabled) {
+      // say what makes it available: most commands need a document, and many need one you can edit
+      const d = app.docs.active();
+      if (!d) toast(`Open or create a document first, then try ${it.label} again.`, { kind: 'info', actions: [{ label: 'New document', run: () => app.commands.run('file.new') }, { label: 'Open…', run: () => app.commands.run('file.open') }] });
+      else if (d.readOnly || d.kind !== 'markdown') toast(`Use “Edit as text” to make an editable copy, then try ${it.label} there.`, { kind: 'info' });
+      else toast(`Click in your document or select some text, then try ${it.label} again.`, { kind: 'info' });
+      return;
+    }
     closePalette(false); palInput?.blur();
     if (it.type !== 'Command') focusEditor();
-    try { await it.run(); } catch (e) { toast(e.message || String(e), { kind: 'error' }); }
+    try { await it.run(); } catch (e) { fail(e, { retry: () => it.run() }); }
   }
   function focusEditor() { const ed = app.editors.active(); if (ed?.focus && app.docs.active()?.kind === 'markdown') safe(() => ed.focus()); else host.focus({ preventScroll: true }); }
 
@@ -1978,14 +2148,14 @@
   }
   async function showBackstagePage(id, fromNav) {
     const p = app.backstage.pages().find(x => x.id === id); if (!p) return;
-    if (p.run) { try { await p.run(); } catch (e) { toast(e.message || String(e), { kind: 'error' }); } return; }
+    if (p.run) { try { await p.run(); } catch (e) { fail(e, { retry: () => p.run() }); } return; }
     bsPage = id;
     $$('.bs-nav button.n', bsEl).forEach(b => b.classList.toggle('on', b.dataset.page === id));
     const main = $('.bs-main', bsEl); if (!main) return;
     main.innerHTML = ''; main.scrollTop = 0;
     const page = h('div.bs-page', { 'data-page': id });
     main.append(page);
-    try { await p.render?.(page); } catch (e) { console.error(e); page.innerHTML = `<h2>${esc(p.label)}</h2><p class="sub">This page could not load: ${esc(e.message || e)}</p>`; }
+    try { await p.render?.(page); } catch (e) { console.error(e); page.innerHTML = `<h2>${esc(p.label)}</h2><p class="sub">Close File and open this page again. It didn’t load this time; the rest of Markooj works.</p>`; page.append(h('button.btn', { type: 'button', text: 'Details', onclick: () => showDetails({ title: 'Details', message: `${p.label} didn’t load.`, details: technicalText(e) }) })); }
     if (!fromNav) setTimeout(() => ($(`.bs-nav button.n[data-page="${id}"]`, bsEl) || $('.bs-nav .back', bsEl))?.focus({ preventScroll: true }), 40);
   }
   function closeBackstage() {
@@ -2204,13 +2374,14 @@ Write a short paragraph and cite the key studies [@author2020].
     try { await app.docs.open(p); return true; }
     catch (e) {
       console.error(e);
-      toast(`Couldn’t open ${p.split(/[\\/]/).pop()}. ${app.ui.plainError(e, 'It may have been moved or deleted.')}`, { kind: 'error', action: { label: 'Remove from list', run: () => settings.set('recent', settings.get('recent', []).filter(x => x !== p)) } });
+      const name = p.split(/[\\/]/).pop();
+      fail(e, { lead: `Check that “${name}” is still there, or choose it again with Open.`, hideReason: !!friendlyError(e), actions: [{ label: 'Open…', run: () => openDialog() }, { label: 'Remove from list', run: () => settings.set('recent', settings.get('recent', []).filter(x => x !== p)) }] });
       return false;
     }
   }
   async function openDialog() {
     let paths = [];
-    try { paths = await mk.invoke('open-dialog'); } catch (e) { toast('The Open window could not start: ' + e.message, { kind: 'error' }); return false; }
+    try { paths = await mk.invoke('open-dialog'); } catch (e) { fail(e, { lead: 'Try File → Open again, or drag the file onto the Markooj window.', hideReason: true, retry: () => openDialog() }); return false; }
     let ok = false;
     for (const p of paths || []) ok = (await openPath(p)) || ok;
     return ok;
@@ -2285,9 +2456,9 @@ Write a short paragraph and cite the key studies [@author2020].
     const info = FMT_INFO[f.id] || [String(f.ext || f.id).toUpperCase().slice(0, 5), '#636366', f.label || f.id, ''];
     const b = h('button.fmt' + (f.available === false ? '.off' : ''), { type: 'button', 'data-format': f.id });
     b.innerHTML = `<span class="badge" style="background:${info[1]}">${esc(info[0])}</span><b>${esc(f.label || info[2])}</b><span>${esc(f.description || info[3])}</span>`;
-    if (f.via && f.via !== 'built-in') b.append(h('span.needs' + (f.available === false ? '' : '.ok'), { text: f.available === false ? (f.reason || `${VIA_LABEL[f.via] || 'Needs a helper tool'} — not included in this copy`) : (VIA_LABEL[f.via] || '') + (f.via === 'add-in' ? '' : ' (bundled)') }));
-    if (f.available === false) { b.disabled = true; b.setAttribute('aria-disabled', 'true'); }
-    else b.addEventListener('click', () => onPick(f));
+    if (f.via && f.via !== 'built-in') b.append(h('span.needs' + (f.available === false ? '' : '.ok'), { text: f.available === false ? (f.reason || `${VIA_LABEL[f.via] || 'Needs a helper tool'}: click to see how to get it`) : (VIA_LABEL[f.via] || '') + (f.via === 'add-in' ? '' : ' (bundled)') }));
+    // an unavailable format stays clickable: app.exporter.export opens the "how to get the tool" dialog (app.health.offer)
+    b.addEventListener('click', () => onPick(f));
     return b;
   }
   app.backstage.addPage({ id: 'saveas', label: 'Save As / Export', icon: 'export', order: 40, shortcut: 'Ctrl+Shift+S', async render(el) {
@@ -2358,7 +2529,7 @@ Write a short paragraph and cite the key studies [@author2020].
         prev.innerHTML = ''; prev.append(fr);
         const fit = () => { const s = Math.min(1, (prev.clientWidth - 44) / size.w); prev.style.setProperty('--ps', s.toFixed(3)); };
         fit(); try { new ResizeObserver(fit).observe(prev); } catch {}
-      } catch (e) { prev.innerHTML = ''; prev.append(h('div.loading', { text: 'Preview failed: ' + (e.message || e) })); }
+      } catch (e) { console.error(e); prev.innerHTML = ''; prev.append(h('div.loading', { text: 'Click Print to print anyway. The preview didn’t draw this time.' })); }
     };
     if (hasNotes(doc)) side.append(settingSwitch('exportComments', false, 'Print comments and hidden notes', 'Off by default.', () => showPreview()));
     side.append(h('p', { text: 'Uses your system print window, where you pick the printer, copies and page range. Pages are A4 unless you set a page size in Layout.' }));
@@ -2425,7 +2596,7 @@ Write a short paragraph and cite the key studies [@author2020].
     for (const s of app.options.sections()) {
       el.append(h('div.opt-sec-title', { text: s.label || s.id }));
       const c = h('div.opt-card', { 'data-section': s.id });
-      try { s.render?.(c); } catch (e) { console.error('options section', s.id, e); c.append(h('p.sub', { text: 'This section could not load.' })); }
+      try { s.render?.(c); } catch (e) { console.error('options section', s.id, e); c.append(h('p.sub', { text: 'Close Options and open it again. This section didn’t load this time.' })); }
       el.append(c);
     }
     const about = h('p', { style: 'color:var(--text-3);font-size:12px;margin-top:26px', text: `Markooj ${app.version || ''} · Electron ${mk.versions?.electron || ''} · Chrome ${mk.versions?.chrome || ''}` });
@@ -2550,7 +2721,7 @@ Write a short paragraph and cite the key studies [@author2020].
     if (!pt) return false;
     pt = Math.max(6, Math.min(96, pt));
     if (!doc) { toast('Open or create a document first.', { kind: 'info' }); return false; }
-    if (doc.readOnly) { toast('This document is read-only.', { kind: 'info' }); return false; }
+    if (doc.readOnly) { toast('Use Edit as text to make an editable copy. This document is read-only.', { kind: 'info' }); return false; }
     safe(() => app.editors.active()?.flush?.());
     const v = pt === defaultFontSize() ? null : fmtPt(pt) + 'pt';
     const E = app.editor;
@@ -2589,7 +2760,7 @@ Write a short paragraph and cite the key studies [@author2020].
   }
   const docLevel = () => { const d = activeMd(); return !!d && !d.readOnly; };
   const SIZE_TIP = 'Changes the size of all body text — Markdown has one text size per document. For bigger text use a Heading.';
-  const fontSizeWhy = () => { const d = app.docs.active(); return !d ? 'Open or create a document first.' : d.kind !== 'markdown' ? 'PDF and DjVu files keep their own text size.' : d.readOnly ? 'This document is read-only.' : ''; };
+  const fontSizeWhy = () => { const d = app.docs.active(); return !d ? 'Open or create a document first.' : d.kind !== 'markdown' ? 'PDF and DjVu files keep their own text size.' : d.readOnly ? 'Use Edit as text to make an editable copy. This document is read-only.' : ''; };
   C('format.growFont', { label: 'Grow Font', description: 'Makes all body text one size bigger. ' + SIZE_TIP.split(' — ')[1], icon: 'growfont', shortcut: 'Ctrl+Shift+>', shortcuts: ['Ctrl+]'], category: 'Format', isEnabled: docLevel, why: fontSizeWhy, run: () => stepFont(1) });
   C('format.shrinkFont', { label: 'Shrink Font', description: 'Makes all body text one size smaller. ' + SIZE_TIP.split(' — ')[1], icon: 'shrinkfont', shortcut: 'Ctrl+Shift+<', shortcuts: ['Ctrl+['], category: 'Format', isEnabled: docLevel, why: fontSizeWhy, run: () => stepFont(-1) });
   // the size box (Home → Font) drives this command; it replaces the app-wide "reading size" of earlier versions
@@ -2732,7 +2903,7 @@ Write a short paragraph and cite the key studies [@author2020].
     if (typeof start === 'number' && ad.setSelection) safe(() => ad.setSelection(start, start + out.length));
     return k;
   }
-  const caseWhy = () => { const d = app.docs.active(); return !d ? 'Open or create a document first.' : d.kind !== 'markdown' ? 'PDF and DjVu files can’t be edited here.' : d.readOnly ? 'This document is read-only.' : app.mode === 'read' ? 'Read mode is for reading. Press Esc to go back to editing.' : ''; };
+  const caseWhy = () => { const d = app.docs.active(); return !d ? 'Open or create a document first.' : d.kind !== 'markdown' ? 'Use Edit as text to make an editable copy. PDF and DjVu files can’t be edited here.' : d.readOnly ? 'Use Edit as text to make an editable copy. This document is read-only.' : app.mode === 'read' ? 'Read mode is for reading. Press Esc to go back to editing.' : ''; };
   const caseOk = () => !!activeMd() && !activeMd().readOnly && app.mode !== 'read';
   function caseMenu(anchor) {
     const vis = $$('[data-tip-cmd="edit.changeCaseMenu"]').find(x => x.offsetParent);
@@ -2816,7 +2987,7 @@ Write a short paragraph and cite the key studies [@author2020].
       mdPeek.el.innerHTML = `<div class="mp-h"><span class="mp-t"></span><button class="mp-copy" type="button" data-tip="Copy this Markdown">${icon('copy')}</button><button class="mp-x" type="button" data-tip="Close" data-key="Esc">${icon('x')}</button></div><pre class="mp-code"></pre><div class="mp-note"></div>`;
       mdPeek.el.addEventListener('mousedown', e => e.preventDefault());
       mdPeek.el.querySelector('.mp-x').addEventListener('click', () => toggleMdPeek(false));
-      mdPeek.el.querySelector('.mp-copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(mdPeek.last); toast('Markdown copied', { timeout: 1400 }); } catch { toast('Could not copy', { kind: 'error' }); } });
+      mdPeek.el.querySelector('.mp-copy').addEventListener('click', async () => { await copyText(mdPeek.last, 'Markdown copied'); });
       document.body.append(mdPeek.el);
     }
     mdPeek.last = info.md;

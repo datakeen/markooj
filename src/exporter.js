@@ -464,17 +464,22 @@ ${body}
 
   /** Asks where to save, exports, and offers "Show in folder". Returns the out path or false. */
   async function exportDoc(format, doc = app.docs.active()) {
-    if (!doc || doc.kind !== 'markdown') { app.ui.toast('Open or create a Markdown document to export.', { kind: 'warn' }); return false; }
+    if (!doc || doc.kind !== 'markdown') { app.ui.toast(doc ? 'Use “Edit as text” to make an editable copy, then save that copy in another format.' : 'Open or create a document first, then save it in another format.', { kind: 'info' }); return false; }
     const list = await formats();
     const fmt = list.find(f => f.id === format) || (format === 'md' ? { id: 'md', label: 'Markdown', ext: 'md' } : { id: format, label: format.toUpperCase(), ext: format });
-    if (fmt.available === false) { app.ui.toast(fmt.reason || `${fmt.label} export needs a helper tool that isn’t included in this copy.`, { kind: 'warn' }); return false; }
+    if (fmt.available === false) {
+      // the moment the user picks a format whose tool is not there: say how to get it (solution first)
+      const needs = fmt.needs || (fmt.via === 'djvulibre' ? 'pdf2djvu' : fmt.via === 'pandoc' ? 'pandoc' : null);
+      if (needs && app.health?.offer) { app.health.offer(needs, { feature: fmt.label }); return false; }
+      app.ui.toast(fmt.reason || `Choose another format: ${fmt.label} is not available in this copy of Markooj.`, { kind: 'info' }); return false;
+    }
     const ext = fmt.ext || format;
     let base = doc.path ? doc.path.replace(/\.[^.\\/]+$/, '') : (doc.title || 'Untitled').replace(/[\\/:*?"<>|]+/g, '-');
     // never suggest the original Word/ODT file of a converted document as the export target
     if (doc.path && (doc.convertedFrom || doc.ext || '').toLowerCase() === String(ext).toLowerCase()) base += ' (edited)';
     let out;
     try { out = await mk.invoke('save-dialog', { defaultPath: `${base}.${ext}`, filters: [{ name: fmt.label || ext.toUpperCase(), extensions: [ext] }] }); }
-    catch (e) { app.ui.toast('The Save window could not open: ' + cleanErr(e), { kind: 'error' }); return false; }
+    catch (e) { app.ui.toast('Try again: the Save window did not open.', { kind: 'error', actions: [{ label: 'Try again', run: () => exportDoc(format, doc) }] }); console.error(e); return false; }
     if (!out) return false;
     const busy = app.ui.toast(`Exporting ${baseName(out)}…`, { kind: 'info', timeout: 0 });
     try {
@@ -491,22 +496,31 @@ ${body}
       } catch {}
       app.ui.toast(`Exported ${baseName(done)}.${note}`, { action: { label: 'Show in folder', run: () => mk.invoke('reveal', done) } });
       app.events.emit('doc:exported', { doc, format: fmt.id, out: done });
+      // formats that need Pandoc: counted, so a broken Pandoc is worth a startup message only for people who use it
+      if (fmt.via === 'pandoc') { try { app.health?.noteUse?.('pandoc'); } catch {} }
       return done;
     } catch (e) {
       busy?.close?.();
       console.error(e);
-      app.ui.toast(`Couldn’t export ${baseName(out)}. ${cleanErr(e)}`, { kind: 'error' });
+      // main's message already leads with the fix and carries its buttons (Try again, Save to another folder, Choose another format …)
+      const again = () => exportDoc(format, doc);
+      if (app.health?.toastError) app.health.toastError(e, { retry: again, saveAs: again, chooseFormat: () => app.backstage?.open?.('saveas') });
+      else app.ui.toast(`${cleanErr(e)} (${baseName(out)})`, { kind: 'error', actions: [{ label: 'Try again', run: again }] });
       return false;
     }
   }
 
   async function print(doc = app.docs.active(), opts = {}) {
-    if (!doc || doc.kind !== 'markdown') { app.ui.toast('Only Markdown documents can be printed from Markooj.', { kind: 'warn' }); return false; }
+    if (!doc || doc.kind !== 'markdown') { app.ui.toast(doc ? 'Use “Edit as text” to make an editable copy, then print that copy. Markooj prints the documents you write.' : 'Open a document first, then print it.', { kind: 'info' }); return false; }
     try {
       const html = await buildHtml(doc, { ...opts, forPrint: true, absoluteAssets: true });
       await mk.invoke('print', { html, title: flat(metaOf(doc).title) || doc.title });
       return true;
-    } catch (e) { app.ui.toast('Printing failed. ' + cleanErr(e), { kind: 'error' }); return false; }
+    } catch (e) {
+      console.error(e);
+      app.ui.toast('Try printing again, or save as PDF and print that file.', { kind: 'error', actions: [{ label: 'Try again', run: () => print(doc, opts) }, { label: 'Save as PDF', run: () => exportDoc('pdf', doc) }] });
+      return false;
+    }
   }
 
   app.exporter = { buildHtml, export: exportDoc, exportTo, print, formats, refreshFormats: () => { fmtCache = null; }, plainText, metaOf, katexCss, EXPORT_CSS, register, unregister: id => { const had = custom.delete(String(id)); if (had) fmtCache = null; return had; }, custom: () => [...custom.values()],

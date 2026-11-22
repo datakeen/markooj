@@ -607,7 +607,7 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
 .fmt:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.08);border-color:var(--accent)}
 .fmt:active{transform:scale(.98)}
 .fmt.off{opacity:.55}
-.fmt.off:hover{transform:none;box-shadow:none;border-color:var(--line)}
+.fmt.off:hover{opacity:.8}
 .fmt .badge{width:40px;height:48px;border-radius:6px;position:relative;display:grid;place-items:end center;padding-bottom:6px;font:700 9.5px var(--font);color:#fff;letter-spacing:.03em}
 .fmt .badge::before{content:"";position:absolute;top:0;right:0;width:12px;height:12px;background:linear-gradient(225deg,var(--bg) 50%,rgba(0,0,0,.18) 50%);border-radius:0 6px 0 3px}
 .fmt b{font-size:14px;font-weight:600}
@@ -814,3 +814,16 @@ body.show-marks :is(.mk-page,.mk-sheet) :is(p,h1,h2,h3,h4,h5,h6,dt,dd,li:not(:ha
 .kb-empty{color:var(--text-3);font-size:12.5px;padding:12px 4px}
 .pop.case-menu{max-width:280px}
 .pop.case-menu .pop-note{white-space:normal;line-height:1.4}
+
+/* ---- messages: technical details (folded) and solution dialogs (app.ui.showDetails, app.ui.solution) ---- */
+.dlg details.mk-tech{margin:8px 0 4px;border:.5px solid var(--line-2);border-radius:8px;background:var(--surface)}
+.dlg details.mk-tech>summary{cursor:pointer;padding:6px 10px;font-size:12px;color:var(--text-2);user-select:none}
+.dlg details.mk-tech>pre{margin:0;padding:8px 10px;border-top:.5px solid var(--line);max-height:220px;overflow:auto;font:11.5px/1.45 var(--mono,ui-monospace,Consolas,monospace);white-space:pre-wrap;word-break:break-word;color:var(--text)}
+.mk-solution .mk-sol-lead{color:var(--text);font-size:13.5px}
+.mk-solution .mk-sol-steps{margin:4px 0 10px;padding-left:20px}
+.mk-solution .mk-sol-steps li{margin:4px 0}
+.mk-solution .mk-sol-cmd{display:flex;gap:6px;align-items:center;margin:4px 0}
+.mk-solution .mk-sol-cmd code{flex:1;min-width:0;padding:5px 8px;border-radius:6px;background:var(--code-bg);color:var(--text);font:12px/1.4 var(--mono,ui-monospace,Consolas,monospace);overflow-x:auto;white-space:nowrap}
+.mk-solution .mk-sol-cmd .btn{height:26px;padding:0 10px;font-size:12px}
+.mk-solution details.mk-sol-other>summary{cursor:pointer;font-size:12px;color:var(--text-2);margin:2px 0 4px}
+.mk-solution .mk-sol-still{font-size:12px;color:var(--text-3)}

@@ -524,11 +524,11 @@
   }
   async function installFromFile() {
     let file = null;
-    try { file = await invoke('pick-file', [{ name: 'Markooj language pack', extensions: ['zip'] }], { title: 'Install language pack' }); } catch (e) { app.ui.toast(app.ui.plainError(e), { kind: 'error' }); return; }
+    try { file = await invoke('pick-file', [{ name: 'Markooj language pack', extensions: ['zip'] }], { title: 'Install language pack' }); } catch (e) { app.ui.fail(e, { lead: 'Try Install from file again.', retry: () => installFromFile() }); return; }
     if (Array.isArray(file)) file = file[0];
     if (!file) return;
     try { const r = await installPack({ file }); app.ui.toast(`${r.name} language pack installed.`); renderOptionsAgain(); }
-    catch (e) { app.ui.toast(app.ui.plainError(e), { kind: 'error' }); }
+    catch (e) { app.ui.fail(e, { lead: 'Choose a Markooj language pack (.zip), or download it again.', actions: [{ label: 'Choose another file', run: () => installFromFile() }], still: 'Your installed languages keep working.' }); }
   }
 
   // ------------------------------------------------------------------ File → Options → Language
@@ -601,7 +601,7 @@
         app.ui.ripple?.(ev.currentTarget);
         const ok = await app.ui.confirm(`Remove ${p.name}?`, 'The language pack is deleted from this computer. Documents in this language keep their text, direction and fonts.');
         if (!ok) return;
-        try { await removePack(p.code); app.ui.toast(`${p.name} language pack removed.`); } catch (e) { app.ui.toast(app.ui.plainError(e), { kind: 'error' }); }
+        try { await removePack(p.code); app.ui.toast(`${p.name} language pack removed.`); } catch (e) { app.ui.fail(e, { lead: `Close any document that uses ${p.name}, then try Remove again.`, retry: () => removePack(p.code).then(renderOptionsAgain) }); }
         renderOptionsAgain();
       });
       list.append(it);
@@ -617,10 +617,10 @@
     el.append(head);
     const avail = h('<div class="lang-list" data-part="available"></div>');
     if (busy) avail.append(h('<div class="lang-empty">Checking GitHub…</div>'));
-    else if (availErr) avail.append(h(`<div class="lang-err">${esc(availErr)}</div>`));
+    else if (availErr) { const er = h(`<div class="lang-err">${esc(availErr)} <button type="button" class="btn sm" data-act="retry">Try again</button></div>`); er.querySelector('[data-act=retry]').addEventListener('click', () => checkAvailable()); avail.append(er); }
     else if (!available) avail.append(h('<div class="lang-empty">Language packs for Urdu, Arabic, Punjabi (Shahmukhi) and Persian come from the Markooj language packs on GitHub. Click Check for language packs, or install one from a file.</div>'));
     else {
-      if (!available.packs.length) avail.append(h('<div class="lang-empty">No language packs are published yet.</div>'));
+      if (!available.packs.length) avail.append(h('<div class="lang-empty">Check again later, or install a pack from a file. None are published yet.</div>'));
       for (const p of available.packs) {
         const have = installed.find(x => x.code === p.code);
         const newer = have && String(have.version) !== String(p.version);
@@ -630,7 +630,7 @@
         it.querySelector('[data-act=get]')?.addEventListener('click', async ev => {
           const b = ev.currentTarget; app.ui.ripple?.(b); it.classList.add('lang-busy'); b.textContent = 'Downloading…';
           try { const r = await installPack({ url: p.url }); app.ui.toast(`${r.name} language pack installed.`); }
-          catch (e) { app.ui.toast(app.ui.plainError(e), { kind: 'error' }); }
+          catch (e) { app.ui.fail(e, { lead: `Try downloading ${p.name} again, or install it from a file.`, retry: () => installPack({ url: p.url }).then(r => { app.ui.toast(`${r.name} language pack installed.`); renderOptionsAgain(); }), actions: [{ label: 'Install from file', run: () => installFromFile() }], still: 'Your installed languages keep working.' }); }
           renderOptionsAgain();
         });
         avail.append(it);
@@ -651,7 +651,13 @@
   async function checkAvailable() {
     busy = true; availErr = ''; renderOptionsAgain();
     try { available = await invoke('langpack-index'); }
-    catch (e) { availErr = app.ui.plainError(e, 'Markooj could not reach GitHub.'); }
+    catch (e) {
+      const why = app.ui.plainError(e, '');
+      // main's own text when it is plain English (for example "none published yet"), else the network remedy
+      const plain = why && !/\b(?:E[A-Z]{3,}|HTTP \d{3}|status \d{3}|undefined|null|TypeError)\b/.test(why) && !app.ui.friendlyError?.(e);
+      availErr = plain ? why + ' Installed languages keep working.'
+        : (app.ui.friendlyError?.(e) || 'Check your internet connection, then click Try again.') + ' You can also install a pack from a file. Installed languages keep working.';
+    }
     busy = false; renderOptionsAgain();
   }
   app.options.addSection({ id: 'language', label: 'Language', order: 25, render: renderOptions });
@@ -913,6 +919,8 @@
     await removePack(pack.code);
     A(!(await invoke('langpack-list')).some(p => p.code === pack.code), 'removed');
   });
+  // the message people see, plus the technical reason main keeps for Details (mk.errorInfo)
+  const errText = e => [e && e.message, (mk.errorInfo && mk.errorInfo(e)?.details) || ''].filter(Boolean).join(' ');
   app.tests.register('lang: a pack with a wrong SHA-256 is refused', async () => {
     const dir = await invoke('langpack-local-dir');
     let err = null;
@@ -923,13 +931,13 @@
       const pack = idx.packs[0];
       try { await invoke('langpack-install', { file: dir + '/' + pack.file, sha256: '0'.repeat(64) }); } catch (e) { err = e; }
     }
-    A(err && /SHA-256/.test(String(err.message)), 'expected sha mismatch: ' + err);
+    A(err && /SHA-256/.test(errText(err)) && !/SHA-256/.test(err.message), 'expected sha mismatch, with SHA-256 only under Details: ' + errText(err));
     // a file changed inside the zip after the manifest was written
     const good = await makeZip({ 'rules.json': '{"rules":[]}' });
     const Z = await jszip(); const z = await Z.loadAsync(good); z.file('rules.json', '{"rules":[{"evil":1}]}');
     const bad = await z.generateAsync({ type: 'uint8array' });
     err = null; try { await invoke('langpack-install', { data: b64(bad) }); } catch (e) { err = e; }
-    A(err && /SHA-256|damaged/i.test(String(err.message)), 'tampered file refused: ' + err);
+    A(err && /SHA-256|damaged/i.test(errText(err)), 'tampered file refused: ' + err);
     A(!(await invoke('langpack-list')).some(p => p.code === 'xx'), 'nothing installed');
     // the untampered test pack installs and removes
     const ok = await invoke('langpack-install', { data: b64(good) }); A(ok.code === 'xx', 'good test pack');
@@ -942,7 +950,7 @@
       z.file(name, 'x', { createFolders: false });
       const u = await z.generateAsync({ type: 'uint8array' });
       let err = null; try { await invoke('langpack-install', { data: b64(u) }); } catch (e) { err = e; }
-      A(err && /unsafe|manifest|not a Markooj/i.test(String(err.message)), `refused ${name}: ${err}`);
+      A(err && /unsafe|manifest|not a Markooj/i.test(errText(err)), `refused ${name}: ${errText(err)}`);
     }
     A(!(await invoke('langpack-list')).some(p => p.code === 'xy'), 'nothing installed');
   });
@@ -995,7 +1003,7 @@
       ['lexicon without a word field', files2({ 'lexicon.json': JSON.stringify({ fields: ['text'], rows: [] }) }), MAN2, /word/],
       ['lexicon word with a space', files2({ 'lexicon.json': JSON.stringify({ fields: ['word'], rows: [['كتاب قلم']] }) }), MAN2, /single word/],
       ['lexicon freq out of range', files2({ 'lexicon.json': JSON.stringify({ fields: ['word', 'freq'], rows: [['كتاب', 9]] }) }), MAN2, /0 to 5/],
-      ['lexicon is not JSON', files2({ 'lexicon.json': 'not json' }), MAN2, /could not be read/],
+      ['lexicon is not JSON', files2({ 'lexicon.json': 'not json' }), MAN2, /could not be read|can.t be read|couldn.t read|not valid JSON|isn.t valid JSON/],
       ['lexicon is a list', files2({ 'lexicon.json': '[]' }), MAN2, /shape/],
       ['roman map without letters', files2({ 'roman.json': JSON.stringify({ fields: ['roman'], rows: [] }) }), MAN2, /letters/],
       ['rules not a list', files2({ 'rules.json': '{"rules":5}' }), MAN2, /rules/],
@@ -1007,7 +1015,7 @@
     ];
     for (const [what, files, man, re] of cases) {
       let err = null; try { await invoke('langpack-install', { data: b64(await makeZip(files, man)) }); } catch (e) { err = e; }
-      A(err && re.test(String(err.message)), `${what}: ${err}`);
+      A(err && re.test(errText(err)), `${what}: ${errText(err)}`);
     }
     A(!(await listed('xz')), 'nothing installed');
   });
@@ -1089,7 +1097,7 @@
     ];
     for (const [what, files, man, re] of cases) {
       let err = null; try { await invoke('langpack-install', { data: b64(await makeZip(files, man)) }); } catch (e) { err = e; }
-      A(err && re.test(String(err.message)), `${what}: ${err}`);
+      A(err && re.test(errText(err)), `${what}: ${errText(err)}`);
     }
     A(!(await listed('xq')), 'nothing installed');
     // the index's credits and outside word counts reach Options too

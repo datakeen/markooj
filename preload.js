@@ -1058,6 +1058,32 @@ const spellApi = {
 const inlineMath = (src, macros) => { try { return katex.renderToString(String(src), katexOpts(false, normMacros(macros))); } catch { return src; } };
 const displayMath = (src, macros) => { try { return katex.renderToString(String(src), katexOpts(true, normMacros(macros))); } catch { return src; } };
 
+// Errors from main may carry actions (Try again, Save to another folder …) and technical details after a marker
+// (main.js errorForIpc). The window gets the plain message; mk.errorInfo(e) gives the rest back. contextBridge copies
+// only an Error's message, so the extras are kept here, keyed by the plain message.
+const ERR_MARK = String.fromCharCode(10, 0x2063) + 'mk-info:'; // newline, invisible separator, tag
+const errInfos = new Map();
+const plainText = m => String(m || '').replace(/^Error invoking remote method '[^']+':\s*/, '').replace(/^(?:\w*Error:\s*)+/, '').trim();
+function takeErrorInfo(e) {
+  const msg = String((e && e.message) || e || '');
+  const at = msg.indexOf(ERR_MARK);
+  if (at < 0) return e;
+  let info = {};
+  try { info = JSON.parse(msg.slice(at + ERR_MARK.length)) || {}; } catch {}
+  const clean = msg.slice(0, at);
+  const plain = plainText(clean);
+  errInfos.set(plain, { message: plain, actions: Array.isArray(info.actions) ? info.actions : [], details: String(info.details || ''), code: info.code || null, tool: info.tool || null });
+  while (errInfos.size > 50) errInfos.delete(errInfos.keys().next().value);
+  const x = new Error(clean);
+  if (info.code) x.code = info.code;
+  return x;
+}
+function errorInfo(e) {
+  const plain = plainText((e && e.message) || e);
+  const hit = errInfos.get(plain) || [...errInfos.values()].find(i => plain && (plain.includes(i.message) || i.message.includes(plain)));
+  return hit ? { ...hit, actions: hit.actions.map(a => ({ ...a })) } : null;
+}
+
 contextBridge.exposeInMainWorld('mk', {
   render, detectFlavor, toMarkdown, parseBib, sanitize,
   frontMatter: { parse: frontMatterParse, write: frontMatterWrite },
@@ -1069,7 +1095,11 @@ contextBridge.exposeInMainWorld('mk', {
   spell: spellApi,
   platform: process.platform,
   versions: { electron: process.versions.electron, chrome: process.versions.chrome },
-  invoke: (ch, ...a) => ipcRenderer.invoke(ch, ...a),
+  invoke: (ch, ...a) => ipcRenderer.invoke(ch, ...a).catch(e => { throw takeErrorInfo(e); }),
+  // {message, actions:[{id, label, url?, text?, tool?, path?}], details, code, tool} for an error from invoke, or null
+  errorInfo,
+  // put text on the clipboard (Copy command, Copy details)
+  copyText: text => ipcRenderer.invoke('clipboard-write', String(text ?? '')),
   // Electron 32+ has no File.path: dropped files get their real path here
   pathForFile: f => { try { return webUtils.getPathForFile(f) || null; } catch { return null; } },
   on: (ch, fn) => { const h = (_e, ...a) => fn(...a); ipcRenderer.on(ch, h); return () => ipcRenderer.removeListener(ch, h); },

@@ -61,6 +61,14 @@
 .mkv-msg h3{margin:0 0 8px;font:600 16px var(--font,system-ui)}
 .mkv-msg p{margin:0 0 14px;color:var(--text-2,#6e6e73);line-height:1.5}
 .mkv-msg small{display:block;margin-top:12px;color:var(--text-3,#a1a1a6);word-break:break-word}
+.mkv-msg .mkv-works{font-size:12px;margin:12px 0 0}
+.mkv-msg .mkv-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.mkv-msg .mkv-acts .mkv-secondary{background:none;color:var(--accent,#0a66ff);border:1px solid var(--line,rgba(0,0,0,.12))}
+.mkv-msg ol{margin:0 0 14px;padding-left:20px;text-align:left;color:var(--text-2,#6e6e73);line-height:1.5}
+.mkv-msg .mkv-cmd{display:flex;gap:6px;align-items:center;margin-top:4px}
+.mkv-msg .mkv-cmd code{flex:1;min-width:0;padding:3px 8px;border-radius:6px;background:var(--fill,rgba(0,0,0,.05));font-size:12px;user-select:all;word-break:break-all}
+.mkv-msg details{margin-top:14px;text-align:left;font-size:12px;color:var(--text-3,#a1a1a6)}
+.mkv-msg details pre{white-space:pre-wrap;word-break:break-all;margin:6px 0 0;font-size:11px}
 .mkv-spin{width:22px;height:22px;margin:0 auto 12px;border-radius:50%;border:2.5px solid var(--accent-soft,rgba(10,102,255,.1));border-top-color:var(--accent,#0a66ff);animation:mkvSpin .8s linear infinite}
 @keyframes mkvSpin{to{transform:rotate(360deg)}}
 .mkv .textLayer{position:absolute;text-align:initial;inset:0;overflow:clip;opacity:1;line-height:1;letter-spacing:normal;word-spacing:normal;-webkit-text-size-adjust:none;forced-color-adjust:none;transform-origin:0 0;caret-color:CanvasText;z-index:0;
@@ -106,7 +114,7 @@
     });
     task.onPassword = (update, reason) => {
       const again = reason === (lib.PasswordResponses?.INCORRECT_PASSWORD ?? 2);
-      Promise.resolve(app.ui.prompt(again ? 'That password did not work' : 'This PDF is protected', 'Type the password to open it', ''))
+      Promise.resolve(app.ui.prompt(again ? 'Try the password again' : 'Enter the password for this PDF', again ? 'Type the password again (check Caps Lock). That one did not open the file.' : 'Type the password to open it', ''))
         .then(p => (p == null ? task.destroy() : update(p)));
     };
     return task.promise;
@@ -304,10 +312,23 @@
     }
     fitsOnScreen() { const p = this.pages[this.current]; return p && p.el.offsetHeight <= this.scroller.clientHeight; }
     cssScale() { return (this.zoom / 100) * PT2PX; }
-    message(title, text, detail, actions = []) {
-      this.pagesEl.innerHTML = `<div class="mkv-msg"><h3>${esc(title)}</h3><p>${esc(text)}</p><div class="mkv-acts"></div>${detail ? `<small>${esc(detail)}</small>` : ''}</div>`;
+    /** A calm card in place of the pages: what to do first (title, text, steps, buttons), what still works, details folded away. */
+    message(title, text, detail, actions = [], extra = {}) {
+      const steps = (extra.steps || []).filter(Boolean);
+      this.pagesEl.innerHTML = `<div class="mkv-msg"><h3>${esc(title)}</h3><p>${esc(text)}</p>${steps.length ? `<ol>${steps.map(st => `<li>${esc(st.text || '')}${st.command ? `<div class="mkv-cmd"><code>${esc(st.command)}</code><button type="button" class="mkv-btn" data-copy="${esc(st.command)}" title="Copy">Copy</button></div>` : ''}</li>`).join('')}</ol>` : ''}<div class="mkv-acts"></div>${extra.works ? `<p class="mkv-works">${esc(extra.works)}</p>` : ''}${detail ? `<details><summary>Technical details</summary><pre>${esc(detail)}</pre></details>` : ''}</div>`;
       const box = this.pagesEl.querySelector('.mkv-acts');
-      for (const a of actions) { const b = document.createElement('button'); b.className = 'mkv-primary'; b.textContent = a.label; b.onclick = a.run; box.appendChild(b); }
+      actions.forEach((a, i) => { const b = document.createElement('button'); b.className = i === 0 ? 'mkv-primary' : 'mkv-primary mkv-secondary'; b.textContent = a.label; b.onclick = a.run; box.appendChild(b); });
+      this.pagesEl.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+        if (app.health?.copy) app.health.copy(b.dataset.copy, 'Command copied. Paste it into a terminal.');
+        else navigator.clipboard?.writeText(b.dataset.copy).then(() => app.ui.toast('Command copied.'), () => {});
+      }));
+    }
+    /** DjVuLibre is not there (or will not start): how to get it, with buttons that do it. */
+    showToolRemedy(rem) {
+      const H = app.health;
+      const ctx = { tool: rem.id, details: rem.details, onChecked: n => { if (n && n.tools && n.tools[rem.id] && n.tools[rem.id].ok) this.retry(); } };
+      const acts = rem.actions.filter(a => !(a.id === 'copy' && (rem.steps || []).some(st => st.command === a.text)));
+      this.message(rem.title, rem.text, rem.details, acts.map(a => ({ label: a.label, run: () => H.runAction(a, ctx) })), { steps: rem.steps, works: rem.works });
     }
 
     async init() {
@@ -327,18 +348,27 @@
         console.error('[viewer]', e);
         this.failed = e;
         this.root.querySelectorAll('[data-a="prev"],[data-a="next"],[data-a="find"],[data-a="thumbs"]').forEach(b => { b.disabled = true; }); this.pageInput.disabled = true;
+        const info = (mk.errorInfo && mk.errorInfo(e)) || null;
+        const plain = app.ui.plainError ? app.ui.plainError(e, '') : String((e && e.message) || e || '');
+        const details = (info && info.details) || plain;
+        const again = { label: 'Try again', run: () => this.retry() };
+        const another = { label: 'Choose another file', run: () => app.commands.run('file.open') };
         if (this.kind === 'djvu') {
-          let tools = null; try { tools = await mk.invoke('tools'); } catch {}
-          const missing = !tools || !tools.ddjvu;
-          this.message(missing ? 'DjVu helper not found' : 'This DjVu file could not be shown',
-            missing ? (mk.platform === 'darwin' ? 'Markooj shows DjVu pages with the free DjVuLibre tools. Install them with Homebrew (brew.sh): brew install djvulibre pdf2djvu, then open the file again.'
-              : mk.platform && mk.platform !== 'win32' ? 'Markooj shows DjVu pages with the free DjVuLibre tools. Install them: sudo apt install djvulibre-bin pdf2djvu (Debian, Ubuntu) or sudo dnf install djvulibre pdf2djvu (Fedora), then open the file again.'
-              : 'Markooj shows DjVu pages with the free DjVuLibre tools that normally ship inside the app. They are missing from this copy. Reinstalling Markooj puts them back.') : 'The page images could not be made. The file may be damaged.',
-            e && e.message, missing ? [] : [{ label: 'Try again', run: () => this.retry() }]);
+          // the DjVu tools are not there: the user just tried the feature, so this is the moment to say how to get them
+          const toolProblem = !!(info && /^TOOL_(MISSING|GONE)$/.test(String(info.code))) || !!this.doc.missing;
+          if (toolProblem && app.health?.remedy) {
+            let r = null; try { r = await app.health.check(); } catch {}
+            if (this.dead) return;
+            const rem = app.health.remedy('ddjvu', r);
+            try { app.health.markTried?.('ddjvu'); app.status?.refresh?.(); } catch {}
+            if (!rem.ok) { this.showToolRemedy(rem); return; }
+          }
+          if (toolProblem && !app.health?.remedy) { this.message('Open DjVu files with DjVuLibre', plain, '', [again]); return; }
+          this.message('Try opening this DjVu file again', 'If it still does not open, the file may be damaged: try another copy of it.', details, [again, another], { works: 'Everything else works.' });
         } else if (/password/i.test(e && (e.name + e.message))) {
-          this.message('This PDF is locked', 'It needs a password to open.', '', [{ label: 'Enter password', run: () => this.retry() }]);
+          this.message('Enter the password to open this PDF', 'This PDF is protected with a password.', '', [{ label: 'Enter password', run: () => this.retry() }, another]);
         } else {
-          this.message('This PDF could not be opened', 'The file may be damaged, or it may not be a PDF.', e && e.message, [{ label: 'Try again', run: () => this.retry() }]);
+          this.message('Try opening this PDF again', 'If it still does not open, open it in your usual PDF reader or try another copy: this file may be damaged, or it may not be a PDF.', details, [again, another], { works: 'Everything else works.' });
         }
       }
     }
@@ -670,7 +700,7 @@
       const q = await app.ui.prompt('Find', `Find text in this ${this.kind === 'pdf' ? 'PDF' : 'DjVu file'}`, this.find.query || '');
       if (!q) return;
       const r = await this.search(q, {});
-      app.ui.toast(r.count ? `${r.count} match${r.count === 1 ? '' : 'es'} found` : 'No matches found');
+      app.ui.toast(r.count ? `${r.count} match${r.count === 1 ? '' : 'es'} found` : `Try other words or a shorter search: “${q}” is not in this ${this.kind === 'pdf' ? 'PDF' : 'DjVu file'}.`, r.count ? {} : { kind: 'info' });
     }
     async editAsText() {
       const btn = this.root.querySelector('[data-a="edit"]');
@@ -681,7 +711,7 @@
         if (this.kind === 'pdf') md = await extractPdfMarkdown(this.pdf, this.cache, (i, n) => { if (n > 3) btn.innerHTML = `${icon('doc')}Reading page ${i} of ${n}…`; });
         else md = djvuTextToMarkdown((await this.pageTexts()).join('\f'));
         if (!md.replace(/<div class="page-break"><\/div>/g, '').trim()) {
-          await app.ui.dialog({ title: 'No text found', body: `This ${this.kind === 'pdf' ? 'PDF' : 'DjVu file'} seems to hold only pictures of pages (a scan), so there is no text to edit.`, buttons: [{ label: 'OK', value: 'ok', primary: true }] });
+          await app.ui.dialog({ title: 'To edit a scan, turn its pictures into text first', body: `This ${this.kind === 'pdf' ? 'PDF' : 'DjVu file'} holds only pictures of pages (a scan), so there are no words to copy out. Run it through a text recognition (OCR) program, such as the one that came with your scanner, then open the new copy here. You can still read this one in Markooj.`, buttons: [{ label: 'OK', value: 'ok', primary: true }] });
           return null;
         }
         const nd = app.docs.create({ text: md, title: this.doc.title + ' (edited)', convertedFrom: this.doc.ext || this.kind });
@@ -689,7 +719,10 @@
         return nd;
       } catch (e) {
         console.error(e);
-        app.ui.toast(this.kind === 'djvu' ? 'The text could not be read. The DjVuLibre helper may be missing.' : 'The text could not be read: ' + (e.message || e), { kind: 'error' });
+        const info = (mk.errorInfo && mk.errorInfo(e)) || null;
+        if (this.kind === 'djvu' && info && /^TOOL_(MISSING|GONE)$/.test(String(info.code)) && app.health?.offer) app.health.offer('ddjvu');
+        else if (app.health?.toastError && info) app.health.toastError(e, { retry: () => this.editAsText() });
+        else app.ui.toast(this.kind === 'djvu' ? 'Try “Edit as text” again. If the text still cannot be read, the file may hold only pictures of pages.' : 'Try “Edit as text” again. If it still does not work, this PDF may hold only pictures of pages.', { kind: 'error', actions: [{ label: 'Try again', run: () => this.editAsText() }] });
         return null;
       } finally { btn.innerHTML = old; btn.disabled = false; }
     }
@@ -781,6 +814,41 @@
       const r = await v.search('markooj', {});
       app.assert(r.count === 1, 'find in PDF finds 1 match, got ' + r.count);
     } finally { v.destroy(); host.remove(); const c = docCache.get(fake.id); docCache.delete(fake.id); c?.pdf?.then(p => p.destroy()).catch(() => {}); }
+  });
+  app.tests.register('viewers: a DjVu file that cannot be shown gets a solution-first card', async () => {
+    const info = await mk.invoke('app-info');
+    const sep = mk.platform === 'win32' ? '\\' : '/';
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-5000px;top:0;width:900px;height:700px';
+    document.body.appendChild(host);
+    const card = async doc => {
+      const v = viewers.create(host, doc);
+      await v.ready;
+      for (let i = 0; i < 50 && !host.querySelector('.mkv-msg h3'); i++) await new Promise(r => setTimeout(r, 50));
+      const msg = host.querySelector('.mkv-msg');
+      const out = { title: msg?.querySelector('h3')?.textContent || '', text: msg?.textContent || '', buttons: [...(msg?.querySelectorAll('.mkv-acts button') || [])].map(b => b.textContent), details: !!msg?.querySelector('details:not([open])') };
+      v.destroy();
+      return out;
+    };
+    const keepCheck = app.health && app.health.check;
+    try {
+      // a damaged or missing file: try again or another copy, never "reinstall"
+      const a = await card({ id: 'test-djvu-' + Date.now(), kind: 'djvu', ext: 'djvu', title: 'Gone', path: info.userData + sep + 'no-such-file.djvu', view: {} });
+      app.assert(/^(Try opening this DjVu file again|Repair Markooj to open DjVu files|Get DjVuLibre to open DjVu files)$/.test(a.title), 'card title: ' + a.title);
+      app.assert(a.buttons.length >= 2 && !/missing from this copy|Off for now|helper not found/i.test(a.text), 'buttons and plain words: ' + JSON.stringify(a));
+      if (/^Try opening/.test(a.title)) app.assert(a.buttons.includes('Try again') && a.buttons.includes('Choose another file') && a.details, 'file card: ' + JSON.stringify(a));
+      // DjVuLibre is not there: the card says how to get it, with buttons that do it
+      if (app.health) {
+        app.health.check = async () => ({ ok: false, missing: ['ddjvu'], platform: 'win32', packaged: true, tools: { ddjvu: { id: 'ddjvu', ok: false, state: 'missing', path: null, error: 'not found' } } });
+        const b = await card({ id: 'test-djvu2-' + Date.now(), kind: 'djvu', ext: 'djvu', title: 'No tools', path: info.userData + sep + 'no-such-file.djvu', missing: 'DjVuLibre', view: {} });
+        app.assert(b.title === 'Repair Markooj to open DjVu files', 'remedy title: ' + b.title);
+        app.assert(b.buttons.join() === 'Repair Markooj,Get DjVuLibre,Check again', 'remedy buttons: ' + b.buttons);
+        app.assert(/To open DjVu files, Markooj needs the free DjVuLibre tools/.test(b.text) && /Everything else works/.test(b.text), 'remedy text: ' + b.text);
+      }
+    } finally {
+      if (app.health) app.health.check = keepCheck;
+      host.remove();
+    }
   });
   app.tests.register('viewers: PDF text grouping guesses headings and paragraphs', () => {
     const it = (str, y, size, x = 50) => ({ str, x, y, size, w: str.length * size * 0.5, hasEOL: true });

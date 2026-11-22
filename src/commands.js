@@ -221,7 +221,7 @@
       if (c.files.length) { for (const f of c.files) { const r = await E.saveImage(f, app.docs.active()); await e.insert(E.imageMarkdown(r.path, r.name)); } return; }
       if (isWord() && c.html) { const dt = new DataTransfer(); dt.setData('text/html', c.html); dt.setData('text/plain', c.text); const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }); (e.page || document.activeElement).dispatchEvent(ev); return; }
       if (c.text) { if (isWord() && E.looksLikeMarkdown?.(c.text)) await e.insert(c.text); else insertPlain(e, c.text); return; }
-      app.ui.toast('Nothing to paste. Press Ctrl+V to paste from the keyboard.');
+      app.ui.toast('Copy something first, or press Ctrl+V to paste. The clipboard looks empty.', { kind: 'info' });
     }),
   });
   function insertPlain(e, text) {
@@ -229,10 +229,10 @@
     if (isWord()) { document.execCommand('insertText', false, text); return; }
     e.insert(text);
   }
-  reg('edit.pastePlain', { label: 'Paste as plain text', icon: 'doc', shortcut: 'Ctrl+Shift+V', run: run(async e => { const c = await readClipboard(); if (c.text) insertPlain(e, c.text); else app.ui.toast('The clipboard has no text.'); }) });
+  reg('edit.pastePlain', { label: 'Paste as plain text', icon: 'doc', shortcut: 'Ctrl+Shift+V', run: run(async e => { const c = await readClipboard(); if (c.text) insertPlain(e, c.text); else app.ui.toast('Copy some text first, then paste it as plain text. The clipboard has no text right now.', { kind: 'info' }); }) });
   reg('format.painter', {
     label: 'Format painter', icon: 'brush', description: 'Copy the formatting of the selection, then select text to apply it. Esc cancels.',
-    run: run(e => { if (e.startPainter) e.startPainter(); else app.ui.toast('Format painter works in Word mode. In Simple mode, copy the ** or * marks.'); }),
+    run: run(e => { if (e.startPainter) e.startPainter(); else app.ui.toast('Switch to Word mode (Ctrl+1) to use Format Painter. In Simple mode, copy the ** or * marks.', { kind: 'info' }); }),
   });
   if (!app.commands.get('edit.undo')) reg('edit.undo', { label: 'Undo', icon: 'undo', hint: 'Ctrl+Z', run: run(e => e.undo?.()) });
   if (!app.commands.get('edit.redo')) reg('edit.redo', { label: 'Redo', icon: 'redo', hint: 'Ctrl+Y', run: run(e => e.redo?.()) });

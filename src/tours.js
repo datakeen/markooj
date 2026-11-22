@@ -7,7 +7,8 @@
 // Step: {target (selector list or fn → Element), title, text (short, may hold <kbd>/<b>), place ('bottom'|'top'|'right'|'left'|'center'),
 //   before(ctx), click (clicking the target counts as doing it), until(ctx) → bool (wait for the user; Next hides), perform(ctx, el)
 //   (what "Do it for me" and auto mode do; default: click the target), pad}
-// Settings: toursDone {id: date}, toursOffered (first launch offer shown). Events: tour:started, tour:step, tour:ended.
+// Settings: toursDone {id: date}. Events: tour:started, tour:step, tour:ended. The first-start offer is the Welcome screen
+// (src/welcome.js), whose "Show me" buttons and "Take the 2-minute tour" start these tours.
 (function () {
   'use strict';
   const app = window.app, mk = window.mk;
@@ -18,8 +19,6 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // "no settings yet" is read before boot writes anything: IPC answers in order, and this runs before app.js loads the settings
-  const firstRunP = mk.invoke('settings-get').then(s => !s || !Object.keys(s).some(k => k !== 'window'), () => false);
 
   // ---------- the practice document ----------
   const TUTORIAL_TEXT = [
@@ -190,7 +189,7 @@
 
   async function start(id, opts = {}) {
     const tour = tours.get(id);
-    if (!tour) { app.ui.toast?.('That tutorial is not available.', { kind: 'warn' }); return null; }
+    if (!tour) { app.ui.toast?.('Pick a tutorial from Help → Tutorials. This one is not in this copy of Markooj.', { kind: 'warn', actions: [{ label: 'Open Tutorials', run: () => app.commands.run('help.tutorials') }] }); return null; }
     if (S) await stop();
     try { app.help?.close?.(); } catch {}
     try { if (bsOpen()) app.backstage.close(); } catch {}
@@ -532,6 +531,18 @@
   });
 
   register({
+    id: 'citations', title: 'Citations from a BibTeX library', minutes: 2, icon: 'mkh-i-tour',
+    description: 'Cite from Zotero, Mendeley or JabRef, and let the bibliography build itself.',
+    steps: [
+      tabStep('references', 'References', 'Citations are on the References tab.'),
+      inTab('references', { target: cmdSel('ref.library'), title: 'Choose your library', text: 'Click Library and pick a BibTeX (.bib) file. Zotero, Mendeley, JabRef and EndNote can all export one.' }),
+      inTab('references', { target: cmdSel('ref.cite'), title: 'Cite a source', text: `Click Cite or press ${K('Ctrl+Shift+C')}, type part of an author or a title, and press Enter. The page shows the citation in your style.` }),
+      inTab('references', { target: cmdSel('ref.bibliography'), title: 'The bibliography', text: 'Click Bibliography to list every source you cited at the end. The list updates as you cite.' }),
+      { title: 'Right in every format', text: 'Pick APA, Chicago or IEEE under Citation style. Word, PDF and LaTeX exports format the citations for you.' },
+    ],
+  });
+
+  register({
     id: 'tables', title: 'Tables like Word', minutes: 2, icon: 'mkh-i-tour',
     description: 'Insert a table, type in its cells and use the Table tabs.',
     steps: [
@@ -635,20 +646,6 @@
 
   app.tours = { register, list, get: id => tours.get(id) || null, start, stop, next, back, active: () => (S ? { id: S.tour.id, index: S.i, auto: S.auto } : null), isDone, markDone, resetDone, tutorialText: TUTORIAL_TEXT };
 
-  // ---------- first launch: offer Getting started once ----------
-  app.events.on('ready', async () => {
-    let first = false;
-    try { first = await firstRunP; } catch {}
-    if (!first || app.settings.get('toursOffered', false)) return;
-    let smoke = false;
-    try { smoke = (await mk.invoke('app-info'))?.userDataFrom === 'smoke'; } catch {}
-    if (smoke || window.__mkSmokeStarted) return;
-    await sleep(1600);
-    if (window.__mkSmokeStarted || S) return;
-    app.settings.set('toursOffered', true);
-    app.ui.toast?.('Welcome to Markooj. Take a two-minute tour?', { kind: 'info', timeout: 20000, actions: [{ label: 'Start Tour', run: () => start('getting-started') }, { label: 'Not Now', run: () => {} }] });
-  });
-
   // =====================================================================
   //  Smoke tests: every tour runs from start to end with all its targets found
   // =====================================================================
@@ -687,13 +684,15 @@
     tours.delete('test-missing');
     const d = doneMap(); delete d['test-missing']; app.settings.set('toursDone', d);
   });
-  T.register('tours: every tutorial runs from start to end with all its targets found', async () => {
+  // in parts of five, so each part stays well inside the 30 s a smoke test may take
+  const builtIn = [...tours.keys()], PART = 5, parts = Math.ceil(builtIn.length / PART);
+  for (let k = 0; k < parts; k++) T.register(`tours: every tutorial runs from start to end with all its targets found (part ${k + 1} of ${parts})`, async () => {
     const before = app.docs.list().length;
     // one practice document for all of them (each tour on its own makes and closes one)
     const doc = app.docs.create({ title: 'Tutorial document', text: TUTORIAL_TEXT });
     const bad = [], ribbon0 = ribbonDisplay();
     try {
-      for (const t of [...tours.values()]) {
+      for (const t of builtIn.slice(k * PART, (k + 1) * PART).map(id => tours.get(id)).filter(Boolean)) {
         const r = await start(t.id, { auto: true, delay: 10, doc });
         if (!r || !r.finished) { bad.push(`${t.title}: did not finish`); continue; }
         if (r.missing.length) bad.push(`${t.title}: targets not found: ${r.missing.join('; ')}`);

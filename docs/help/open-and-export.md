@@ -25,7 +25,7 @@ Most of a Word file comes across, but not everything: Markdown has no text boxes
 
 ## Save
 
-**Ctrl+S** saves the document as Markdown. **Save all** saves every open document with changes. If the file changed on disk since you opened it (for example in another program), Markooj asks whether to overwrite it, save a copy, or cancel.
+**Ctrl+S** saves the document as Markdown. **Save all** saves every open document with changes. If another program changed the file after you opened it, Markooj asks you to choose how to save: **Save as Copy…** (the default, keeps both), **Overwrite**, or **Cancel**.
 
 ## Save As and export
 
@@ -88,6 +88,6 @@ Markooj reads every Markdown flavor on screen. For exports through Pandoc, you c
 
 **Ctrl+P** (File → Print) shows the pages, then opens your system's print window, where you pick the printer, copies and pages. **Save as PDF…** on the same page saves a PDF instead, and **Page setup…** opens the Layout choices. Pages are A4 unless you set another size on the Layout tab.
 
-## If a format is missing
+## If a format is grayed out
 
-If the Pandoc formats are grayed out, or Markooj says a bundled tool is missing, see [Problems and answers](troubleshooting.md).
+The format says which tool it needs. Most often **Check again** in Markooj's message, or running the installer again, brings it back; [Problems and answers](troubleshooting.md) has the steps for each system. The other formats keep working meanwhile.

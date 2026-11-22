@@ -387,8 +387,8 @@
     function labelProblem() {
       if (!display || !numbered) return '';
       if (!label) return autoNum() ? '' : 'Type a label, or turn Numbered off.';
-      if (!LABEL_RE.test(label)) return 'Labels use letters, digits, “-”, “_” and “.”.';
-      if (('eq:' + label) !== origFull && usedLabels(app.docs.active()?.text || '').has(label)) return `Another equation already uses eq:${label}. Pick a different label.`;
+      if (!LABEL_RE.test(label)) return 'Use only letters, digits, “-”, “_” and “.” in the label.';
+      if (('eq:' + label) !== origFull && usedLabels(app.docs.active()?.text || '').has(label)) return `Pick a different label: another equation already uses eq:${label}.`;
       return '';
     }
     function sync() {
@@ -410,7 +410,7 @@
       clearTimeout(msgTimer);
       msgTimer = setTimeout(() => {
         const lp = labelProblem(); if (lp) return setMsg(lp, 'warn');
-        const kp = katexProblem(texNow()); if (kp) return setMsg('The page may not show this exactly: ' + kp, 'warn');
+        const kp = katexProblem(texNow()); if (kp) return setMsg('Check the LaTeX: the page may not show this exactly. ' + kp, 'warn');
         setMsg(mig.tag != null && numbered ? 'The old fixed number was replaced by automatic numbering.' : '');
       }, 160);
     }
@@ -519,7 +519,7 @@
       const chip = (text, title, run) => { const b = el('button', { type: 'button', class: 'mkeq-chip', title, text }); b.addEventListener('mousedown', e => e.preventDefault()); b.addEventListener('click', run); ops.appendChild(b); return b; };
       chip('Cases', 'f(x) = { a if …, b otherwise', () => insertTpl('\\begin{cases}#? & \\text{if } #?\\\\ #? & \\text{otherwise}\\end{cases}'));
       chip('Aligned lines', 'Several lines lined up at =', () => insertTpl('\\begin{aligned}#? &= #?\\\\ &= #?\\end{aligned}'));
-      const cmd = (c) => () => { if (!mf) return setMsg('Rows and columns can be added in the visual editor.', 'warn'); mf.focus(); mf.executeCommand(c); onVisualInput(); };
+      const cmd = (c) => () => { if (!mf) return setMsg('Type & for a new column and \\ for a new row in the LaTeX box. The visual editor did not start this time.', 'warn'); mf.focus(); mf.executeCommand(c); onVisualInput(); };
       chip('Add row', 'Add a row below the caret (Alt+Enter)', cmd('addRowAfter'));
       chip('Add column', 'Add a column right of the caret', cmd('addColumnAfter'));
       chip('Delete row', 'Delete the row with the caret', cmd('removeRow'));
@@ -600,7 +600,7 @@
     const vk = () => window.mathVirtualKeyboard;
     function onKbGeometry() { const k = vk(); const h = k && k.visible ? Math.round(k.boundingRect?.height || 0) : 0; box.style.setProperty('--mkeq-kb', h + 'px'); box.classList.toggle('kb', h > 0); bKb.classList.toggle('on', h > 0); bKb.setAttribute('aria-pressed', String(h > 0)); }
     function toggleKeyboard() {
-      const k = vk(); if (!k || !mf) { setMsg('The math keyboard needs the visual editor.', 'warn'); return; }
+      const k = vk(); if (!k || !mf) { setMsg('Type in the LaTeX box instead. The math keyboard needs the visual editor, which did not start this time.', 'warn'); return; }
       mf.focus();
       // MathLive's keyboard reads body[theme]; follow the app theme while it is open
       document.body.setAttribute('theme', document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
@@ -712,7 +712,7 @@
       console.warn('MathLive unavailable', err);
       if (closed) return;
       fieldHost.innerHTML = '<div class="fallback"></div>'; renderFallback();
-      setMsg('The visual editor could not start, so type LaTeX below. The preview above updates as you type.', 'warn');
+      setMsg('Type LaTeX below. The preview above updates as you type. (The visual editor didn’t start this time; reopen the dialog to try it again.)', 'warn');
       target = 'latex'; ta.focus();
     });
 

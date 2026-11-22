@@ -708,7 +708,7 @@
     function detachEls(seg) { const els = seg.els.filter(n => n.parentNode === page); return els; }
     function openSeg(seg, a = 0, b = a, opts = {}) {
       if (!seg || !doc) return;
-      if (doc.readOnly) { app.ui.toast?.('This document is read-only.'); return; }
+      if (doc.readOnly) { app.ui.toast?.('Use Edit as text to make an editable copy. This document is read-only.', { kind: 'info' }); return; }
       // a table edits cell by cell, like Word (opts.source opens its Markdown instead)
       if (seg.kind === 'table' && !opts.source && app.tables && tryOpenCell(seg, a, b, opts)) return;
       const text = doc.text; const { st, en } = segRange(text, seg);
@@ -863,7 +863,7 @@
       if (doc.readOnly) return;
       const fn = t.closest('section.footnotes li');
       if (fn) { openFootnoteDef(fn); return; }
-      if (t.closest('.mk-bibliography')) { app.ui.toast?.('This list is made from your citations. Edit the citations in the text.'); return; }
+      if (t.closest('.mk-bibliography')) { app.ui.toast?.('To change this list, edit the citations in your text. Markooj builds it from them.'); return; }
       const s = getSelection();
       if (s.rangeCount && !s.isCollapsed && page.contains(s.anchorNode) && String(s).trim()) {
         const r = s.getRangeAt(0); const sa = segOfNode(r.startContainer), sb = segOfNode(r.endContainer);
@@ -927,7 +927,7 @@
       if (/^(https?:|mailto:)/i.test(href)) { app.mk?.invoke?.('open-external', href)?.catch?.(() => {}); return; }
       if (doc?.path && !/^[a-z][\w+.-]*:/i.test(href)) {
         const sep = doc.path.includes('\\') ? '\\' : '/'; const dir = doc.path.replace(/[\\/][^\\/]*$/, '');
-        app.docs.open(dir + sep + decodeURIComponent(href.split('#')[0]).replace(/\//g, sep)).catch(err => app.ui.toast(`Could not open ${href}. ${app.ui.plainError ? app.ui.plainError(err) : (err.message || err)}`, { kind: 'error' }));
+        app.docs.open(dir + sep + decodeURIComponent(href.split('#')[0]).replace(/\//g, sep)).catch(err => (app.ui.fail ? app.ui.fail(err, { lead: `Check that the linked file “${href}” is next to this document, or fix the link.`, hideReason: true }) : app.ui.toast(`Check that the linked file “${href}” is next to this document, or fix the link.`, { kind: 'error' })));
       }
     }
 

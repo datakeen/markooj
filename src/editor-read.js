@@ -81,7 +81,7 @@
         if (/^(https?:|mailto:)/i.test(href)) { app.mk?.invoke?.('open-external', href)?.catch?.(() => {}); return; }
         if (doc?.path && !/^[a-z][\w+.-]*:/i.test(href)) {
           const sep = doc.path.includes('\\') ? '\\' : '/'; const dir = doc.path.replace(/[\\/][^\\/]*$/, '');
-          app.docs.open(dir + sep + decodeURIComponent(href.split('#')[0]).replace(/\//g, sep)).catch(err => app.ui.toast(`Could not open ${href}. ${app.ui.plainError ? app.ui.plainError(err) : (err.message || err)}`, { kind: 'error' }));
+          app.docs.open(dir + sep + decodeURIComponent(href.split('#')[0]).replace(/\//g, sep)).catch(err => (app.ui.fail ? app.ui.fail(err, { lead: `Check that the linked file “${href}” is next to this document, or fix the link.`, hideReason: true }) : app.ui.toast(`Check that the linked file “${href}” is next to this document, or fix the link.`, { kind: 'error' })));
         }
       }
     }

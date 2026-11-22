@@ -5,6 +5,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-23
+
+A Welcome screen, a short What's new after each update, and messages that start with what you can do.
+
+### Added
+
+- **A Welcome screen.** The first time you start Markooj, it shows the main features: Word-like writing, the Writing Assistant, equations and cross-references, citations, Save As, the four modes, right-to-left languages and the add-in store. Each has a **Show me** button that starts a short guided tour on the real buttons. **Take the 2-minute tour** and **Start writing** are one click away. Open it any time from **Help → Welcome**, or press **Alt+Q** and type `welcome`.
+- **What's new after each update.** Once after an update, Markooj shows the main changes of the new version, with **See all changes** for the full list.
+- **A calm start when you open a file.** If you start Markooj by opening a document, the Welcome waits as a small button in the status bar instead of covering your page.
+- **A new tutorial: Citations from a BibTeX library.**
+- **Writing messages** in CONTRIBUTING.md: how every message in Markooj is written.
+
+### Changed
+
+- **Messages lead with what you can do.** Toasts, dialogs and error cards now say first how to fix things, often with a button that does it (**Try again**, **Check again**, **Copy command**, **Open folder** …), then what still works. Technical details stay one click away, under **Technical details**.
+- **Optional tools stay quiet at start.** Markooj no longer warns about DjVuLibre or pdf2djvu when it starts. It helps at the moment you open a DjVu file or pick DjVu in Save As, and **Help → Check Tools** always shows the full status.
+- **Help → Check Tools** opens "Your tools are ready" or "Almost everything is ready". Each tool says what it is for and either **Ready** or how to fix it, with **Check again**, **Copy details** and **Report this**.
+- **Save As** cards for formats that need a tool you do not have yet stay clickable: a click shows how to get the tool for your system, with a **Copy command** button for macOS and Linux.
+- The old "Take a two-minute tour?" message on the first start is replaced by the Welcome screen.
+
+### Fixed
+
+- **DjVu on Windows.** Markooj 1.1.0 said "DjVuLibre is missing" at every start, although the official DjVuLibre build for Windows was there: that build prints no version number for `ddjvu --help`. The check now recognizes that build.
+
 ## [1.1.0] - 2026-11-22
 
 Markooj for macOS and Linux, an add-in store, a website, full Urdu spelling, and new language packs for Urdu, Arabic and Punjabi.
@@ -119,6 +143,7 @@ The first public release.
 - Works offline. The internet is used only to download language packs, for web pictures when you allow them, and for links you click.
 - Free and open source under the GNU Affero General Public License, version 3 or later.
 
-[Unreleased]: https://github.com/datakeen/markooj/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/datakeen/markooj/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/datakeen/markooj/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/datakeen/markooj/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/datakeen/markooj/releases/tag/v1.0.0

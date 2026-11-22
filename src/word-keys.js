@@ -150,7 +150,7 @@
   const C = (id, def) => app.commands.register(id, { category: def.category || 'Edit', ...def });
   const activeMd = () => { const d = app.docs.active(); return d && d.kind === 'markdown' && !d.readOnly ? d : null; };
   const editing = () => !!activeMd() && app.mode !== 'read';
-  const why = () => { const d = app.docs.active(); return !d ? 'Open or create a document first.' : d.kind !== 'markdown' ? 'PDF and DjVu files can’t be edited here.' : d.readOnly ? 'This document is read-only.' : app.mode === 'read' ? 'Read mode is for reading. Press Esc to go back to editing.' : ''; };
+  const why = () => { const d = app.docs.active(); return !d ? 'Open or create a document first.' : d.kind !== 'markdown' ? 'Use Edit as text to make an editable copy. PDF and DjVu files can’t be edited here.' : d.readOnly ? 'This document is read-only.' : app.mode === 'read' ? 'Read mode is for reading. Press Esc to go back to editing.' : ''; };
 
   // F4: repeat the last formatting or insert command
   const REPEATABLE = /^(format\.|para\.|list\.|insert\.|edit\.case\.|edit\.changeCase$|layout\.|review\.comment$|ref\.footnote$|xref\.(crossref|caption)$|table\.)/;
@@ -158,7 +158,7 @@
   let lastRepeatable = null;
   app.events.on('command:ran', ({ id, args } = {}) => { if (id && REPEATABLE.test(id) && !NOT_REPEATABLE.test(id)) lastRepeatable = { id, args }; });
   C('edit.repeat', { label: 'Repeat', description: 'Do the last formatting or insert command again, like F4 in Word.', icon: 'redo', isEnabled: editing, why, run: () => {
-    if (!lastRepeatable) { toast('Nothing to repeat yet.', { kind: 'info', timeout: 1400 }); return false; }
+    if (!lastRepeatable) { toast('Type or format something first, then press F4 to repeat it.', { kind: 'info', timeout: 2200 }); return false; }
     return app.commands.run(lastRepeatable.id, lastRepeatable.args);
   } });
   // Ctrl+G: Go To (a page in PDF and DjVu files, a heading in documents)

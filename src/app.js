@@ -13,7 +13,7 @@
   const bootPromise = new Promise(r => { resolveBoot = r; });
   async function openPath(p) {
     if (app.shell?.openPath) return app.shell.openPath(p);
-    try { await app.docs.open(p); return true; } catch (e) { app.ui.toast(`Couldn’t open ${p}. ${app.ui.plainError(e)}`, { kind: 'error' }); return false; }
+    try { await app.docs.open(p); return true; } catch (e) { app.ui.fail(e, { lead: `Check that “${String(p).split(/[\\/]/).pop()}” is still there, then try again.`, retry: () => openPath(p) }); return false; }
   }
   mk.on('open-path', p => { if (booted) openPath(p); else pendingPaths.push(p); });
   mk.on('request-close', () => { bootPromise.then(onRequestClose); });
@@ -60,7 +60,7 @@
         if (/\.(md|markdown|mdown|mkd|mdx|rmd|qmd|txt)$/i.test(f.name)) {
           const text = await f.text();
           app.docs.create({ title: f.name.replace(/\.[^.]+$/, ''), text, ext: f.name.split('.').pop() });
-        } else app.ui.toast(`Couldn’t open ${f.name}. Use File → Open instead.`, { kind: 'warn' });
+        } else app.ui.toast(`Use File → Open to open “${f.name}”. Markooj can’t read it from a drop.`, { kind: 'warn', actions: [{ label: 'Open…', run: () => app.commands.run('file.open') }] });
       }
     });
   }
@@ -128,7 +128,7 @@
         for (const d of dirty) {
           app.docs.activate(d.id);
           const ok = await app.docs.save(d);
-          if (!ok) { app.ui.toast(`“${d.title}” was not saved, so Markooj stayed open.`, { kind: 'warn' }); return; }
+          if (!ok) { app.ui.toast(`Save “${d.title}”, or close again and choose Don’t Save. Markooj stays open until then.`, { kind: 'warn', actions: [{ label: 'Close again', run: () => onRequestClose() }] }); return; }
         }
         closed = true; await mk.invoke('confirm-close');
       } else if (v === 'discard') {
@@ -137,7 +137,7 @@
       }
     } catch (e) {
       console.error(e);
-      app.ui.toast('Closing failed: ' + app.ui.plainError(e), { kind: 'error' });
+      app.ui.fail(e, { lead: 'Try closing again. Your unsaved text is kept in File → Recover.', hideReason: true, retry: () => onRequestClose() });
     } finally {
       closing = false;
       // tell main the request was answered, so the next X shows the save prompt again (not "Close anyway?")
@@ -277,6 +277,43 @@ print("hello")
     });
     for (const d of opened) { try { await app.docs.close(d.id, { force: true }); } catch {} }
   }
+  // ---------- the message rule: every error or warning toast says what to do ----------
+  // A toast of kind error or warning needs an action button (not just Details) or a remedy verb in its text
+  // (Try, Choose, Open, Save, Install, Turn, Check, Copy, Click, Press, Use, Add, Remove, Close, Restart, Download, Get, Pick, Select).
+  function toastAudit(since = 0) {
+    const log = (app.ui.toastLog || []).slice(since);
+    const judged = log.filter(t => !t.dialog && (t.kind === 'error' || t.kind === 'warn'));
+    const ok = t => (app.ui.isActionable ? app.ui.isActionable(t.msg, { actions: (t.actions || []).map(label => ({ label })) }) : true);
+    return { checked: judged.length, bad: judged.filter(t => !ok(t)) };
+  }
+  const auditText = bad => bad.map(t => `[${t.kind}] “${t.msg}”${t.actions?.length ? ' buttons: ' + t.actions.join(', ') : ''} (during ${t.test || 'start-up or e2e'})`).join('\n');
+  app.messages = { audit: toastAudit };
+  app.tests.register('messages: the checker tells a remedy from a problem-first message', () => {
+    const A = app.assert, ok = app.ui.isActionable;
+    A(typeof ok === 'function' && Array.isArray(app.ui.toastLog), 'app.ui.isActionable and app.ui.toastLog exist');
+    A(!ok('DjVuLibre is missing from this copy of Markooj.', {}), 'problem-first text without a button fails');
+    A(!ok('Export failed.', { actions: [{ label: 'Details' }] }), 'a Details button alone is not a remedy');
+    A(ok('Export failed.', { actions: [{ label: 'Try again' }] }), 'an action button passes');
+    A(ok('To open DjVu files, Markooj needs the free DjVuLibre tools. Get DjVuLibre from its website.', {}), 'a remedy verb passes');
+    A(!ok('could not open the file', {}), 'lower-case "open" in a problem sentence is not a remedy');
+    // fail(): code-like errors go under Details, a plain message comes after the lead, an unknown error offers Report this
+    const n0 = app.ui.toastLog.length;
+    const t1 = app.ui.fail(new TypeError("Cannot read properties of undefined (reading 'x')"));
+    const e1 = app.ui.toastLog[app.ui.toastLog.length - 1];
+    A(app.ui.toastLog.length > n0 && !/TypeError|undefined/.test(e1.msg) && e1.actions.includes('Report this') && e1.details, 'raw error hidden, Report this offered: ' + JSON.stringify(e1));
+    const t2 = app.ui.fail(Object.assign(new Error("ENOENT: no such file or directory, open 'C:\\x.md'"), { code: 'ENOENT' }), { retry: () => {} });
+    const e2 = app.ui.toastLog[app.ui.toastLog.length - 1];
+    A(/^Check that the file is still there/.test(e2.msg) && e2.actions[0] === 'Try again' && !/ENOENT/.test(e2.msg), 'system code turned into a remedy: ' + e2.msg);
+    const t3 = app.ui.fail(new Error('The disk is full.'), { lead: 'Choose another folder.' });
+    const e3 = app.ui.toastLog[app.ui.toastLog.length - 1];
+    A(e3.msg === 'Choose another folder. The disk is full.', 'lead first, plain reason after: ' + e3.msg);
+    [t1, t2, t3].forEach(t => t?.close?.());
+  });
+  app.tests.register('messages: error and warning toasts so far say what to do', () => {
+    const { checked, bad } = toastAudit();
+    app.assert(!bad.length, `${bad.length} of ${checked} error/warning toasts lead with the problem and offer no remedy:\n` + auditText(bad));
+  });
+
   let smokeRan = false;
   async function runSmoke(outDir, only) {
     if (smokeRan) return; smokeRan = true;
@@ -352,6 +389,11 @@ print("hello")
     } catch (e) {
       results.push({ name: 'smoke runner', ok: false, error: String(e && e.stack || e) });
     } finally {
+      // the whole run, exports and end-to-end checks included
+      try {
+        const { checked, bad } = toastAudit();
+        results.push({ name: `messages: every error or warning toast in this run says what to do (${checked} checked)`, ok: !bad.length, error: bad.length ? auditText(bad) : undefined });
+      } catch (e) { results.push({ name: 'messages: toast audit', ok: false, error: String(e && e.stack || e) }); }
       try { await mk.invoke('smoke-done', results); } catch (e) { console.error('smoke-done failed', e); }
     }
   }

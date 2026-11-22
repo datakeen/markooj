@@ -280,7 +280,7 @@
     tip.innerHTML = `<div class="tt-h"><b>${esc(c.title)}</b>${keys ? `<span class="tt-k">${keys}</span>` : ''}</div>`
       + (c.desc ? `<div class="tt-d">${esc(c.desc)}</div>` : '')
       + (c.md ? `<div class="tt-md"><span>Markdown</span><code>${esc(c.md)}</code></div>` : '')
-      + (!c.enabled ? `<div class="tt-off">${esc(c.why || 'Not available right now.')}</div>` : '')
+      + (!c.enabled ? `<div class="tt-off">${esc(c.why || 'Click in the document first, or select what this command works on.')}</div>` : '')
       + '<i class="tt-arrow"></i>';
     return true;
   }

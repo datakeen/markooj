@@ -6,6 +6,7 @@ Short walkthroughs of the main tasks, one step at a time. The same tutorials run
 - [Modes: Word, Inline, Simple, Read](#modes-word-inline-simple-read)
 - [Equations and numbering](#equations-and-numbering)
 - [Cross-references](#cross-references)
+- [Citations from a BibTeX library](#citations-from-a-bibtex-library)
 - [Tables like Word](#tables-like-word)
 - [Writing Assistant](#writing-assistant)
 - [Right-to-left languages and language packs](#right-to-left-languages-and-language-packs)
@@ -60,6 +61,17 @@ More in [Equations](equations.md).
 5. Add another figure above the first. Both numbers and the reference update.
 
 More in [Numbering and cross-references](numbering-and-cross-references.md).
+
+## Citations from a BibTeX library
+
+1. Export your library as a `.bib` file from Zotero, Mendeley, JabRef or EndNote.
+2. On the **References** tab, click **Library** and pick the file. Markooj writes its name into the document, so the link travels with it.
+3. Put the cursor where the citation goes and click **Cite**, or press **Ctrl+Shift+C**.
+4. Type part of an author or a title, pick the source and click **Insert**. It shows as, for example, (Shields, 1936).
+5. Click **References → Bibliography**. Every source you cite is listed at the end, and the list updates as you cite.
+6. Pick **APA**, **Chicago** or **IEEE** under **Citation style**. Exports to Word, PDF and LaTeX use the same style.
+
+More in [Citations and references](citations-and-references.md).
 
 ## Tables like Word
 
