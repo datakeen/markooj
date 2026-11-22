@@ -172,24 +172,44 @@ async function getText(url) {
 /** Streams url → dest with progress; returns {sha256, md5, size}. Retries a few times. */
 async function download(url, dest, label) {
   let lastErr;
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= 5; attempt++) {
     try {
       return await downloadOnce(url, dest, label || path.basename(dest));
     } catch (e) {
       lastErr = e;
       const why = (e.cause && (e.cause.code || e.cause.message)) || e.message;
-      warn(`download failed (${why})${attempt < 3 ? ', retrying' : ''}`);
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * attempt));
+      warn(`download failed (${why})${attempt < 5 ? ', retrying' : ''}`);
+      if (attempt < 5) await new Promise((r) => setTimeout(r, 3000 * attempt));
     }
   }
   throw lastErr;
 }
 
+// Big files are streamed with Node's https module, not fetch: undici (Node 22's fetch) can crash the whole process with
+// "assert(!this.paused)" when a server closes the connection while the stream waits for disk (seen on SourceForge mirrors
+// on GitHub's Windows runners). An https error is an ordinary error, so download() can retry it.
+function httpsGetFollow(url, redirects = 8) {
+  return new Promise((resolve, reject) => {
+    const req = require('https').get(url, { headers: headersFor(url) }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume();
+        if (redirects <= 0) return reject(new Error(`too many redirects for ${url}`));
+        return resolve(httpsGetFollow(new URL(res.headers.location, url).toString(), redirects - 1));
+      }
+      if (res.statusCode !== 200) { res.resume(); return reject(new Error(`HTTP ${res.statusCode} ${res.statusMessage || ''} for ${url}`)); }
+      resolve(res);
+    });
+    req.on('error', reject);
+    req.setTimeout(STALL_MS, () => req.destroy(new Error('connection stalled')));
+  });
+}
+
 async function downloadOnce(url, dest, label) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
-  const h = await fetchWithStall(url);
-  const { res } = h;
-  if (!res.ok) { h.done(); throw new Error(`HTTP ${res.status} ${res.statusText} for ${url}`); }
+  const raw = await httpsGetFollow(url);
+  raw.setTimeout?.(STALL_MS, () => raw.destroy(new Error('connection stalled')));
+  const h = { bump() {}, done() {} };
+  const res = { body: raw, headers: { get: (k) => raw.headers[String(k).toLowerCase()] } };
   const total = Number(res.headers.get('content-length')) || 0;
   const sha = crypto.createHash('sha256');
   const md5 = crypto.createHash('md5');
