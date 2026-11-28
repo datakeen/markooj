@@ -219,6 +219,8 @@
   rule('harper', { cat: 'correctness', title: 'Grammar', explain: 'Found by the built-in grammar checker (Harper). See the message for what to change.', wrong: 'He go to work every day.', right: 'He goes to work every day.' });
   rule('usage', { cat: 'correctness', title: 'Word usage', explain: 'This phrase is common in speech or in some varieties of English, but it is not standard in writing. A plainer phrase says it clearly to every reader.', wrong: 'We reached to the office at nine.', right: 'We reached the office at nine.' });
   rule('agreement', { cat: 'correctness', title: 'Subject and verb', explain: 'A plural subject takes a plural verb: “the results show”, “these findings suggest”. A verb ending in -s goes with one thing.', wrong: 'The results shows a clear trend.', right: 'The results show a clear trend.' });
+  rule('confusable', { cat: 'correctness', title: 'Commonly confused words', explain: 'Some words sound alike but do different jobs: “affect” is usually a verb and “effect” a noun; “than” compares and “then” is about time. Markooj only marks them when the words around them leave no doubt.', wrong: 'The new rules will effect everyone.', right: 'The new rules will affect everyone.' });
+  rule('adjCommas', { cat: 'clarity', title: 'Commas between describing words', explain: 'When several describing words each describe the same thing on their own (you could put “and” between them, or change their order), commas separate them: “a calm, quiet, friendly place”. Words that build on each other, such as “a big old red car”, take no commas. This is a style hint, so check that it fits your sentence.', wrong: 'a beautiful engaging modern and surprising page', right: 'a beautiful, engaging, modern, and surprising page' });
   R.RULES = RULES;
 
   // ---- Harper lint kinds → category and explanation (every kind Harper reports)
@@ -248,7 +250,9 @@
   // Harper rules that Markooj's own rules or settings replace, and rules that move to another category
   // PassedPast, ThereToTheir and MergeWords flag correct everyday sentences ("The test passed.", "I went there.", "25 m3/s at");
   // VeryUnique is Markooj's own "absolute adjective" rule, which suggests the better fix.
-  R.HARPER_OFF = ['SpellCheck', 'Spaces', 'NoFrenchSpaces', 'LongSentences', 'AvoidContractions', 'SentenceCapitalization', 'Dashes', 'EllipsisLength', 'UseEllipsisCharacter', 'QuoteSpacing', 'UnclosedQuotes', 'TransposedSpace', 'PassedPast', 'ThereToTheir', 'MergeWords', 'VeryUnique'];
+  R.HARPER_OFF = ['SpellCheck', 'Spaces', 'NoFrenchSpaces', 'LongSentences', 'AvoidContractions', 'SentenceCapitalization', 'Dashes', 'EllipsisLength', 'UseEllipsisCharacter', 'QuoteSpacing', 'UnclosedQuotes', 'TransposedSpace', 'PassedPast', 'ThereToTheir', 'MergeWords', 'VeryUnique',
+    // "150 MB" → "megabytes", "10 min" → "minutes", "Ctrl+S" → "Control": unit and key names are standard in technical writing
+    'ExpandMemoryShorthands', 'ExpandTimeShorthands', 'ExpandControl'];
   // Examples for single Harper rules (a kind's example is only shown for the rule it was written for, see HARPER_KIND_RULE)
   R.HARPER_EXAMPLES = {
     ModalOf: ['I could of gone.', 'I could have gone.'], Discuss: ['We discussed about the plan.', 'We discussed the plan.'],
@@ -426,8 +430,210 @@
   R.dialectOf = w => { const l = w.toLowerCase(); return ukOf.has(l) ? 'US' : usOf.has(l) ? 'UK' : null; };
 
   // ---- acronyms everyone knows
-  const KNOWN_ACR = new Set('US USA UK EU UN PDF HTML CSS URL URLS PHD MSC BSC MA BA MD AI OK TV DNA RNA CEO CFO CTO GPS ID IT FAQ PS AM PM BC AD BCE CE CPU GPU RAM ROM USB API APIS JSON XML HTTP HTTPS SQL PNG JPEG JPG GIF SVG MP3 MP4 NATO UNESCO WHO UNICEF ISBN ISSN DOI ISO IEEE APA MLA GDP COVID HIV AIDS MRI CT BMI IQ GMT UTC NGO NGOS NASA FBI CIA UAE UNO PC PCS IOS OS RSS VPN WIFI LED LCD DVD CD UFO AKA ASAP DIY FYI RSVP TBD TBA ETA NB IE EG ETC VS CV CVS HR PR QA KPI ROI SME SMES CSV PDFS UI UX IDE CLI SDK LATEX GNU MIT BSD GPL AGPL MPL RGB CMYK HD UHD AC DC UV IR CO2 H2O NO2 SO2 PH DC LAN WAN IP TCP UDP DNS SSH SSL TLS SMS MMS'.split(' '));
+  const KNOWN_ACR = new Set('US USA UK EU UN PDF HTML CSS URL URLS PHD MSC BSC MA BA MD AI OK TV DNA RNA CEO CFO CTO GPS ID IT FAQ PS AM PM BC AD BCE CE CPU GPU RAM ROM USB API APIS JSON XML HTTP HTTPS SQL PNG JPEG JPG GIF SVG MP3 MP4 NATO UNESCO WHO UNICEF ISBN ISSN DOI ISO IEEE APA MLA GDP COVID HIV AIDS MRI CT BMI IQ GMT UTC NGO NGOS NASA FBI CIA UAE UNO PC PCS IOS OS RSS VPN WIFI LED LCD DVD CD UFO AKA ASAP DIY FYI RSVP TBD TBA ETA NB IE EG ETC VS CV CVS HR PR QA KPI ROI SME SMES CSV PDFS UI UX IDE CLI SDK LATEX GNU MIT BSD GPL AGPL MPL RGB CMYK HD UHD AC DC UV IR CO2 H2O NO2 SO2 PH DC LAN WAN IP TCP UDP DNS SSH SSL TLS SMS MMS'.split(' ').concat(
+    // units and engineering software are names, not abbreviations a reader needs spelled out
+    'KB MB GB TB PB KW MW GW TW KWH MWH GWH TWH MPA KPA GPA HZ KHZ MHZ GHZ RPM PSI CFS CMS MGD MSL AMSL ASL ANSYS MATLAB HEC RAS HMS RESSIM SWMM QGIS GIS CFD FEM FEA FVM FDM LES RANS URANS DNS SST VOF CAD CAE BIM COMSOL PLAXIS STAAD ETABS SAP EPANET TELEMAC MIKE CFX LIDAR DEM DTM DSM SRTM GPS GNSS UAV USGS USACE FEMA NOAA NASA WAPDA IRSA NESPAK PCRWR PMD NDMA SCARP CPEC HDPE PVC RCC NPSH BEP HGL EGL TDS SSC'.split(' ')));
   const ROMAN = /^(?=[MDCLXVI]+$)M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
+
+  // =================================================================== commonly confused words (context decides)
+  // Each pattern only matches where the words around it leave no doubt which word is meant: "will effect everyone"
+  // (a verb after a modal, with a person as its object) or "the affect of" (a noun after a determiner). Everything else
+  // stays quiet, so "subtle effects, and surprising mouse movement effects" (plural nouns) is never marked.
+  // [sub, regex (group 1 = the word to change), replacement for the lower-case word]
+  const CF_MODAL = "(?:will|would|can|could|may|might|must|shall|should|to|not|never|also|often|directly|greatly|negatively|positively|seriously|strongly|significantly|adversely|badly|deeply|really|does|do|did|cannot|can['’]t|won['’]t|doesn['’]t|didn['’]t|don['’]t|wouldn['’]t|couldn['’]t|shouldn['’]t)";
+  const CF_OBJ = '(?:everyone|everybody|anyone|anybody|someone|people|us|you|him|her|them|me|how|whether|our|your|their|his|my|many|most|both|each|every|several|patients|students|users|children|employees|residents|farmers|performance|health|productivity|accuracy|safety)';
+  const CF_LOSE_OBJ = '(?:the|a|an|my|your|our|their|his|her|its|weight|track|sight|money|time|interest|control|focus|data|everything|anything|it|them|him|me|us|hope|faith|touch|power|accuracy)';
+  const CONFUSE = [
+    ['effectVerb', new RegExp('\\b' + CF_MODAL + '\\s+(effect)\\s+(?=' + CF_OBJ + '\\b)', 'gi'), 'affect'],
+    ['effectVerb', new RegExp('\\b(?:it|this|which|who|he|she|what|nothing|everything|something)\\s+(effects)\\s+(?=' + CF_OBJ + '\\b)', 'gi'), 'affects'],
+    ['effectVerb', /\b(?:badly|severely|directly|adversely|negatively|seriously|greatly|deeply|worst|hardest|most|least)\s+(effected)\b/gi, 'affected'],
+    ['effectVerb', /\b(?:I|we|they|you|he|she)\s+(?:were|are|was|am|is|have\s+been|has\s+been|had\s+been)\s+(?:\p{L}+ly\s+)?(effected)\s+by\b/giu, 'affected'],
+    ['affectNoun', /\b(?:the|an|no|any|side|special|sound|visual|greenhouse|domino|butterfly|ripple|knock-on|placebo|net|desired|opposite|adverse)\s+(affects?)\b(?!\s+(?:the|a|an|our|their|his|her|my|your|its|this|that|these|those|how|whether|people|everyone|us|them|him|me|you|it)\b)/gi, null],
+    ['affectNoun', /\b(?:positive|negative|significant|major|minor|great|big|huge|small|large|lasting|little|cumulative|combined|overall|direct|indirect|strong|profound|dramatic|serious|measurable|noticeable|real)\s+(affects?)(?=\s+(?:on|of|upon)\b)/gi, null],
+    ['thenThan', /\b(?:more|less|fewer|rather|other|better|worse|bigger|smaller|larger|higher|lower|greater|faster|slower|longer|shorter|older|younger|easier|harder|stronger|weaker|cheaper|wider|deeper|heavier|lighter|thicker|thinner|warmer|colder|hotter|cooler|richer|poorer|safer|simpler|clearer|sooner)\s+(then)\b(?!\s*[,;:.])/gi, 'than'],
+    ['thanThen', /(?:^|[.!?]\s+)(than)\b(?=\s*,|\s+(?:we|I|you|they|he|she|it|the|there|click|press|go|add|use|select|type|open)\b)/gi, 'then'],
+    ['thanThen', /\b(?:since|until|till|back|by|from)\s+(than)\b/gi, 'then'],
+    ['thanThen', /\band\s+(than)\s+(?=(?:we|I|you|they|he|she|it|the|a|an|there|click|press|go|add|use|select|type|open|run|save)\b)/gi, 'then'],
+    ['yourYoure', /\b(your)\s+(?=(?:going\s+to|not\b(?!-)|always|never|really|probably|already|the\s+(?:best|one|only)\b|right\s+about|wrong\s+about|sure\s+(?:to|that)\b))/gi, 'you’re'],
+    ['youreYour', /\b(you['’]re)\s+(?=(?:own|car|house|book|name|work|paper|account|password|email|phone|computer|team|family|life|feedback|comments?|answer|question|data|files?|report|order|help|support)\b)/gi, 'your'],
+    ['loseLoose', new RegExp("\\b(?:to|will|would|could|can|might|may|must|should|not|never|don['’]t|didn['’]t|won['’]t|cannot|can['’]t|you|we|they|I|did|does|do)\\s+(loose)\\s+(?=" + CF_LOSE_OBJ + '\\b)', 'gi'), 'lose'],
+    ['loseLoose', new RegExp('\\b(loosing)\\s+(?=' + CF_LOSE_OBJ + '\\b)', 'gi'), 'losing'],
+    ['looseLose', /\b(?:is|are|was|were|be|been|feels?|felt|seems?|looks?|got|get|gets|became|become)\s+(?:(?:too|very|so|slightly|quite|a\s+bit)\s+)?(lose)\b(?=\s*(?:[.,;:!?)]|$|\s+(?:and|but|or|enough|now|again)\b))/gi, 'loose'],
+    ['looseLose', new RegExp('\\b(?:break|broke|breaks|breaking|came|come|comes|coming|cut|set|let|hang|hanging|turn|turned|shake|shook)\\s+(lose)\\b(?!\\s+' + CF_LOSE_OBJ + '\\b)', 'gi'), 'loose'],
+    ['looseLose', /\b(lose)(?=-fitting\b)/gi, 'loose'],
+    ['principle', /\b(?:in|on)\s+(principal)\b(?!\s+(?:amount|sum|payment|investigator|place|office|role|city|residence))/gi, 'principle'],
+    ['principal', /\b(principle)\s+(?=(?:investigators?|components?|authors?|engineer|stress|stresses|strains?|axis|axes|amount|sum|payment|cause|reasons?|sources?|aims?|goal|objective|role|city|actor|dancer|partners?|officer|secretary|architect|scientist|curvature|directions?|planes?|moments?|values?|owner|shareholder|residence)\b)/gi, 'principal'],
+    ['complement', /\b(compliment(?:s|ed|ing)?)\s+(?=(?:each\s+other|one\s+another)\b)/gi, null],
+    ['complement', /\b(complimentary)\s+(?=(?:colou?rs?|angles?|strands?|bases?|DNA|skills|roles|goods)\b)/gi, 'complementary'],
+    ['compliment', /\b(?:pay|pays|paid|paying)\s+(?:(?:me|you|him|her|them|us|someone|everyone)\s+)?(?:(?:a|the|my|his|her|their|our|your|many|several)\s+)?(?:(?:nice|kind|high|great|sincere|lovely|warm|big|real)\s+)?(complements?)\b/gi, null],
+    ['compliment', /\bbackhanded\s+(complements?)\b/gi, null],
+    ['compliment', /\b(complementary)\s+(?=(?:drinks?|tickets?|breakfast|copy|copies|meals?|coffee|parking|wi-?fi|shuttle|upgrade|gift|samples?)\b)/gi, 'complimentary'],
+    ['advise', /\b(?:I|we|they|would|will|to|strongly|please|kindly|you|can|should|must|could|might|may|not|also|hereby)\s+(advice)\s+(?=(?:you|him|her|them|us|me|everyone|against|that|on|our|your|their|all|students|users|customers|clients|patients)\b)/gi, 'advise'],
+    ['advice', /\b(?:some|any|good|bad|expert|legal|medical|financial|sound|useful|helpful|practical|professional|much|the|my|your|our|their|his|her|for|of|seek|seeking|sought|ask\s+for|asked\s+for|piece\s+of)\s+(advise)\b(?!\s+(?:you|him|her|them|us|me|everyone|against|that|on)\b)/gi, 'advice'],
+  ];
+  // the other word of each pair, keeping the ending (effects → affects, compliments → complements)
+  const CF_SWAP = { affect: 'effect', affects: 'effects', complimented: 'complemented', compliment: 'complement', compliments: 'complements', complimenting: 'complementing', complement: 'compliment', complements: 'compliments' };
+  // the Why? text for each pair: [explain, wrong, right]
+  const CF_WHY = {
+    effect: ['“Affect” is usually a verb: something affects something else. “Effect” is usually a noun: the result. (“Effect” as a verb means “bring about”, as in “effect change”.)', 'The delay will effect everyone.', 'The delay will affect everyone.'],
+    than: ['“Than” compares two things (bigger than, rather than). “Then” is about time or order (first this, then that).', 'The new pump is faster then the old one.', 'The new pump is faster than the old one.'],
+    your: ['“Your” shows that something belongs to you. “You’re” is short for “you are”.', 'Your going to like it. Check you’re own work.', 'You’re going to like it. Check your own work.'],
+    lose: ['“Lose” is a verb (lose weight, lose the file). “Loose” is an adjective: not tight.', 'Do not loose the receipt. The screw is lose.', 'Do not lose the receipt. The screw is loose.'],
+    principal: ['“Principal” means main or most important (the principal investigator, principal stresses). “Principle” is a rule or belief (in principle).', 'In principal, the principle investigator agrees.', 'In principle, the principal investigator agrees.'],
+    complement: ['A “complement” completes or goes well with something (colors that complement each other). A “compliment” is praise. “Complimentary” also means free of charge.', 'The colors compliment each other. She paid me a complement.', 'The colors complement each other. She paid me a compliment.'],
+    advice: ['“Advice” is the noun (some advice). “Advise” is the verb (we advise you).', 'We advice you to save often. Thanks for the advise.', 'We advise you to save often. Thanks for the advice.'],
+  };
+  const CF_PAIR = { effectVerb: 'effect', affectNoun: 'effect', thenThan: 'than', thanThen: 'than', yourYoure: 'your', youreYour: 'your', loseLoose: 'lose', looseLose: 'lose', principle: 'principal', principal: 'principal', complement: 'complement', compliment: 'complement', advise: 'advice', advice: 'advice' };
+  /** Commonly confused words in a block of prose, only where the context is clear: [{sub, start, end, word, rep}] */
+  R.confusables = function confusables(t) {
+    const out = [];
+    for (const [sub, re, rep0] of CONFUSE) {
+      re.lastIndex = 0; let m;
+      while ((m = re.exec(t))) {
+        if (!m[0].length) { re.lastIndex++; continue; }
+        const w = m[1]; const s = m.index + m[0].lastIndexOf(w);
+        let rep = rep0 || CF_SWAP[w.toLowerCase()] || null;
+        if (!rep) continue;
+        if (!out.some(x => x.start === s)) out.push({ sub, start: s, end: s + w.length, word: w, rep: R.matchCase(w, rep) });
+      }
+    }
+    return out.sort((a, b) => a.start - b.start);
+  };
+  R.CF_WHY = CF_WHY; R.CF_PAIR = CF_PAIR;
+  /** Words whose Harper findings Markooj double-checks with R.confusables (kept only when the context is clear). */
+  R.CONFUSABLE_WORD = /^(?:affect(?:s|ed|ing)?|effect(?:s|ed|ing)?|then|than|lose|loose|losing|loosing|your|you['’]re|principal(?:s)?|principle(?:s)?|complement(?:s|ed|ing|ary)?|compliment(?:s|ed|ing|ary)?|advice|advise(?:s|d)?)$/i;
+  /** Keep a Harper finding? Findings on a commonly confused word survive only when R.confusables agrees that the
+   *  context calls for the other word (this removes "mouse movement effects → affects" and similar false alarms). */
+  R.harperKeep = function harperKeep(f, blockText, cfList) {
+    const w = String(f.text || '').trim();
+    if (!R.CONFUSABLE_WORD.test(w)) return true;
+    const list = cfList || R.confusables(blockText);
+    return list.some(x => x.start < f.end && f.start < x.end);
+  };
+
+  // =================================================================== describing words (adjectives), without a tagger
+  // Enough to tell a list of describing words ("modern, surprising, and mesmerizing") from an article before a noun.
+  const ADJ_QUALITY = new Set(('good bad great nice fine beautiful pretty lovely elegant brilliant gentle subtle vivid bold neat lively friendly modern simple clean ' +
+    'clear calm quiet bright dark warm cool cold hot rich fresh safe strong weak soft loud smooth sharp sweet rough crisp tidy busy lazy ' +
+    'happy sad angry proud brave wise smart clever kind honest humble polite rude fair real true rare common strange odd unusual ' +
+    'important different excellent efficient intelligent relevant pleasant decent recent evident apparent transparent fluent silent urgent vibrant ' +
+    'constant distant significant dominant abundant radiant fragrant tolerant elegant innocent confident patient consistent independent ' +
+    'sleek stylish tasteful playful cheerful graceful colorful colourful powerful useful wonderful delightful thoughtful careful helpful ' +
+    'peaceful joyful successful meaningful beautiful engaging surprising inspiring amazing exciting interesting appealing compelling striking ' +
+    'refreshing relaxing soothing calming dazzling mesmerizing mesmerising captivating enchanting fascinating intriguing pleasing welcoming ' +
+    'inviting rewarding satisfying entertaining moving touching uplifting thrilling astonishing breathtaking charming stunning convincing ' +
+    'demanding challenging promising disturbing confusing boring annoying frustrating disappointing worrying alarming shocking caring loving ' +
+    'quick fast slow easy hard tough firm solid stable steady reliable robust accurate precise exact correct proper complete perfect ideal ' +
+    'unique famous popular friendly lonely lively lovely ugly messy noisy dirty healthy wealthy tasty juicy shiny sunny cozy cosy funny silly ' +
+    'curious serious generous famous nervous anxious gorgeous glorious precious obvious various spacious gracious ambitious cautious ' +
+    'creative active attractive effective expensive impressive intuitive massive positive negative productive responsive sensitive ' +
+    'affordable comfortable enjoyable flexible incredible reasonable remarkable reliable simple tender vast wild young old new ancient fresh').split(/\s+/));
+  // describing words that build on each other (size, age, shape, color, material) take no commas: "a big old red car"
+  const ADJ_STACK = new Set(('big small large little tiny huge giant long short tall high low wide narrow thick thin heavy light deep shallow old new young ' +
+    'ancient round square flat oval white black red blue green yellow orange purple pink brown gray grey golden silver wooden plastic metal metallic ' +
+    'steel glass cotton paper stone concrete woolen wool leather many few several first second third last next other same own main whole').split(/\s+/));
+  const ADJ_SUFFIX = /^[a-z]{3,}(?:ful|ous|ive|able|ible|less|ical)$/;
+  const NOT_ADJ = new Set('table cable fable stable unless nevertheless regardless olive relative objective native executive detective alternative representative motive initiative adjective perspective archive incentive narrative explosive vegetable variable'.split(' '));
+  /** A word that can describe something and sits well in a list of such words (not size, age, color …) */
+  const isQualityAdj = w => { const l = w.toLowerCase(); if (w !== l && w !== w[0] + l.slice(1)) return false; if (/^\p{Lu}/u.test(w) && !/^\p{Lu}\p{Ll}+$/u.test(w)) return false; if (NOT_ADJ.has(l) || STOP.has(l)) return false; if (ADJ_STACK.has(l)) return false; return ADJ_QUALITY.has(l) || ADJ_SUFFIX.test(l); };
+  /** Any describing word, colors and sizes too ("black an white") */
+  const isAdj = w => { const l = w.toLowerCase(); if (NOT_ADJ.has(l) || STOP.has(l) && !ADJ_STACK.has(l)) return false; return ADJ_QUALITY.has(l) || ADJ_STACK.has(l) && !/^(?:many|few|several|first|second|third|last|next|other|same|own|main|whole)$/.test(l) || ADJ_SUFFIX.test(l); };
+  R.isAdj = isAdj; R.isQualityAdj = isQualityAdj;
+  /** "surprising, an mesmerizing", "black an white": "an" between two describing words is a slip for "and". */
+  function anMeansAnd(t, at, next) {
+    if (!isAdj(next)) return false;
+    const before = t.slice(Math.max(0, at - 60), at);
+    const m = /([\p{L}][\p{L}'’-]*)(\s*,)?\s*$/u.exec(before);
+    if (!m) return false;
+    const prev = m[1];
+    if (m[2]) return isAdj(prev); // "modern and surprising, an mesmerizing"
+    // no comma: both sides must be plain describing words, not -ing or -ed forms ("using an engaging layout" is fine)
+    return isAdj(prev) && isAdj(next) && !/(?:ing|ed)$/i.test(prev) && !/(?:ing|ed)$/i.test(next);
+  }
+  R.anMeansAnd = anMeansAnd;
+
+  // =================================================================== varied messages (the same mistake reads differently each time)
+  // PHRASES[key][0] is the message the rule writes; the others say the same thing in other words. R.vary picks one per
+  // occurrence (the n-th finding of a rule in a document gets phrasing n), so checking again never changes a message
+  // while repeated mistakes are not explained word for word the same. The Why? text and examples stay the same.
+  const PHRASES = {
+    'article:an': ['Use “an” before “{w}”, which starts with a vowel sound.', '“{w}” starts with a vowel sound, so it takes “an”.', 'Before a vowel sound, write “an”: “an {w}”.', 'The article follows the sound, not the letter. “{w}” starts with a vowel sound, so use “an”.', 'Write “an {w}”. The word starts with a vowel sound.', 'Change the article to “an”. “{w}” begins with a vowel sound.'],
+    'article:a': ['Use “a” before “{w}”, which starts with a consonant sound.', '“{w}” starts with a consonant sound, so it takes “a”.', 'Before a consonant sound, write “a”: “a {w}”.', 'The article follows the sound, not the letter. “{w}” starts with a consonant sound, so use “a”.', 'Write “a {w}”. The word starts with a consonant sound.', 'Change the article to “a”. “{w}” begins with a consonant sound.'],
+    'article:and': ['Did you mean “and”? This reads like a list of describing words, so “an” is probably a typo for “and”. If you meant the article, write “a {w}”.', 'This looks like a list, so “an” is likely a slip for “and”. Did you mean “and {w}”?', '“An” sits between two describing words here. Did you mean “and”? (As an article it would be “a {w}”.)', 'Did you mean “and”? The words around it form a list, and “an” is a common typo for “and”.', 'Probably “and”: the words before and after “an” describe the same thing. Use “a” only if you meant an article.', 'Did you mean “and {w}”? “An” does not fit between two describing words, and “and” does.'],
+    'its:contraction': ['“It’s” means “it is” or “it has”. “Its” shows possession.', 'Here you need “it’s” (it is, or it has). “Its” without an apostrophe shows possession.', 'Read it as “it is”: if that works, write “it’s”.', '“Its” is possessive, like “his”. For “it is” or “it has”, write “it’s”.', 'This means “it is” (or “it has”), so it needs the apostrophe: “it’s”.', 'Use “it’s” for “it is” or “it has”; keep “its” for possession.'],
+    'its:possessive': ['To show possession, write “its” without an apostrophe.', '“It’s” always means “it is” or “it has”. For possession, write “its”.', 'Possessive “its” has no apostrophe, like “his” and “her”.', 'Try reading it as “it is”: it does not fit, so write “its”.', 'This shows possession, so drop the apostrophe: “its”.', 'Write “its” here. The form with an apostrophe means “it is” or “it has”.'],
+    repeated: ['“{w}” appears twice in a row.', 'The word “{w}” is repeated.', '“{w} {w}”: one of these can go.', 'Looks like “{w}” was typed twice.', 'Remove the second “{w}”.', 'A doubled word: “{w}”. Keep one.'],
+    'dialect:US': ['This is the British spelling. In American English, write “{rep}”.', 'American English spells this “{rep}”.', 'For a US document, use “{rep}”.', 'This spelling is British. The American form is “{rep}”.', 'Your document is set to English (US), which writes “{rep}”.', 'Use the American spelling “{rep}” to keep the style consistent.'],
+    'dialect:UK': ['This is the American spelling. In British English, write “{rep}”.', 'British English spells this “{rep}”.', 'For a UK document, use “{rep}”.', 'This spelling is American. The British form is “{rep}”.', 'Your document is set to English (UK), which writes “{rep}”.', 'Use the British spelling “{rep}” to keep the style consistent.'],
+    'wordy:rep': ['“{rep}” says the same in fewer words.', 'Shorter: “{rep}”.', 'You can say this more simply: “{rep}”.', '“{rep}” is shorter and means the same.', 'Try “{rep}”. Fewer words, same meaning.', 'Trim this to “{rep}”.', 'A lighter way to say it: “{rep}”.'],
+    'wordy:remove': ['Leave out “{w}”. The sentence says the same without it.', 'The sentence works without “{w}”.', '“{w}” adds words but no meaning. Try removing it.', 'You can drop “{w}” here.', 'Cut “{w}” to make the sentence tighter.', 'Without “{w}”, the point comes across faster.'],
+    nominalization: ['Use the verb “{verb}” instead of “{phrase}”.', '“{phrase}” hides the verb “{verb}”. Use the verb.', 'Try the verb itself: “{verb}”.', 'Shorter and more direct: “{verb}” instead of “{phrase}”.', 'The action here is “{verb}”. Say it as a verb.', 'Swap “{phrase}” for “{verb}”.'],
+    absolute: ['“{adj}” cannot be graded, so “{mod}” weakens it.', 'Something is either {adjl} or it is not. Drop “{mod}”.', '“{adj}” is already absolute; “{mod}” is not needed.', '“{mod} {adjl}” says less than “{adjl}”. Keep the one word.', 'Leave out “{mod}”: “{adjl}” has no degrees.', '“{adj}” stands on its own. Remove “{mod}”.'],
+    stronger: ['Try one stronger word instead of “{w}”.', 'One precise word can replace “{w}”.', '“{w}” is a bit flat. A stronger word works better.', 'Instead of “{w}”, choose a single, more vivid word.', 'Replace “{w}” with one word that says it fully.'],
+    intensifier: ['“{w}” adds little here. Try the sentence without it.', 'The sentence is stronger without “{w}”.', '“{w}” rarely adds meaning. Consider removing it.', 'Try cutting “{w}”.', 'Without “{w}”, the sentence sounds more confident.', '“{w}” can go; the meaning stays the same.'],
+    contraction: ['Formal writing spells this out: “{rep}”.', 'In formal writing, write “{rep}”.', 'Spell out the contraction: “{rep}”.', 'For a formal tone, use “{rep}”.', 'Your goals say formal, so write “{rep}”.', 'Write it in full: “{rep}”.'],
+    informal: ['“{w}” sounds casual. Try “{rep}”.', '“{rep}” fits a formal tone better than “{w}”.', 'In formal writing, “{rep}” works better here.', '“{w}” is conversational. Consider “{rep}”.', 'For a more formal tone, write “{rep}”.', 'Try “{rep}” instead of the casual “{w}”.'],
+    exclamation: ['One mark is enough.', 'Use a single mark.', 'Several marks in a row sound loud. Keep one.', 'One exclamation mark says it.', 'Drop the extra marks.', 'A single mark reads calmer.'],
+    longSentence: ['This sentence has {n} words. Sentences over {limit} words are hard to follow; try splitting it.', 'At {n} words, this sentence asks a lot of the reader. Try splitting it.', 'Long sentence ({n} words). Look for a place to break it in two.', 'This sentence runs to {n} words. Two shorter sentences would be easier to read.', '{n} words in one sentence. Consider ending it where a new idea starts.', 'Readers may lose track over {n} words. Split the sentence, or turn it into a list.'],
+    passive: ['Passive voice. If the doer matters, put it first: “The team wrote the report.”', 'This is in the passive voice. Naming who did it can make the sentence clearer.', 'Passive voice: the doer is hidden or comes last. Consider starting with the doer.', 'Try the active voice: say who does the action first.', 'Passive voice here. If it matters who acted, name them first.', 'Consider the active voice, for example “The team wrote the report.”'],
+    hedging: ['This sentence has {n} hedges ({list}). Keep the one that matters.', '{n} hedges in one sentence ({list}) make the claim sound unsure. Keep one.', 'Too many hedges ({list}). One is enough to show care.', 'The claim is softened {n} times ({list}). Choose the one that matters.', 'Several hedges ({list}) weaken this sentence. Remove all but one.'],
+    opinion: ['“{w}” makes the claim sound like a feeling. State it and back it with evidence.', 'Drop “{w}” and let the evidence speak.', '“{w}” sounds personal. State the claim directly.', 'Readers trust a direct claim more than “{w}”. Try leaving it out.', 'Without “{w}”, the sentence sounds more confident.', 'State the claim without “{w}”, and support it.'],
+    agreement: ['“{subj}” is plural, so the verb is “{verb}”.', 'A plural subject (“{subj}”) takes “{verb}”.', '“{subj}” means more than one, so write “{verb}”.', 'Match the verb to “{subj}”: “{verb}”.', 'Subject and verb disagree. With “{subj}”, use “{verb}”.', 'The verb should be plural: “{subj} {verb}”.'],
+    'acronym:first': ['Spell out “{a}” the first time you use it, with the short form in parentheses after it.', 'Readers may not know “{a}”. Write it in full the first time, then add “({a})”.', 'Define “{a}” at its first use: the full words, then the short form in parentheses.', 'This is the first “{a}”: spell it out here.', 'What does “{a}” stand for? Say it in full here once.', 'Give the full form of “{a}” the first time, so every reader can follow.'],
+    'acronym:later': ['“{a}” is spelled out later. Spell it out here, at its first use.', 'The full form of “{a}” comes later. Move it here, to the first use.', '“{a}” is defined further down. Define it here instead.', 'Spell out “{a}” here, where readers meet it first.', 'This is the first “{a}”, but its definition comes later. Bring it forward.'],
+    hyphenation: ['This document also writes “{other}”. Pick one spelling and use it everywhere.', 'Elsewhere this is written “{other}”. Use one form throughout.', 'Two spellings in one document: “{other}” appears too. Choose one.', 'For consistency, write “{other}” as you do elsewhere.', 'Match the other spelling in this document: “{other}”.'],
+    overused: ['“{l}” appears {c} times in this document. Try a synonym or a more specific word.', 'You have used “{l}” {c} times. A synonym would add variety.', '“{l}” again ({c} times so far). Consider a more specific word.', 'This document leans on “{l}” ({c} times). Try another word here.', 'Vary your words: “{l}” appears {c} times.', '“{l}” shows up {c} times. A fresh word keeps readers interested.'],
+    starts: ['{n} sentences in a row start with “{w}”. Vary the start of this one.', 'Another sentence starting with “{w}” ({n} in a row). Try a different opening.', '{n} sentences open with “{w}”. Start this one differently.', 'Vary the rhythm: {n} sentences in a row begin with “{w}”.', 'Try another first word. The last {n} sentences start with “{w}”.'],
+    spelling: ['“{w}” is not in the {lang} dictionary.', 'The {lang} dictionary does not know “{w}”.', '“{w}” may be misspelled. Pick a suggestion, or add it to your dictionary if it is a name or a term.', 'Check the spelling of “{w}”. It is not in the {lang} dictionary.', 'Is “{w}” spelled right? The {lang} dictionary does not list it.', 'Markooj does not recognize “{w}”. If it is correct, add it to your dictionary.'],
+    adjCommas: ['When several describing words stand side by side, separate them with commas: “{fix}”.', 'Commas between these describing words make the list easier to read: “{fix}”.', 'Each of these words describes the same thing on its own, so commas can separate them: “{fix}”.', 'Try commas between the describing words: “{fix}”.', 'A list of describing words reads better with commas: “{fix}”.', 'Consider “{fix}”. Commas show that each word describes the noun by itself.'],
+    'cf:effect:affect': ['Here the word is a verb (to influence), so write “{rep}”. “Effect” is usually the noun: the result.', 'This is an action, so the verb “{rep}” fits. “Effect” names the result.', 'Did you mean “{rep}”? Something “affects” something else; the outcome is the “effect”.', 'Use the verb “{rep}” here. (“Effect” as a verb means “bring about”, which is not the sense here.)', '“{rep}” is the verb meaning “influence”. Try it here.'],
+    'cf:effect:effect': ['Here the word is a noun (the result), so write “{rep}”. “Affect” is usually the verb.', 'After “{prev}”, a noun is needed: “{rep}”. “Affect” is the verb.', 'Did you mean “{rep}”? The result of something is its “effect”.', 'This names a result, so it is “{rep}”. “Affect” means “to influence”.', 'Use the noun “{rep}” here; “affect” is what one thing does to another.'],
+    'cf:than': ['This is a comparison, so write “than”. “Then” is about time.', 'For comparisons, use “than”.', 'Did you mean “than”? “Then” means “next” or “at that time”.', 'Comparing two things? The word is “than”.', '“Than” compares; “then” orders events. Here it is “than”.'],
+    'cf:then': ['This is about time or order, so write “then”. “Than” is for comparisons.', 'Did you mean “then”? Nothing is being compared here.', '“Then” means “next” or “at that time”. Use it here.', 'For “after that”, write “then”.', '“Than” compares two things; here the sense is “then”.'],
+    'cf:your:you’re': ['Did you mean “you’re” (you are)? “Your” shows that something belongs to you.', 'This means “you are”, so write “you’re”.', 'Read it as “you are”: if that works, write “you’re”.', '“Your” is possessive. For “you are”, write “you’re”.', 'Use “you’re” here, short for “you are”.'],
+    'cf:your:your': ['Did you mean “your”? Something here belongs to you; “you’re” means “you are”.', 'This shows possession, so write “your”.', 'Read it as “you are”: it does not fit, so use “your”.', '“You’re” is short for “you are”. The possessive is “your”.', 'Use “your” before a noun that belongs to you.'],
+    'cf:lose:lose': ['Did you mean “{rep}”? “Lose” is the verb; “loose” means not tight.', 'This is the verb, so write “{rep}”.', '“Loose” describes something not tight. To misplace or fail to keep, write “{rep}”.', 'Use “{rep}” here: you lose things; screws come loose.', 'The verb is spelled with one “o”: “{rep}”.'],
+    'cf:lose:loose': ['Did you mean “loose” (not tight)? “Lose” is the verb.', 'This describes something not tight, so write “loose”.', '“Lose” means to misplace or fail to keep. Here the word is “loose”.', 'Use “loose” here: screws come loose; you lose things.', 'The adjective has two o’s: “loose”.'],
+    'cf:principal': ['Did you mean “{rep}”? “Principal” means main; “principle” is a rule or belief.', 'Here the sense is {sense}, so write “{rep}”.', 'Use “{rep}” here. Principal: main. Principle: a rule.', '“{rep}” is the word for {sense}.', 'Swap in “{rep}”: the two words sound alike but differ in meaning.'],
+    'cf:complement': ['Did you mean “{rep}”? To complement is to complete or go well with; a compliment is praise.', 'Here the sense is {sense}, so write “{rep}”.', 'Use “{rep}” here. Complement: completes. Compliment: praise.', '“{rep}” is the word for {sense}.', 'Swap in “{rep}”: the two words sound alike but differ in meaning.'],
+    'cf:advice:advise': ['This is the verb, so write “{rep}”. “Advice” is the noun.', 'Did you mean “{rep}”? You advise someone; you give advice.', 'Use the verb “{rep}” here.', '“Advice” is a thing you give. The action is “{rep}”.', 'The verb ends in -ise: “{rep}”.'],
+    'cf:advice:advice': ['This is the noun, so write “advice”. “Advise” is the verb.', 'Did you mean “advice”? You give advice; you advise someone.', 'Use the noun “advice” here.', '“Advise” is the action. The thing you get is “advice”.', 'The noun ends in -ice: “advice”.'],
+    // frames around a rule's own specific message ({m}); {fix} is its first suggestion
+    'frame:fix': ['{m}', 'Try “{fix}”. {m}', '{m} Suggested: “{fix}”.', 'Most writers would say “{fix}”. {m}', 'Small fix: “{fix}”. {m}', 'A more natural phrasing is “{fix}”. {m}'],
+    'frame:nofix': ['{m}', 'Have another look at this phrase. {m}', 'This phrase may read oddly. {m}', '{m} Rephrase it in your own words.', 'Worth a second look. {m}'],
+    // Harper rules whose meaning is fixed and known ({orig} is Harper's own message)
+    'harper:AnA': ['{orig}', 'Use “{fix}” here: the article follows the sound of the next word.', 'The next word’s first sound calls for “{fix}”.', 'Change “{w}” to “{fix}” to match the sound of the next word.', 'This article does not fit the next word. Try “{fix}”.', 'Write “{fix}” before this word.'],
+    'harper:ThenThan': ['{orig}', 'For comparisons, write “than”.', '“Than” compares; “then” is about time.', 'Comparing two things? Use “than”.', 'This is a comparison, so “than” fits here.'],
+    'harper:RepeatedWords': ['{orig}', 'This word is repeated.', 'Looks like a word was typed twice.', 'Remove the repeated word.', 'A doubled word. Keep one.'],
+    'harper:ItsContraction': ['{orig}', 'This means “it is” or “it has”, so write “it’s”.', '“Its” shows possession. For “it is”, write “it’s”.', 'Read it as “it is”: if it fits, use “it’s”.', 'Add the apostrophe: “it’s”.'],
+    'harper:PossessiveYour': ['{orig}', 'Did you mean “your”? It shows that something belongs to you.', '“Your” is the possessive form needed here.', 'Use “your” before a noun that belongs to you.', 'This needs the possessive “your”.'],
+    'harper:CapitalizePersonalPronouns': ['{orig}', 'Write “I” as a capital letter.', 'The word “I” is always capitalized.', 'Capitalize “i” as “I”.', 'Use a capital “I”.'],
+    'harper:ModalOf': ['{orig}', 'Write “have” here, not “of”.', '“Of” sounds like “’ve”, but the word is “have”.', 'After a verb such as “could”, “would” or “should”, use “have”.', 'Replace “of” with “have”.'],
+  };
+  R.PHRASES = PHRASES;
+  const fillPhrase = (p, v) => p.replace(/\{(\w+)\}/g, (_, k) => (v && v[k] != null ? String(v[k]) : ''));
+  const needs = p => (p.match(/\{(\w+)\}/g) || []).map(x => x.slice(1, -1));
+  /** The rule's own message for a phrasing key (phrasing 0). */
+  R.say = (key, vars) => fillPhrase((PHRASES[key] || ['{m}'])[0], vars);
+  /** Give repeated findings different (equally accurate) wordings. Findings carry vk (phrasing key), vv (values) and vg
+   *  (group; default vk); Harper findings of the mapped rules are handled by their rule name. Deterministic: the n-th
+   *  finding of a group in the document gets phrasing n (mod the number of phrasings). Returns the same list. */
+  R.vary = function vary(list) {
+    const seen = new Map();
+    const order = list.slice().sort((a, b) => a.start - b.start || a.end - b.end);
+    for (const f of order) {
+      let vk = f.vk, vv = f.vv;
+      if (!vk && f.source === 'harper' && PHRASES['harper:' + f.harperRule]) { vk = 'harper:' + f.harperRule; vv = { orig: f.message0 || f.message, fix: (f.replacements || [])[0] || '', w: f.text }; }
+      const all = vk && PHRASES[vk]; if (!all) continue;
+      const ok = all.filter(p => needs(p).every(k => vv && vv[k] != null && vv[k] !== ''));
+      if (!ok.length) continue;
+      const g = f.vg || vk; const n = seen.get(g) || 0; seen.set(g, n + 1);
+      if (f.message0 == null) f.message0 = f.message;
+      f.variant = n % ok.length;
+      f.message = fillPhrase(ok[f.variant], vv);
+    }
+    return list;
+  };
 
   // =================================================================== goals
   R.DEFAULT_GOALS = { audience: 'general', formality: 'neutral', domain: 'general' };
@@ -464,9 +670,12 @@
       const reps = o.replacements || [];
       const f = mk(rule, o.cat || RULES[rule]?.cat || 'correctness', s, e, text, { title: o.title || RULES[rule]?.title, message: o.message, replacements: spanHasMarks(s, e) ? [] : reps, safe: !!o.safe && !spanHasMarks(s, e) && reps.length === 1 });
       if (o.wrong) { f.wrong = o.wrong; f.right = o.right; }
+      if (o.explain) f.explain = o.explain;
       if (o.sub) f.sub = o.sub;
       if (o.wide) f.wide = true;
       if (o.synonyms) f.synonyms = o.synonyms;
+      // varied wording (R.vary): phrasing key, its values and the group that counts repeats
+      if (o.vk) { f.vk = o.vk; f.vv = o.vv || {}; if (o.vg) f.vg = o.vg; if (!o.message) f.message = R.say(o.vk, f.vv); }
       out.push(f);
     };
     // A fix that deletes words: take the space after them too, and capitalize the next word at a sentence start.
@@ -488,14 +697,25 @@
         if (!m[0].length) { re.lastIndex++; continue; }
         const r0 = fn(m);
         const rep = r0 == null ? null : R.matchCase(m[0], r0);
-        add(o.rule || 'preposition', m.index, m.index + m[0].length, { message, replacements: rep == null || rep === m[0] ? [] : [rep], safe: !o.unsafe && rep != null, wrong, right, sub: id });
+        const reps = rep == null || rep === m[0] ? [] : [rep];
+        add(o.rule || 'preposition', m.index, m.index + m[0].length, { message, replacements: reps, safe: !o.unsafe && rep != null, wrong, right, sub: id, vk: reps.length && reps[0] ? 'frame:fix' : 'frame:nofix', vv: { m: message, fix: reps[0] || '' }, vg: (o.rule || 'preposition') + ':' + id });
       }
     }
     // subject and verb agreement (plural subject, singular verb)
     AGREE_RE.lastIndex = 0;
     while ((m = AGREE_RE.exec(t))) {
       const v = m[2], s0 = m.index + m[0].length - v.length;
-      add('agreement', s0, s0 + v.length, { message: `“${m[1]}” is plural, so the verb is “${AGREE_VERB[v.toLowerCase()]}”.`, replacements: [R.matchCase(v, AGREE_VERB[v.toLowerCase()])], safe: false });
+      add('agreement', s0, s0 + v.length, { vk: 'agreement', vv: { subj: m[1], verb: AGREE_VERB[v.toLowerCase()] }, replacements: [R.matchCase(v, AGREE_VERB[v.toLowerCase()])], safe: false });
+    }
+    // commonly confused words, where the context is clear (affect/effect, then/than, your/you're, lose/loose …)
+    for (const c of R.confusables(t)) {
+      const pair = CF_PAIR[c.sub], why = CF_WHY[pair];
+      const lr = c.rep.toLowerCase();
+      const vk = pair === 'effect' ? 'cf:effect:' + (/^affect/.test(lr) ? 'affect' : 'effect') : pair === 'than' ? 'cf:' + lr : pair === 'your' ? 'cf:your:' + lr.replace("'", '’') : pair === 'lose' ? 'cf:lose:' + (/^loose/.test(lr) ? 'loose' : 'lose')
+        : pair === 'advice' ? 'cf:advice:' + lr : 'cf:' + pair;
+      const sense = /^principal/.test(lr) ? 'main or most important' : /^principle/.test(lr) ? 'a rule or belief' : /^complimentary/.test(lr) ? 'free of charge' : /^compliment/.test(lr) ? 'praise' : 'completing or going well with something';
+      const prev = (/([\p{L}'’-]+)\s+$/u.exec(t.slice(Math.max(0, c.start - 30), c.start)) || [])[1] || '';
+      add('confusable', c.start, c.end, { vk, vv: { rep: c.rep, sense, prev: prev || 'it' }, vg: 'confusable:' + vk, replacements: [c.rep], safe: false, sub: c.sub, explain: why[0], wrong: why[1], right: why[2] });
     }
     // a / an
     const aRe = /\b(a|an|A|An|AN)\s+([\p{L}\p{N}][\p{L}\p{N}'’-]*)/gu;
@@ -505,34 +725,69 @@
       if (!need || (need === 'an') === (art.toLowerCase() === 'an')) continue;
       // "A. Introduction" or "A) first item" is a label, not an article
       if (/^[A-Z]$/.test(art) && /^[.)]/.test(t.slice(m.index + 1, m.index + 2))) continue;
+      // "modern and surprising, an mesmerizing", "black an white": "an" between describing words is a typo for "and"
+      if (art === 'an' && need === 'a' && anMeansAnd(t, m.index, word)) {
+        add('article', m.index, m.index + art.length, { vk: 'article:and', vv: { w: word }, replacements: ['and', 'a'], safe: false, sub: 'and', title: 'A, an or and', explain: 'In a list of describing words, “and” joins the last one: “modern, surprising, and mesmerizing”. “An” is an article; it comes before a word that starts with a vowel sound. Between two describing words, “an” is almost always a typo for “and”.', wrong: 'modern and surprising, an mesmerizing', right: 'modern, surprising, and mesmerizing' });
+        continue;
+      }
       // abbreviations and letter names (URL, X-ray) depend on how people say them: never an automatic fix
       const sayAs = /^\p{Lu}{2,}/u.test(word) || /^\p{Lu}-/u.test(word);
-      add('article', m.index, m.index + art.length, { message: need === 'an' ? `Use “an” before “${word}”, which starts with a vowel sound.` : `Use “a” before “${word}”, which starts with a consonant sound.`, replacements: [R.matchCase(art, need)], safe: !sayAs });
+      add('article', m.index, m.index + art.length, { vk: need === 'an' ? 'article:an' : 'article:a', vv: { w: word }, replacements: [R.matchCase(art, need)], safe: !sayAs });
+    }
+    // coordinate describing words: "a beautiful engaging modern and surprising" → "a beautiful, engaging, modern, and surprising"
+    // (3+ describing words after a determiner, with a missing comma; size, age, color and similar words never count)
+    const detRe = /\b(?:a|an|the|this|that|these|those|my|your|our|their|his|her|its|some|every|each|such|another)\s+/gi;
+    while ((m = detRe.exec(t))) {
+      let i = m.index + m[0].length; const items = []; const gaps = [];
+      for (;;) {
+        const wm = /^[\p{L}][\p{L}'’]*/u.exec(t.slice(i, i + 40)); if (!wm || !isQualityAdj(wm[0])) break;
+        items.push({ s: i, e: i + wm[0].length, w: wm[0] }); i += wm[0].length;
+        const rest = t.slice(i, i + 60);
+        const sm = /^(\s*,\s*(?:and|or)\s+|\s+(?:and|or)\s+|\s*,?\s*an\s+|\s*,\s*|\s+)/.exec(rest); if (!sm) break;
+        const nm = /^[\p{L}][\p{L}'’]*/u.exec(rest.slice(sm[0].length));
+        if (!nm || !isQualityAdj(nm[0])) break;
+        const sep = sm[0].trim().replace(/\s+/g, ' ');
+        if (/\ban$/.test(sep) && !(articleFor(nm[0]) === 'a' && anMeansAnd(t, i + sm[0].lastIndexOf('an'), nm[0]))) break;
+        gaps.push(/\ban$/.test(sep) ? 'and' : /\b(and|or)$/.test(sep) ? sep.replace(/^,\s*/, '') : sep === ',' ? ',' : ' ');
+        i += sm[0].length;
+      }
+      if (items.length < 3 || items.length !== gaps.length + 1) continue;
+      const conjs = gaps.filter(g => g === 'and' || g === 'or');
+      if (!gaps.includes(' ') && conjs.length < 2) continue;
+      const span = [items[0].s, items[items.length - 1].e];
+      if (spanHasMarks(span[0], span[1])) continue;
+      const conj = conjs.length ? conjs[conjs.length - 1] : '';
+      const last = items.length - 1;
+      let fix = '';
+      items.forEach((x, k) => { fix += k === 0 ? x.w : k === last && conj ? (dialect === 'UK' ? ' ' : ', ') + conj + ' ' + x.w : ', ' + x.w; });
+      if (fix === src.slice(span[0], span[1])) continue;
+      add('adjCommas', span[0], span[1], { vk: 'adjCommas', vv: { fix }, replacements: [fix], safe: false });
+      detRe.lastIndex = Math.max(detRe.lastIndex, span[1]);
     }
     // its / it's
     // only words that cannot follow a possessive: "its very existence", "its so-called", "its not-for-profit arm" are correct.
     // The fix is never automatic: one wrong guess changes a correct possessive.
     const itsRe = /\b(its)\s+(?:(a|an|the|been|going|getting|becoming)\b(?!-)|((?:clear|likely|unlikely|possible|impossible|important|true|hard|easy|difficult|necessary|obvious|time|worth|essential|crucial|vital|interesting|surprising|known|believed|thought|said)\s+(?:that|to|whether|if|how|for)\b))/gi;
-    while ((m = itsRe.exec(t))) add('its', m.index, m.index + 3, { message: '“It’s” means “it is” or “it has”. “Its” shows possession.', replacements: [R.matchCase(m[1], 'it’s')], safe: false });
+    while ((m = itsRe.exec(t))) add('its', m.index, m.index + 3, { vk: 'its:contraction', replacements: [R.matchCase(m[1], 'it’s')], safe: false });
     const itsRe2 = /\b(it['’]s)\s+(own|self)\b/gi;
-    while ((m = itsRe2.exec(t))) add('its', m.index, m.index + m[1].length, { message: 'To show possession, write “its” without an apostrophe.', replacements: [R.matchCase(m[1], 'its')], safe: true });
+    while ((m = itsRe2.exec(t))) add('its', m.index, m.index + m[1].length, { vk: 'its:possessive', replacements: [R.matchCase(m[1], 'its')], safe: true });
     const itsRe3 = /\b(?:of|with|by|from|and|on|in|for|to|about)\s+(it['’]s)\s+(?!(?:a|an|the|not|been|going|being|very|so|too|just|still|now|also|important|clear|possible|necessary|likely|unlikely|true|hard|easy|difficult|obvious|raining|time|my|your|our|their|his|her|this|that|what|how|why|when|where|who|only|all|in|on|at|to|for|of|as|like|more|less|about|over|up|out|no|never|always|often|usually|probably|because|getting|becoming|worth|best|better|worse|okay|ok|fine|done|over|here|there)\b)([\p{Ll}]{3,}s)\b/gu;
-    while ((m = itsRe3.exec(t))) { const s = m.index + m[0].indexOf(m[1]); add('its', s, s + m[1].length, { message: 'To show possession, write “its” without an apostrophe.', replacements: [R.matchCase(m[1], 'its')], safe: false }); }
+    while ((m = itsRe3.exec(t))) { const s = m.index + m[0].indexOf(m[1]); add('its', s, s + m[1].length, { vk: 'its:possessive', replacements: [R.matchCase(m[1], 'its')], safe: false }); }
     // "lost it’s accuracy": after verbs that take an object, "it’s" + a noun is the possessive
     const itsRe4 = /\b(?:lost|lose|loses|losing|keep|keeps|kept|keeping|gain|gains|gained|change|changes|changed|improve|improves|improved|increase|increased|reach|reached|reduce|reduced|retain|retained|maintain|maintained|lost|regain|regained|show|showed|shows)\s+(it['’]s)\s+(?!(?:a|an|the|not|been|going|being|very|so|too|just|still|now|also|getting|becoming|only|all|in|on|at|to|for|of|as|like|more|less|about|over|up|out|no|never|always|my|your|our|their|his|her|this|that)\b)\p{Ll}{3,}\b/gu;
-    while ((m = itsRe4.exec(t))) { const s = m.index + m[0].indexOf(m[1]); add('its', s, s + m[1].length, { message: 'To show possession, write “its” without an apostrophe.', replacements: [R.matchCase(m[1], 'its')], safe: false }); }
+    while ((m = itsRe4.exec(t))) { const s = m.index + m[0].indexOf(m[1]); add('its', s, s + m[1].length, { vk: 'its:possessive', replacements: [R.matchCase(m[1], 'its')], safe: false }); }
     // repeated words
     const repRe = /\b([\p{L}][\p{L}'’]*)(\s+)\1\b/giu;
     while ((m = repRe.exec(t))) {
       if (/^(had|that|is|do|can|bye|no|so|very|ha|la|ta|cha|aye|knock|tut|yo|pom|bora|beri|chop|tom|dum|mau|pooh|wagga|bon|ooh|aah)$/i.test(m[1]) && !/^very$/i.test(m[1])) continue;
       if (m[1].toLowerCase() !== m[0].slice(m[1].length + m[2].length).toLowerCase()) continue;
-      add('repeated', m.index, m.index + m[0].length, { message: `“${m[1]}” appears twice in a row.`, replacements: [m[1]], safe: true });
+      add('repeated', m.index, m.index + m[0].length, { vk: 'repeated', vv: { w: m[1] }, replacements: [m[1]], safe: true });
     }
     // US/UK spelling
     for (const w of R.words(t)) {
       const l = w.w.toLowerCase();
-      if (dialect === 'US' && usOf.has(l) && !UK_AMBIG.has(l)) add('dialect', w.start, w.end, { message: `This is the British spelling. In American English, write “${usOf.get(l)}”.`, replacements: [R.matchCase(w.w, usOf.get(l))], safe: true });
-      else if (dialect === 'UK' && ukOf.has(l) && !US_AMBIG.has(l) && !/iz/.test(l)) add('dialect', w.start, w.end, { message: `This is the American spelling. In British English, write “${ukOf.get(l)}”.`, replacements: [R.matchCase(w.w, ukOf.get(l))], safe: true });
+      if (dialect === 'US' && usOf.has(l) && !UK_AMBIG.has(l)) add('dialect', w.start, w.end, { vk: 'dialect:US', vv: { rep: usOf.get(l) }, replacements: [R.matchCase(w.w, usOf.get(l))], safe: true });
+      else if (dialect === 'UK' && ukOf.has(l) && !US_AMBIG.has(l) && !/iz/.test(l)) add('dialect', w.start, w.end, { vk: 'dialect:UK', vv: { rep: ukOf.get(l) }, replacements: [R.matchCase(w.w, ukOf.get(l))], safe: true });
     }
     // wordy phrases (one compiled pattern for all of them)
     WORDY_RE.lastIndex = 0;
@@ -541,28 +796,28 @@
       if (rep == null) continue;
       // "the majority of the samples" → "most of the samples" (not "most the samples")
       if (rep === 'most' && /^\s+(?:the|our|these|those|its|their|his|her|my|your|this|that|them|us|you|it|which|whom)\b/i.test(t.slice(m.index + m[0].length, m.index + m[0].length + 8))) rep = 'most of';
-      if (rep) { add('wordy', m.index, m.index + m[0].length, { message: `“${R.matchCase(m[0], rep)}” says the same in fewer words.`, replacements: [R.matchCase(m[0], rep)], safe: true }); continue; }
+      if (rep) { add('wordy', m.index, m.index + m[0].length, { vk: 'wordy:rep', vv: { rep: R.matchCase(m[0], rep) }, replacements: [R.matchCase(m[0], rep)], safe: true }); continue; }
       const r = removal(m.index, m.index + m[0].length);
-      add('wordy', r.start, r.end, { message: `Leave out “${m[0]}”. The sentence says the same without it.`, replacements: [r.rep], safe: false });
+      add('wordy', r.start, r.end, { vk: 'wordy:remove', vv: { w: m[0] }, replacements: [r.rep], safe: false });
     }
     // hidden verbs
     if (NOM_HINT.test(t)) for (const n of nomRules) {
       testRe(n.re);
-      while ((m = n.re.exec(t))) add('nominalization', m.index, m.index + m[0].length, { message: `Use the verb “${n.verb}” instead of “${n.phrase}”.`, replacements: [R.matchCase(m[0], dialectize(n.rep, dialect))], safe: false });
+      while ((m = n.re.exec(t))) add('nominalization', m.index, m.index + m[0].length, { vk: 'nominalization', vv: { verb: n.verb, phrase: n.phrase }, replacements: [R.matchCase(m[0], dialectize(n.rep, dialect))], safe: false });
     }
     // very + word, absolute adjectives, intensifiers
     const veryRe = /\b(very|really|extremely|so)\s+([\p{L}]+)\b/giu;
     while ((m = veryRe.exec(t))) {
       const adj = m[2].toLowerCase();
-      if (ABSOLUTE.includes(adj) && /^(very|really|extremely)$/i.test(m[1])) add('absolute', m.index, m.index + m[0].length, { message: `“${m[2]}” cannot be graded, so “${m[1]}” weakens it.`, replacements: [R.matchCase(m[0], m[2])], safe: true });
-      else if (/^very$/i.test(m[1]) && VERY[adj]) add('stronger', m.index, m.index + m[0].length, { message: `Try one stronger word instead of “${m[0]}”.`, replacements: [R.matchCase(m[0], VERY[adj])], safe: false });
+      if (ABSOLUTE.includes(adj) && /^(very|really|extremely)$/i.test(m[1])) add('absolute', m.index, m.index + m[0].length, { vk: 'absolute', vv: { adj: m[2][0].toUpperCase() + m[2].slice(1), adjl: m[2].toLowerCase(), mod: m[1].toLowerCase() }, replacements: [R.matchCase(m[0], m[2])], safe: true });
+      else if (/^very$/i.test(m[1]) && VERY[adj]) add('stronger', m.index, m.index + m[0].length, { vk: 'stronger', vv: { w: m[0] }, replacements: [R.matchCase(m[0], VERY[adj])], safe: false });
     }
     if (want.intensifier) {
       INTENS_RE.lastIndex = 0;
       while ((m = INTENS_RE.exec(t))) {
         if (!/^\s+\p{L}/u.test(t.slice(m.index + m[0].length, m.index + m[0].length + 3))) continue;
         const r = removal(m.index, m.index + m[0].length);
-        add('intensifier', r.start, r.end, { message: `“${m[1]}” adds little here. Try the sentence without it.`, replacements: [r.rep], safe: false });
+        add('intensifier', r.start, r.end, { vk: 'intensifier', vv: { w: m[1] }, replacements: [r.rep], safe: false });
       }
     }
     // contractions and informal words (formal goals)
@@ -571,7 +826,7 @@
       while ((m = cRe.exec(t))) {
         const key = m[0].toLowerCase().replace('’', "'");
         const rep = CONTR[key]; if (!rep) continue;
-        add('contraction', m.index, m.index + m[0].length, { message: `Formal writing spells this out: “${R.matchCase(m[0], rep)}”.`, replacements: [R.matchCase(m[0], rep)], safe: true });
+        add('contraction', m.index, m.index + m[0].length, { vk: 'contraction', vv: { rep: R.matchCase(m[0], rep) }, replacements: [R.matchCase(m[0], rep)], safe: true });
       }
     }
     if (want.informal) {
@@ -582,45 +837,52 @@
         if (w === 'cool' && !/\b(?:is|was|so|very|really|looks?|sounds?)\s+$/i.test(t.slice(Math.max(0, m.index - 12), m.index))) continue;
         if ((w === 'kind of' || w === 'sort of') && /\b(?:a|the|this|that|what|which|one|any|every|some|same|another|each|no)\s+$/i.test(t.slice(Math.max(0, m.index - 10), m.index))) continue;
         if (w === 'a bit' && /^\s+of\b/.test(t.slice(m.index + m[0].length))) continue;
-        add('informal', m.index, m.index + m[0].length, { message: `“${m[0]}” sounds casual. Try “${rep}”.`, replacements: [R.matchCase(m[0], rep)], safe: false });
+        add('informal', m.index, m.index + m[0].length, { vk: 'informal', vv: { w: m[0], rep }, replacements: [R.matchCase(m[0], rep)], safe: false });
       }
     }
     // exclamation marks
     const exRe = /!{2,}|\?!+|!\?+/g;
-    while ((m = exRe.exec(t))) add('exclamation', m.index, m.index + m[0].length, { message: 'One mark is enough.', replacements: [m[0][0] === '?' ? '?' : '!'], safe: true });
+    while ((m = exRe.exec(t))) add('exclamation', m.index, m.index + m[0].length, { vk: 'exclamation', replacements: [m[0][0] === '?' ? '?' : '!'], safe: true });
 
     // sentence-level rules
     const sents = R.sentences(t);
     const limit = (ctx.longSentence || 30) + want.longBoost;
+    let passiveShown = false; // one passive hint per paragraph is enough to make the point
     for (const s of sents) {
       const st = t.slice(s.start, s.end);
       const isHeading = /^\s{0,3}#/.test(src.slice(s.start - (s.start ? 0 : 0), s.start + 6)) || /^\s*#/.test(src.slice(Math.max(0, src.lastIndexOf('\n', s.start)), s.start + 4));
       const n = R.countWords(st);
-      if (n > limit && !isHeading) add('longSentence', s.start, s.end, { message: `This sentence has ${n} words. Sentences over ${limit} words are hard to follow; try splitting it.`, wide: true });
-      if (want.passive) {
+      if (n > limit && !isHeading) add('longSentence', s.start, s.end, { vk: 'longSentence', vv: { n, limit }, wide: true });
+      if (want.passive && !passiveShown) {
         const pRe = /\b(am|is|are|was|were|be|been|being)\s+(?:(?:not|also|often|usually|then|now|later|first|still|always|never|already|widely|commonly|generally|typically|largely|mostly|fully|partly|\p{L}+ly)\s+){0,2}(\p{L}+ed|written|done|made|given|taken|seen|known|shown|found|held|built|sent|told|chosen|drawn|driven|eaten|forgotten|hidden|kept|led|left|lost|meant|paid|put|said|sold|spent|stolen|struck|taught|thought|understood|won|worn|broken|brought|bought|caught|begun|cut|set|spread|felt|heard|laid|sung|spoken|grown|thrown|shaken|shut|fed|fought|frozen|sought|withdrawn|undertaken|overcome|upheld|run|become|beaten|bitten|blown|chosen|forbidden|forgiven|ridden|risen|sworn|torn|woken|woven)\b/giu;
         let pm;
         while ((pm = pRe.exec(st))) {
           const part = pm[2].toLowerCase();
           if (/^(interested|excited|tired|worried|pleased|surprised|bored|married|scared|satisfied|disappointed|confused|embarrassed|frightened|ashamed|amazed|annoyed|exhausted|relaxed|delighted|determined|experienced|qualified|supposed|used|advanced|detailed|complicated|sophisticated|talented|skilled|crowded|beloved|aged|naked|wicked|sacred|concerned|prepared|related|limited|based|located|involved|needed|indeed|united|red|bed|wed|shed|fled|bled|sped|tied|died|lied|dyed)$/.test(part) || /eed$/.test(part) || part.length < 4 && !/^(led|cut|set|run|put|won)$/.test(part)) continue;
           if (/^(am|is|are|was|were)$/i.test(pm[1]) && /^(used)$/.test(part)) continue;
+          // reporting and labeling verbs with "as" ("it is marked as incorrect", "is known as") name a status, not an action
+          if (PASSIVE_AS.test(part) && /^\s+(?:to\s+)?as\b/i.test(st.slice(pm.index + pm[0].length))) continue;
+          // passives in a time or condition clause ("when the file is opened", "if it is needed") are the natural way to say it
+          if (/\b(?:when|whenever|if|once|after|before|until|unless|while|as\s+soon\s+as)\s+(?:[\p{L}'’-]+\s+){0,4}$/iu.test(st.slice(0, pm.index))) continue;
           const s0 = s.start + pm.index;
-          add('passive', s0, s0 + pm[0].length, { message: 'Passive voice. If the doer matters, put it first: “The team wrote the report.”', replacements: [] });
-          break; // one per sentence
+          add('passive', s0, s0 + pm[0].length, { vk: 'passive', replacements: [] });
+          passiveShown = true;
+          break; // one per sentence (and per paragraph)
         }
       }
       if (want.hedging) {
         const hs = st.match(HEDGES) || [];
-        if (hs.length >= 3) add('hedging', s.start, s.end, { message: `This sentence has ${hs.length} hedges (${[...new Set(hs.map(x => x.toLowerCase()))].slice(0, 4).join(', ')}). Keep the one that matters.`, wide: true });
+        if (hs.length >= 3) add('hedging', s.start, s.end, { vk: 'hedging', vv: { n: hs.length, list: [...new Set(hs.map(x => x.toLowerCase()))].slice(0, 4).join(', ') }, wide: true });
       }
       if (want.opinion) {
         const oRe = /\b(?:I|we)\s+(?:think|believe|feel|guess|suppose)(?:\s+that)?\s+|\bin\s+my\s+(?:humble\s+)?opinion,?\s+/gi;
         let om;
-        while ((om = oRe.exec(st))) { const s0 = s.start + om.index; const r = removal(s0, s0 + om[0].trimEnd().length); add('opinion', r.start, r.end, { message: `“${om[0].trim()}” makes the claim sound like a feeling. State it and back it with evidence.`, replacements: [r.rep], safe: false }); }
+        while ((om = oRe.exec(st))) { const s0 = s.start + om.index; const r = removal(s0, s0 + om[0].trimEnd().length); add('opinion', r.start, r.end, { vk: 'opinion', vv: { w: om[0].trim() }, replacements: [r.rep], safe: false }); }
       }
     }
     return out;
   };
+  const PASSIVE_AS = /^(?:mentioned|marked|described|known|considered|regarded|referred|shown|listed|labeled|labelled|treated|seen|defined|used|classified|identified|viewed|called|named|termed|flagged|reported|cited|presented|written|counted|recognized|recognised|accepted|designated|qualified|ranked|rated|tagged)$/;
   function dialectize(w, dialect) { if (dialect !== 'UK') return w; const l = w.toLowerCase(); return ukOf.has(l) && !/iz/.test(l) ? ukOf.get(l) : w.replace(/yz(e|es|ed|ing)$/, 'ys$1'); }
   R.dialectize = dialectize;
 
@@ -671,7 +933,7 @@
         if (!g.hyph.length || !g.closed.length) continue;
         const keepClosed = g.closed.length > g.hyph.length || (g.closed.length === g.hyph.length && g.closed[0].s < g.hyph[0].s);
         const flag = keepClosed ? g.hyph : g.closed, other = keepClosed ? g.closed[0].w : g.hyph[0].w;
-        for (const x of flag.slice(0, 30)) out.push(mk('hyphenation', 'clarity', x.s, x.e, src.slice(x.s, x.e), { title: RULES.hyphenation.title, message: `This document also writes “${other}”. Pick one spelling and use it everywhere.`, replacements: [R.matchCase(x.w, other.toLowerCase())], safe: false }));
+        for (const x of flag.slice(0, 30)) out.push(mk('hyphenation', 'clarity', x.s, x.e, src.slice(x.s, x.e), { title: RULES.hyphenation.title, message: R.say('hyphenation', { other }), vk: 'hyphenation', vv: { other }, replacements: [R.matchCase(x.w, other.toLowerCase())], safe: false }));
       }
     }
     // undefined abbreviations: flag the first use when it is not spelled out there
@@ -696,7 +958,7 @@
         const defRe = new RegExp('\\(\\s*' + a + 's?\\s*[),;]');
         const defAt = t.search(defRe);
         if (defAt >= 0 && defAt < x.first) continue;
-        out.push(mk('acronym', 'clarity', x.first, x.first + x.len, src.slice(x.first, x.first + x.len), { title: RULES.acronym.title, message: defAt > x.first ? `“${a}” is spelled out later. Spell it out here, at its first use.` : `Spell out “${a}” the first time you use it, with the short form in parentheses after it.`, replacements: [] }));
+        out.push(mk('acronym', 'clarity', x.first, x.first + x.len, src.slice(x.first, x.first + x.len), { title: RULES.acronym.title, message: R.say(defAt > x.first ? 'acronym:later' : 'acronym:first', { a }), vk: defAt > x.first ? 'acronym:later' : 'acronym:first', vv: { a }, replacements: [] }));
       }
     }
     // overused plain words
@@ -713,14 +975,14 @@
     const thr = Math.max(4, Math.ceil(total / 350));
     for (const [l, c] of counts) {
       if (c < thr) continue;
-      for (const x of occ.get(l).slice(2, 30)) out.push(mk('overused', 'engagement', x.s, x.e, src.slice(x.s, x.e), { title: RULES.overused.title, message: `“${l}” appears ${c} times in this document. Try a synonym or a more specific word.`, replacements: [], synonyms: l }));
+      for (const x of occ.get(l).slice(2, 30)) out.push(mk('overused', 'engagement', x.s, x.e, src.slice(x.s, x.e), { title: RULES.overused.title, message: R.say('overused', { l, c }), vk: 'overused', vv: { l, c }, vg: 'overused:' + l, replacements: [], synonyms: l }));
     }
     // repeated sentence starts (three or more in a row, paragraphs only)
     for (const b of blocks) {
       if (/^\s{0,3}(?:[-*+]\s|\d{1,9}[.)]\s|#|\|)/.test(b.raw)) continue;
       const sents = R.sentences(b.text);
       let run = [];
-      const flush = () => { if (run.length >= 3) for (const x of run.slice(2)) out.push(mk('starts', 'engagement', x.s, x.e, src.slice(x.s, x.e), { title: RULES.starts.title, message: `${run.length} sentences in a row start with “${run[0].w}”. Vary the start of this one.`, replacements: [] })); run = []; };
+      const flush = () => { if (run.length >= 3) for (const x of run.slice(2)) out.push(mk('starts', 'engagement', x.s, x.e, src.slice(x.s, x.e), { title: RULES.starts.title, message: R.say('starts', { n: run.length, w: run[0].w }), vk: 'starts', vv: { n: run.length, w: run[0].w }, replacements: [] })); run = []; };
       for (const s of sents) {
         const fw = /^\s*["'“‘(]?([\p{L}]+)/u.exec(b.text.slice(s.start, s.end));
         if (!fw) { flush(); continue; }
@@ -1027,6 +1289,160 @@
     for (const [id, t] of tier) score.set(id, Math.log1p(rank[id]) + FS_TIER_BONUS[t]);
     return [...tier.keys()].sort((a, b) => (score.get(b) - score.get(a)) || (tier.get(a) - tier.get(b)) || (Math.abs(W[a].length - n.length) - Math.abs(W[b].length - n.length)) || (W[a] < W[b] ? -1 : W[a] > W[b] ? 1 : 0))
       .slice(0, max).map(id => W[id]);
+  };
+
+  // =================================================================== English spelling suggestions: candidates and ranking
+  // Hunspell (nspell) finds words one edit away; it misses "calendar" for "calander" (it offers only "colander") and finds
+  // nothing for "syncrounus". Markooj adds candidates from the dictionary's word list (close in a weighted edit distance,
+  // or with the same sound key), from the stem of a word with an ending (monotonusity → monotonous → monotony,
+  // monotonousness), and ranks them all: cheap edits for the slips people make (two letters swapped, a doubled letter
+  // missed, one vowel for another, a neighboring key), a sound key like Double Metaphone's, and how common the word is.
+  /** A simple sound key: k for c/ch/q, s for soft c and z, j for soft g, f for ph, vowels dropped after the first letter. */
+  R.phoneKey = function phoneKey(w) {
+    let s = String(w || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
+    if (!s) return '';
+    s = s.replace(/^(?:kn|gn|pn|wr|ps)/, m => m[1]).replace(/^x/, 's').replace(/^wh/, 'w');
+    s = s.replace(/(?:t|s)ion/g, 'Xn').replace(/tch/g, 'k').replace(/sch/g, 'sk').replace(/ch/g, 'k').replace(/sh/g, 'X').replace(/th/g, '0').replace(/ph/g, 'f')
+      .replace(/ck/g, 'k').replace(/gh/g, '').replace(/qu/g, 'kw').replace(/q/g, 'k').replace(/x/g, 'ks').replace(/dg(?=[eiy])/g, 'j')
+      .replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/g(?=[eiy])/g, 'j').replace(/z/g, 's').replace(/v/g, 'f');
+    const first = /[aeiouy]/.test(s[0]) ? 'A' : s[0];
+    const rest = s.slice(1).replace(/[aeiouy]/g, '').replace(/h/g, '').replace(/w(?![aeiouy])/g, '');
+    return (first + rest).replace(/(.)\1+/g, '$1');
+  };
+  const SP_VOW = new Set('aeiouy');
+  const SP_SOUND = new Set(); for (const [a, b] of [['c', 'k'], ['c', 's'], ['s', 'z'], ['k', 'q'], ['f', 'v'], ['g', 'j'], ['m', 'n'], ['i', 'y'], ['d', 't'], ['b', 'p'], ['x', 'z']]) { SP_SOUND.add(a + b); SP_SOUND.add(b + a); }
+  // neighboring keys on a QWERTY keyboard (rows staggered like a real one)
+  const SP_KEYS = (() => { const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'], off = [0, 0.3, 0.8], pos = {}; rows.forEach((r, y) => [...r].forEach((c, x) => { pos[c] = [x + off[y], y]; })); const m = new Set(); for (const a in pos) for (const b in pos) if (a !== b) { const dx = pos[a][0] - pos[b][0], dy = pos[a][1] - pos[b][1]; if (dx * dx + dy * dy < 1.6) m.add(a + b); } return m; })();
+  // substitution costs as a table over the letters a–z (other letters: 1), built once
+  const SP_SUBT = (() => { const m = new Float32Array(27 * 27).fill(1); const L = 'abcdefghijklmnopqrstuvwxyz'; for (let x = 0; x < 26; x++) for (let y = 0; y < 26; y++) { const p = L[x], q = L[y]; m[x * 27 + y] = p === q ? 0 : SP_VOW.has(p) && SP_VOW.has(q) ? 0.55 : SP_SOUND.has(p + q) ? 0.6 : SP_KEYS.has(p + q) ? 0.65 : 1; } for (let k = 0; k < 27; k++) { m[26 * 27 + k] = 1; m[k * 27 + 26] = 1; } m[26 * 27 + 26] = 0; return m; })();
+  const spCode = ch => { const c = ch.charCodeAt(0) - 97; return c >= 0 && c < 26 ? c : 26; };
+  const SP_BUF = { n: 0, r0: null, r1: null, r2: null, tc: null, cc: null, del: null, ins: null };
+  function spBuf(len) { if (SP_BUF.n >= len) return SP_BUF; const n = len + 32; Object.assign(SP_BUF, { n, r0: new Float64Array(n), r1: new Float64Array(n), r2: new Float64Array(n), tc: new Int32Array(n), cc: new Int32Array(n), del: new Float64Array(n), ins: new Float64Array(n) }); return SP_BUF; }
+  // deleting a letter typed too many: cheap when it doubles a neighbor, then vowels; inserting a letter left out: cheap
+  // for a missed double letter, an h after c/g/p/s/t/w/r, then vowels
+  const spDelCost = (t, i) => { const c = t[i]; return c === t[i - 1] || c === t[i + 1] ? 0.4 : SP_VOW.has(c) ? 0.7 : 0.9; };
+  const spInsCost = (c, j) => { const ch = c[j]; return ch === c[j - 1] || ch === c[j + 1] ? 0.35 : ch === 'h' && /[cgpstwr]/.test(c[j - 1] || '') ? 0.5 : SP_VOW.has(ch) ? 0.7 : 1; };
+  /** Weighted edit distance from the typed word t to the candidate c (both lower case); Infinity when over max. Slips in
+   *  the first letter count 1.5 times (people rarely get the first letter wrong). */
+  R.spellDistance = function spellDistance(t, c, max = Infinity) {
+    const n = t.length, m = c.length;
+    if (Math.abs(n - m) * 0.35 > max) return Infinity;
+    const B = spBuf(Math.max(n, m) + 1);
+    let r0 = B.r0, r1 = B.r1, r2 = B.r2; const tc = B.tc, cc = B.cc, del = B.del, ins = B.ins;
+    for (let i = 0; i < n; i++) { tc[i] = spCode(t[i]); del[i] = spDelCost(t, i); }
+    for (let j = 0; j < m; j++) { cc[j] = spCode(c[j]); ins[j] = spInsCost(c, j); }
+    r1[0] = 0; for (let j = 1; j <= m; j++) r1[j] = r1[j - 1] + ins[j - 1] * (j === 1 ? 1.5 : 1);
+    for (let i = 1; i <= n; i++) {
+      const di = del[i - 1], ti = tc[i - 1], rowSub = ti * 27;
+      r2[0] = r1[0] + di * (i === 1 ? 1.5 : 1);
+      let low = r2[0];
+      for (let j = 1; j <= m; j++) {
+        const f = i === 1 || j === 1 ? 1.5 : 1;
+        let v = r1[j] + di * f;
+        const v2 = r2[j - 1] + ins[j - 1] * f; if (v2 < v) v = v2;
+        const v3 = r1[j - 1] + SP_SUBT[rowSub + cc[j - 1]] * f; if (v3 < v) v = v3;
+        if (i > 1 && j > 1 && ti === cc[j - 2] && tc[i - 2] === cc[j - 1] && ti !== tc[i - 2]) { const v4 = r0[j - 2] + 0.55; if (v4 < v) v = v4; }
+        r2[j] = v; if (v < low) low = v;
+      }
+      if (low > max) return Infinity;
+      const tmp = r0; r0 = r1; r1 = r2; r2 = tmp;
+    }
+    return r1[m] <= max ? r1[m] : Infinity;
+  };
+  /** Index of a word list for suggestions: words by first letter and by sound key. */
+  R.spellIndex = function spellIndex(list) { const b = R.spellIndexStart(); R.spellIndexAdd(b, list || [], 0, (list || []).length); return R.spellIndexEnd(b); };
+  /** The same index built in slices (the page builds it in idle time): start → add(list, from, to) … → end. */
+  R.spellIndexStart = () => ({ first: new Map(), byKey: new Map(), seen: new Set(), size: 0 });
+  R.spellIndexAdd = function spellIndexAdd(b, list, from, to) {
+    for (let i = from; i < to && i < list.length; i++) {
+      const w = list[i];
+      if (typeof w !== 'string' || w.length < 2 || w.length > 30 || b.seen.has(w) || !/^[\p{L}][\p{L}'’-]*$/u.test(w)) continue;
+      b.seen.add(w); b.size++;
+      const l = w.toLowerCase();
+      let a = b.first.get(l[0]); if (!a) b.first.set(l[0], a = []); a.push([w, l]);
+      // short words are found by the edit distance alone; the sound key is for longer ones
+      if (l.length >= 5) { const k = R.phoneKey(l); if (k.length >= 3) { let x = b.byKey.get(k); if (!x) b.byKey.set(k, x = []); if (x.length < 400) x.push(w); } }
+    }
+    return b;
+  };
+  R.spellIndexEnd = function spellIndexEnd(b) {
+    // per first letter: words sorted by length, so a search only walks the lengths it needs
+    const byFirst = new Map();
+    for (const [f, a] of b.first) { a.sort((x, y) => x[1].length - y[1].length); byFirst.set(f, { w: a.map(x => x[0]), l: a.map(x => x[1]), len: Int16Array.from(a, x => x[1].length) }); }
+    return { byFirst, byKey: b.byKey, size: b.size };
+  };
+  const spFrom = (len, L) => { let lo = 0, hi = len.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (len[mid] < L) lo = mid + 1; else hi = mid; } return lo; };
+  /** Words of the index close to `word`: [{w, d}] (d = weighted distance). Looks at words with the same first letter
+   *  (or the second letter first: a swap at the start) and length within 3, plus every word with the same sound key. */
+  R.spellNear = function spellNear(idx, word, max = 1.9, limit = 30) {
+    const lw = String(word || '').toLowerCase(); if (!idx || lw.length < 2) return [];
+    const out = new Map(); const L = lw.length;
+    // the first letter is rarely wrong; a swap of the first two letters is left to Hunspell's own suggestions
+    const b = idx.byFirst.get(lw[0]);
+    if (b) for (let k = spFrom(b.len, L - 2); k < b.len.length && b.len[k] <= L + 2; k++) {
+      const d = R.spellDistance(lw, b.l[k], max);
+      if (d !== Infinity) { const w = b.w[k]; const p = out.get(w); if (p == null || d < p) out.set(w, d); }
+    }
+    const key = R.phoneKey(lw);
+    if (key.length >= 3) for (const w of idx.byKey.get(key) || []) if (!out.has(w)) { const d = R.spellDistance(lw, w.toLowerCase(), max + 2.2); if (d !== Infinity) out.set(w, d); }
+    return [...out].map(([w, d]) => ({ w, d })).sort((a, b) => a.d - b.d).slice(0, limit);
+  };
+  // endings that a word is often built with: the stem is corrected first, then the ending put back (or a related one)
+  const SP_SUFFIX = ['ousness', 'ity', 'ness', 'ments', 'ment', 'tions', 'tion', 'ingly', 'ing', 'edly', 'ed', 'ly', 'ers', 'er', 'est', 'ies', 'es', 's', 'able', 'ible', 'ful', 'ous', 'ive', 'al'];
+  const SP_ALT = { ity: ['ness', 'ty'], ness: ['ity'], ousness: ['ity'], tion: ['ment'], ment: ['tion'], able: ['ible'], ible: ['able'] };
+  function spForms(s, suf) {
+    const out = new Set([s + suf]);
+    if (/^[aeiouy]/.test(suf)) { out.add(s + s.slice(-1) + suf); if (/e$/.test(s)) out.add(s.slice(0, -1) + suf); }
+    if (/[^aeiou]y$/.test(s) && !/^i/.test(suf)) out.add(s.slice(0, -1) + 'i' + suf);
+    return [...out];
+  }
+  /** Candidate words built from a corrected stem: [{form, d}] (not yet checked against the dictionary). */
+  R.spellMorph = function spellMorph(idx, word) {
+    const lw = String(word || '').toLowerCase(); const out = new Map();
+    const put = (form, d) => { if (form === lw) return; const p = out.get(form); if (p == null || d < p) out.set(form, d); };
+    if (!idx || lw.length < 6) return [];
+    let tried = 0;
+    for (const suf of SP_SUFFIX) {
+      if (!lw.endsWith(suf) || lw.length - suf.length < 4 || tried >= 2) continue;
+      tried++;
+      const st = lw.slice(0, -suf.length);
+      const stems = new Map();
+      for (const v of new Set([st, /[^aeiouy]$/.test(st) && /^[aeiouy]/.test(suf) ? st + 'e' : st, st.replace(/i$/, 'y')])) for (const x of R.spellNear(idx, v, 1.4, 8)) { const l = x.w.toLowerCase(); const p = stems.get(l); if (p == null || x.d < p) stems.set(l, x.d); }
+      for (const [s, d] of stems) {
+        for (const f of spForms(s, suf)) put(f, d + 0.15);
+        for (const alt of SP_ALT[suf] || []) for (const f of spForms(s, alt)) put(f, d + 0.45);
+        // a describing word in -ous names a quality in -y or -ity: monotonous → monotony, curious → curiosity
+        if (/^(?:ity|ness|ousness)$/.test(suf) && /ous$/.test(s)) { put(s.replace(/ous$/, 'y'), d + 0.5); put(s.replace(/ous$/, 'osity'), d + 0.5); put(s + 'ness', d + 0.45); }
+        if (/^(?:ity|ness|ousness|ly|ment|tion)$/.test(suf)) put(s, d + 0.6); // the stem itself
+      }
+    }
+    return [...out].map(([form, d]) => ({ form, d }));
+  };
+  /** Rank candidates for a misspelled word. cands: [{w, d?, bonus?}] (d: a known distance, e.g. for a stem-built word);
+   *  o.freq(lowerWord) → 0–9 (how common). Returns words, best first. */
+  R.spellRank = function spellRank(word, cands, o = {}) {
+    const lw = String(word || '').toLowerCase(); const key = R.phoneKey(lw);
+    const best = new Map();
+    for (const c of cands || []) {
+      const w = typeof c === 'string' ? c : c.w; if (!w) continue;
+      const lc = w.toLowerCase(); if (lc === lw) continue;
+      let d = c.d != null ? c.d : R.spellDistance(lw, lc, 4.5);
+      if (d === Infinity) continue;
+      // the same consonants with the same vowels in another order (calander → calendar): a spelling-by-sound slip
+      if (lc.length === lw.length && lc.replace(/[aeiouy]/g, '') === lw.replace(/[aeiouy]/g, '') && [...lc.replace(/[^aeiouy]/g, '')].sort().join('') === [...lw.replace(/[^aeiouy]/g, '')].sort().join('')) d = Math.min(d, 0.5);
+      const kc = R.phoneKey(lc);
+      if (kc && kc === key) d -= 0.6; else if (kc && key && key.length >= 3 && oneEdit(kc, key)) d -= 0.2;
+      const tier = o.freq ? +o.freq(lc) || 0 : 0;
+      d -= 0.11 * Math.max(0, Math.min(9, tier));
+      if (lc[0] !== lw[0]) d += 0.4;
+      if (/[\s']/.test(lc) && !/[\s']/.test(lw)) d += 0.3; // "a lot", "don't": only when nothing better
+      d += c.bonus || 0;
+      const p = best.get(w); if (p == null || d < p.d) best.set(w, { w, d });
+    }
+    const list = [...best.values()].sort((a, b) => a.d - b.d || a.w.length - b.w.length || (a.w < b.w ? -1 : 1));
+    const top = list.length ? list[0].d : 0;
+    const kept = list.filter(x => x.d <= Math.max(2.4, top + 1.6)).slice(0, o.max || 6);
+    return o.withScore ? kept : kept.map(x => x.w);
   };
 
   G.MkWritingRules = R;

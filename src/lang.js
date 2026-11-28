@@ -26,22 +26,22 @@
 
   // ------------------------------------------------------------------ languages
   const LANGS = [
-    { code: 'en-US', name: 'English (US)', nativeName: 'English', dir: 'ltr', builtIn: true },
-    { code: 'en-GB', name: 'English (UK)', nativeName: 'English', dir: 'ltr', builtIn: true },
-    { code: 'ur', name: 'Urdu', nativeName: 'اردو', dir: 'rtl', script: 'ur', font: 'Noto Nastaliq Urdu' },
-    { code: 'ar', name: 'Arabic', nativeName: 'العربية', dir: 'rtl', script: 'ar', font: 'Noto Naskh Arabic' },
-    { code: 'fa', name: 'Persian', nativeName: 'فارسی', dir: 'rtl', script: 'fa', font: 'Vazirmatn' },
-    { code: 'pnb', name: 'Punjabi (Shahmukhi)', nativeName: 'پنجابی', dir: 'rtl', script: 'ur', font: 'Noto Nastaliq Urdu' },
-    { code: 'he', name: 'Hebrew', nativeName: 'עברית', dir: 'rtl' },
-    { code: 'de', name: 'German', nativeName: 'Deutsch', dir: 'ltr' },
-    { code: 'fr', name: 'French', nativeName: 'Français', dir: 'ltr' },
-    { code: 'es', name: 'Spanish', nativeName: 'Español', dir: 'ltr' },
-    { code: 'it', name: 'Italian', nativeName: 'Italiano', dir: 'ltr' },
-    { code: 'pt', name: 'Portuguese', nativeName: 'Português', dir: 'ltr' },
-    { code: 'nl', name: 'Dutch', nativeName: 'Nederlands', dir: 'ltr' },
-    { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', dir: 'ltr' },
-    { code: 'zh', name: 'Chinese', nativeName: '中文', dir: 'ltr' },
-    { code: 'ja', name: 'Japanese', nativeName: '日本語', dir: 'ltr' },
+    { code: 'en-US', name: app.tm('English (US)'), nativeName: 'English', dir: 'ltr', builtIn: true },
+    { code: 'en-GB', name: app.tm('English (UK)'), nativeName: 'English', dir: 'ltr', builtIn: true },
+    { code: 'ur', name: app.tm('Urdu'), nativeName: 'اردو', dir: 'rtl', script: 'ur', font: 'Noto Nastaliq Urdu' },
+    { code: 'ar', name: app.tm('Arabic'), nativeName: 'العربية', dir: 'rtl', script: 'ar', font: 'Noto Naskh Arabic' },
+    { code: 'fa', name: app.tm('Persian'), nativeName: 'فارسی', dir: 'rtl', script: 'fa', font: 'Vazirmatn' },
+    { code: 'pnb', name: app.tm('Punjabi (Shahmukhi)'), nativeName: 'پنجابی', dir: 'rtl', script: 'ur', font: 'Noto Nastaliq Urdu' },
+    { code: 'he', name: app.tm('Hebrew'), nativeName: 'עברית', dir: 'rtl' },
+    { code: 'de', name: app.tm('German'), nativeName: 'Deutsch', dir: 'ltr' },
+    { code: 'fr', name: app.tm('French'), nativeName: 'Français', dir: 'ltr' },
+    { code: 'es', name: app.tm('Spanish'), nativeName: 'Español', dir: 'ltr' },
+    { code: 'it', name: app.tm('Italian'), nativeName: 'Italiano', dir: 'ltr' },
+    { code: 'pt', name: app.tm('Portuguese'), nativeName: 'Português', dir: 'ltr' },
+    { code: 'nl', name: app.tm('Dutch'), nativeName: 'Nederlands', dir: 'ltr' },
+    { code: 'tr', name: app.tm('Turkish'), nativeName: 'Türkçe', dir: 'ltr' },
+    { code: 'zh', name: app.tm('Chinese'), nativeName: '中文', dir: 'ltr' },
+    { code: 'ja', name: app.tm('Japanese'), nativeName: '日本語', dir: 'ltr' },
   ];
   const FONT_CHOICES = ['Noto Nastaliq Urdu', 'Noto Naskh Arabic', 'Vazirmatn', 'Segoe UI', 'Tahoma', 'Arial'];
   const DEFAULT_FONTS = { ur: 'Noto Nastaliq Urdu', ar: 'Noto Naskh Arabic', fa: 'Vazirmatn' };
@@ -53,6 +53,8 @@
     return LANGS.find(l => l.code.toLowerCase() === lc) || LANGS.find(l => l.code === base(c)) || installed.find(p => p.code === c) || null;
   };
   const nameOf = code => info(code)?.name || String(code || '');
+  /** The English name of a language in the interface language (names from packs come back as they are). */
+  const shownName = name => app.t(String(name || ''));
 
   // ------------------------------------------------------------------ text helpers
   const RTL_CHAR = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
@@ -132,10 +134,78 @@
       if (d) { if (b.getAttribute('dir') !== d) b.setAttribute('dir', d); } else if (b.hasAttribute('dir')) b.removeAttribute('dir');
       b.setAttribute('data-mk-autodir', ''); return;
     }
-    if (d) { if (b.getAttribute('dir') !== 'auto') b.setAttribute('dir', 'auto'); }
+    // dir="auto" lets the browser follow typing; but the browser also reads the letters of math, code and numbering
+    // labels, so a block that holds such an atom gets the direction of its first real letter (measured again on input)
+    const want = d ? (b.querySelector(ATOMS) ? d : 'auto') : null;
+    if (want) { if (b.getAttribute('dir') !== want) b.setAttribute('dir', want); }
     else if (b.hasAttribute('dir')) b.removeAttribute('dir');
     b.setAttribute('data-mk-autodir', '');
+    isolateInline(b, d);
   }
+  // ---- mixed-direction text (PLAN-v5 item 61) ----
+  // Inline pieces that read the other way than their paragraph (an English link or **bold** in Urdu, code, math, a
+  // citation) are isolated (unicode-bidi: isolate via data-mk-iso, lang.css), so the words around them keep their order and
+  // a selection that crosses them grows in reading order. data-mk-* attributes never reach the Markdown.
+  const ATOMS = '.katex,.mk-math,code,kbd,[data-mk-ui],.mk-xref,.mk-cite';
+  const INLINE_ISO = 'a,strong,em,b,i,u,s,del,mark,sup,sub,q,cite,small,code,kbd,.mk-cite,.mk-xref,.mk-math';
+  function isolateInline(b, d) {
+    const els = b.querySelectorAll(INLINE_ISO); if (!els.length) return;
+    let bd = d;
+    if (!bd) { try { bd = getComputedStyle(b).direction; } catch { bd = 'ltr'; } }
+    for (const el of els) {
+      if (el.parentElement && el.parentElement.closest('.katex,.mk-math,code,kbd') ) continue; // inside an atom: the atom is isolated already
+      const own = el.matches('code,kbd,.mk-math,.mk-xref') ? 'ltr' : domFirstStrong(el);
+      if (own && own !== bd) { if (el.getAttribute('data-mk-iso') !== own) el.setAttribute('data-mk-iso', own); }
+      else if (el.hasAttribute('data-mk-iso')) el.removeAttribute('data-mk-iso');
+    }
+  }
+  // Read mode and the Simple mode preview (pages nobody types in): runs of English words inside an Urdu paragraph (and
+  // Urdu inside English) are wrapped in <bdi>, so numbers and punctuation next to them stay where the writer put them.
+  const RTL_LETTERS = '\\u0590-\\u08FF\\uFB1D-\\uFDFF\\uFE70-\\uFEFF';
+  const LTR_RUN = new RegExp(`[A-Za-z\\u00C0-\\u024F][^${RTL_LETTERS}]*`, 'g');
+  const RTL_RUN = new RegExp(`[${RTL_LETTERS}][^A-Za-z\\u00C0-\\u024F]*`, 'g');
+  const TRIM_END = /[\s.,;:!?،؛۔"'“”‘’\-–—]+$/;
+  const VIEW_PAGES = '.mk-read-page, .mk-preview-page';
+  function isolateRuns(page) {
+    if (!page || !page.querySelectorAll || page.isContentEditable) return 0;
+    let count = 0; const dirOf = new Map();
+    const w = document.createTreeWalker(page, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement && n.parentElement.closest(SKIP + ',bdi,[data-mk-iso],.mk-mdx,.mk-note-mark,.mk-comment') ? NodeFilter.FILTER_REJECT : /\p{L}/u.test(n.data) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) });
+    const nodes = []; for (let n = w.nextNode(); n; n = w.nextNode()) nodes.push(n);
+    for (const n of nodes) {
+      const blk = n.parentElement.closest(TEXT_BLOCKS) || n.parentElement;
+      if (!dirOf.has(blk)) { let d = 'ltr'; try { d = getComputedStyle(blk).direction; } catch {} dirOf.set(blk, d); }
+      const bd = dirOf.get(blk); const re = bd === 'rtl' ? LTR_RUN : RTL_RUN; const want = bd === 'rtl' ? 'ltr' : 'rtl';
+      const runs = []; re.lastIndex = 0; let m;
+      while ((m = re.exec(n.data))) { const t = m[0].replace(TRIM_END, ''); if (t) runs.push([m.index, m.index + t.length]); }
+      // a run that is the whole text of its element needs no wrapper when the element is isolated already
+      for (const [a, z] of runs.reverse()) {
+        if (a === 0 && z === n.data.length && n.parentElement.hasAttribute('data-mk-iso')) continue;
+        const mid = n.splitText(a); mid.splitText(z - a);
+        const bdi = document.createElement('bdi'); bdi.setAttribute('dir', want); bdi.setAttribute('data-mk-iso', want);
+        mid.parentNode.insertBefore(bdi, mid); bdi.append(mid); count++;
+      }
+    }
+    return count;
+  }
+  app.events.on('editor:rendered', ({ page } = {}) => { try { if (page && page.matches && page.matches(VIEW_PAGES)) isolateRuns(page); } catch (e) { console.warn('bidi runs', e); } });
+  // A right-to-left page wider than its pane (a split, View Side by Side, the Writing Assistant open) shows its start: the
+  // right side, where every line begins. Left-to-right pages already start at the left. Once per document and pane width, so
+  // scrolling sideways by hand is never undone while typing.
+  const rtlSeen = new WeakMap();
+  function rtlStartSide() {
+    for (const host of document.querySelectorAll('#editorHost, .mk-split-host')) {
+      const page = host.querySelector('.mk-page'); if (!page) continue;
+      const over = host.scrollWidth - host.clientWidth;
+      const key = (app.docs.active()?.id || '') + '|' + (host.classList.contains('mk-split-host') ? app.split?.state?.docId || '' : '') + '|' + host.clientWidth + '|' + (over > 2);
+      const seen = rtlSeen.get(host);
+      if (seen && seen.page === page && seen.key === key) continue;
+      rtlSeen.set(host, { page, key });
+      if (over > 2 && getComputedStyle(page).direction === 'rtl') host.scrollLeft = over;
+    }
+  }
+  const rtlStartSoon = () => { try { requestAnimationFrame(() => setTimeout(() => { try { rtlStartSide(); } catch {} }, 60)); } catch {} };
+  ['doc:active', 'mode:changed', 'split:layout', 'split:changed', 'writing:pane', 'editor:rendered'].forEach(ev => app.events.on(ev, rtlStartSoon));
+  window.addEventListener('resize', rtlStartSoon);
   function applyBlocks(el, doc) {
     if (!el || !el.querySelectorAll) return;
     const lang = docLang(doc);
@@ -155,6 +225,9 @@
     });
     el.querySelectorAll(DIR_BLOCKS).forEach(b => { if (!b.closest(SKIP)) markDir(b); });
     el.querySelectorAll(TEXT_BLOCKS).forEach(b => { if (!b.closest(SKIP)) markScript(b, lang); });
+    // list items and table cells are not DIR_BLOCKS (their list or table is measured): isolate their inline pieces too
+    el.querySelectorAll('li,td,th,dt,dd').forEach(b => { if (!b.closest(SKIP)) isolateInline(b, null); });
+    if (el.matches && el.matches(VIEW_PAGES) && el.isConnected) isolateRuns(el);
   }
   app.hooks.postRender((el, doc) => applyBlocks(el, doc));
 
@@ -316,13 +389,13 @@
   }
   async function setParagraphDir(want) {
     const doc = editableDoc(); if (!doc) return;
-    if (app.mode === 'read') { app.ui.toast?.('Read mode is for reading. Press Esc to go back to editing.', { kind: 'info' }); return; }
+    if (app.mode === 'read') { app.ui.toast?.(app.t('Read mode is for reading. Press Esc to go back to editing.'), { kind: 'info' }); return; }
     let ls = selectionLines(doc);
     // a paragraph typed in Word mode has no source line until the page is drawn again
     if (!ls && app.mode === 'word') { try { await app.editors.active()?.refresh?.(); } catch {} ls = selectionLines(doc); }
-    if (!ls) { app.ui.toast?.('Click in a paragraph first.', { kind: 'info' }); return; }
+    if (!ls) { app.ui.toast?.(app.t('Click in a paragraph first.'), { kind: 'info' }); return; }
     const r = setBlockDir(doc.text, ls[0], ls[1], want, { pageDir: docDir(doc) });
-    if (!r.changed) { if (r.reason === 'already') app.ui.toast?.(want === 'rtl' ? 'This paragraph already reads right to left.' : 'This paragraph already reads left to right.', { kind: 'info' }); return; }
+    if (!r.changed) { if (r.reason === 'already') app.ui.toast?.(want === 'rtl' ? app.t('This paragraph already reads right to left.') : app.t('This paragraph already reads left to right.'), { kind: 'info' }); return; }
     doc.setText(r.text, 'lang-dir');
     try { await app.editors.active()?.refresh?.(); } catch {}
     app.events.emit('ribbon:changed');
@@ -351,10 +424,10 @@
     const doc = app.docs.active(); if (!doc || doc.kind !== 'markdown') return;
     const cur = String(metaOf(doc).lang || metaOf(doc).language || 'en-US').toLowerCase();
     const extra = installed.filter(p => !LANGS.find(l => l.code === p.code));
-    const item = l => ({ label: l.nativeName && l.nativeName !== l.name && l.nativeName !== 'English' ? `${l.name} — ${l.nativeName}` : l.name, checked: l.code.toLowerCase() === cur, run: () => setDocLanguage(doc, l.code) });
-    const items = [{ header: 'Document language' }, ...LANGS.slice(0, 6).map(item), ...extra.map(item), { sep: true }, ...LANGS.slice(6).map(item), { sep: true },
-      { label: 'Language options…', run: () => openOptions() },
-      { note: 'Saved as “lang” in the front matter. Used for spelling, fonts and exports. Urdu, Arabic, Persian, Punjabi (Shahmukhi) and Hebrew also set the page to right to left.' }];
+    const item = l => ({ label: l.nativeName && l.nativeName !== l.name && l.nativeName !== 'English' ? app.t('{language} — {native}', { language: shownName(l.name), native: l.nativeName }) : shownName(l.name), checked: l.code.toLowerCase() === cur, run: () => setDocLanguage(doc, l.code) });
+    const items = [{ header: app.t('Document language') }, ...LANGS.slice(0, 6).map(item), ...extra.map(item), { sep: true }, ...LANGS.slice(6).map(item), { sep: true },
+      { label: app.t('Language options…'), run: () => openOptions() },
+      { note: app.t('Saved as “lang” in the front matter. Used for spelling, fonts and exports. Urdu, Arabic, Persian, Punjabi (Shahmukhi) and Hebrew also set the page to right to left.') }];
     if (app.ui.menu) app.ui.menu(anchor, items, { placement: 'top', checks: true });
   }
   function openOptions() {
@@ -368,16 +441,24 @@
   }, true);
   function fixStatusLabel() {
     const s = document.querySelector('#sbLang span'); if (!s) return;
-    const doc = app.docs.active(); if (!doc || doc.kind !== 'markdown') return;
-    const want = nameOf(metaOf(doc).lang || metaOf(doc).language || 'en-US');
+    const doc = app.docs.active();
+    // a Markdown document: its own language; otherwise the English name the shell wrote, in the interface language
+    const want = doc && doc.kind === 'markdown' ? shownName(nameOf(metaOf(doc).lang || metaOf(doc).language || 'en-US'))
+      : LANGS.some(l => l.name === s.textContent) ? shownName(s.textContent) : null;
     if (want && s.textContent !== want) s.textContent = want;
   }
-  let sbObs = null;
+  // the status bar is drawn again on some changes (a new interface language among them): watch the new item then
+  let sbObs = null, sbObserved = null;
   function watchStatus() {
-    const el = document.querySelector('#sbLang'); if (!el || sbObs) return;
-    sbObs = new MutationObserver(() => fixStatusLabel()); sbObs.observe(el, { subtree: true, childList: true, characterData: true });
+    const el = document.querySelector('#sbLang'); if (!el) return;
+    if (sbObs && sbObserved === el) { fixStatusLabel(); return; }
+    if (sbObs) sbObs.disconnect();
+    sbObs = new MutationObserver(() => fixStatusLabel()); sbObs.observe(el, { subtree: true, childList: true, characterData: true }); sbObserved = el;
     fixStatusLabel();
   }
+  // a new interface language: the status-bar name and an open Options page follow at once
+  app.events.on('i18n:changed', () => { try { watchStatus(); renderOptionsAgain(); setTimeout(() => { try { watchStatus(); } catch {} }, 60); } catch (e) { console.warn('lang i18n', e); } });
+  app.events.on('status:changed', () => { try { requestAnimationFrame(watchStatus); } catch {} });
 
   // ------------------------------------------------------------------ ribbon: Home → Paragraph direction buttons
   function addIcons() {
@@ -388,7 +469,7 @@
     mkSym('mk-ltr', pil + '<path d="M4 19h15M16 16l3 3-3 3"/>');
     mkSym('mk-rtl', pil + '<path d="M20 19H5M8 16l-3 3 3 3"/>');
   }
-  const DIR_ITEMS = [{ type: 'sep' }, { type: 'small', command: 'para.ltr', label: 'Left-to-right text direction', icon: 'mk-ltr' }, { type: 'small', command: 'para.rtl', label: 'Right-to-left text direction', icon: 'mk-rtl' }];
+  const DIR_ITEMS = [{ type: 'sep' }, { type: 'small', command: 'para.ltr', label: app.tm('Left-to-right text direction'), icon: 'mk-ltr' }, { type: 'small', command: 'para.rtl', label: app.tm('Right-to-left text direction'), icon: 'mk-rtl' }];
   const hasDirButtons = g => JSON.stringify(g.items || []).includes('"para.rtl"');
   function placeButtons() {
     const home = app.ribbon.tabs().find(t => t.id === 'home'); if (!home) return;
@@ -405,46 +486,46 @@
       const row = rows.find(r => JSON.stringify(r.items).includes('para.align')) || rows[rows.length - 1];
       if (row) { row.items.push(...DIR_ITEMS); app.ribbon.addGroup('home', g); return; }
     }
-    app.ribbon.addGroup('home', { id: 'direction', label: 'Direction', order: 31, items: [{ type: 'col', items: DIR_ITEMS.slice(1) }] });
+    app.ribbon.addGroup('home', { id: 'direction', label: app.tm('Direction'), order: 31, items: [{ type: 'col', items: DIR_ITEMS.slice(1) }] });
   }
   app.events.on('ribbon:changed', () => { try { placeButtons(); } catch (e) { console.warn('lang ribbon', e); } });
 
   // ------------------------------------------------------------------ commands
   const dirEnabled = () => !!editableDoc() && app.mode !== 'read';
   app.commands.register('para.ltr', {
-    label: 'Left-to-right text direction', icon: 'mk-ltr', group: 'Paragraph',
-    description: 'Make the paragraph read from left to right, like English. Saved in the Markdown as ::: {dir="ltr"} only when the paragraph would otherwise read the other way. Ctrl+Left Shift.',
+    label: app.tm('Left-to-right text direction'), icon: 'mk-ltr', group: 'Paragraph',
+    description: app.tm('Make the paragraph read from left to right, like English. Saved in the Markdown as ::: {dir="ltr"} only when the paragraph would otherwise read the other way. Ctrl+Left Shift.'),
     isEnabled: dirEnabled, isActive: () => currentDir() === 'ltr', run: () => setParagraphDir('ltr'),
   });
   app.commands.register('para.rtl', {
-    label: 'Right-to-left text direction', icon: 'mk-rtl', group: 'Paragraph',
-    description: 'Make the paragraph read from right to left, for Urdu, Arabic, Persian or Hebrew. Saved in the Markdown as ::: {dir="rtl"}. Ctrl+Right Shift.',
+    label: app.tm('Right-to-left text direction'), icon: 'mk-rtl', group: 'Paragraph',
+    description: app.tm('Make the paragraph read from right to left, for Urdu, Arabic, Persian or Hebrew. Saved in the Markdown as ::: {dir="rtl"}. Ctrl+Right Shift.'),
     isEnabled: dirEnabled, isActive: () => currentDir() === 'rtl', run: () => setParagraphDir('rtl'),
   });
-  app.commands.register('lang.pick', { label: 'Document language…', icon: 'lang', description: 'Pick the language of this document: spelling, fonts, direction and exports follow it.', run: () => pickLanguage(document.querySelector('#sbLang') || { x: innerWidth / 2, y: innerHeight - 40 }) });
-  app.commands.register('lang.setDocLanguage', { label: 'Set document language', description: 'Set the document language (saved as lang in the front matter).', hidden: true, run: (a = {}) => setDocLanguage(app.docs.active(), a.value || a.code) });
+  app.commands.register('lang.pick', { label: app.tm('Document language…'), icon: 'lang', description: app.tm('Pick the language of this document: spelling, fonts, direction and exports follow it.'), run: () => pickLanguage(document.querySelector('#sbLang') || { x: innerWidth / 2, y: innerHeight - 40 }) });
+  app.commands.register('lang.setDocLanguage', { label: app.tm('Set document language'), description: app.tm('Set the document language (saved as lang in the front matter).'), hidden: true, run: (a = {}) => setDocLanguage(app.docs.active(), a.value || a.code) });
   app.commands.register('lang.docDirection', {
-    label: 'Page direction', description: 'Set the direction of the whole page: right to left for Urdu, Arabic and Persian documents. Saved as dir in the front matter.',
+    label: app.tm('Page direction'), description: app.tm('Set the direction of the whole page: right to left for Urdu, Arabic and Persian documents. Saved as dir in the front matter.'),
     run: (a = {}) => {
       if (a.value) return setDocDirection(app.docs.active(), a.value === 'auto' ? null : a.value);
       const doc = app.docs.active(); if (!doc) return;
       const cur = String(metaOf(doc).dir || '').toLowerCase();
-      app.ui.menu?.(document.querySelector('#sbLang') || { x: innerWidth / 2, y: innerHeight / 2 }, [{ header: 'Page direction' },
-        { label: 'Left to right', checked: cur === 'ltr', run: () => setDocDirection(doc, 'ltr') },
-        { label: 'Right to left', checked: cur === 'rtl', run: () => setDocDirection(doc, 'rtl') },
-        { label: 'From the language', checked: !cur, run: () => setDocDirection(doc, null) }], { placement: 'top', checks: true });
+      app.ui.menu?.(document.querySelector('#sbLang') || { x: innerWidth / 2, y: innerHeight / 2 }, [{ header: app.t('Page direction') },
+        { label: app.t('Left to right'), checked: cur === 'ltr', run: () => setDocDirection(doc, 'ltr') },
+        { label: app.t('Right to left'), checked: cur === 'rtl', run: () => setDocDirection(doc, 'rtl') },
+        { label: app.t('From the language'), checked: !cur, run: () => setDocDirection(doc, null) }], { placement: 'top', checks: true });
     },
   });
-  app.commands.register('lang.options', { label: 'Language options', icon: 'lang', description: 'Proofing languages, language packs for Urdu, Arabic and Persian, and right-to-left fonts.', run: () => openOptions() });
-  app.commands.register('lang.installFromFile', { label: 'Install language pack from file…', icon: 'lang', description: 'Add a Markooj language pack (.zip) you downloaded. Markooj checks every file before installing.', run: () => installFromFile() });
+  app.commands.register('lang.options', { label: app.tm('Language options'), icon: 'lang', description: app.tm('Proofing languages, language packs for Urdu, Arabic and Persian, and right-to-left fonts.'), run: () => openOptions() });
+  app.commands.register('lang.installFromFile', { label: app.tm('Install language pack from file…'), icon: 'lang', description: app.tm('Add a Markooj language pack (.zip) you downloaded. Markooj checks every file before installing.'), run: () => installFromFile() });
   if (app.tooltips?.register) {
-    app.tooltips.register('para.ltr', { title: 'Left-to-right text direction', description: 'Make the paragraph read from left to right, like English. Ctrl+Left Shift.', markdown: '::: {dir="ltr"}' });
-    app.tooltips.register('para.rtl', { title: 'Right-to-left text direction', description: 'Make the paragraph read from right to left, for Urdu, Arabic, Persian or Hebrew. Ctrl+Right Shift.', markdown: '::: {dir="rtl"}' });
-    app.tooltips.register('lang.pick', { title: 'Document language', description: 'Pick the language of this document: spelling, fonts, direction and exports follow it.' });
-    app.tooltips.register('lang.docDirection', { title: 'Page direction', description: 'Right to left or left to right for the whole page. Saved as dir in the front matter.' });
-    app.tooltips.register('lang.options', { title: 'Language options', description: 'Proofing languages, language packs and right-to-left fonts.' });
-    app.tooltips.register('lang.installFromFile', { title: 'Install language pack from file', description: 'Add a Markooj language pack (.zip). Every file is checked before it is installed.' });
-    app.tooltips.register('lang.setDocLanguage', { title: 'Set document language', description: 'Saved as lang in the front matter.' });
+    app.tooltips.register('para.ltr', { title: app.tm('Left-to-right text direction'), description: app.tm('Make the paragraph read from left to right, like English. Ctrl+Left Shift.'), markdown: '::: {dir="ltr"}' });
+    app.tooltips.register('para.rtl', { title: app.tm('Right-to-left text direction'), description: app.tm('Make the paragraph read from right to left, for Urdu, Arabic, Persian or Hebrew. Ctrl+Right Shift.'), markdown: '::: {dir="rtl"}' });
+    app.tooltips.register('lang.pick', { title: app.tm('Document language'), description: app.tm('Pick the language of this document: spelling, fonts, direction and exports follow it.') });
+    app.tooltips.register('lang.docDirection', { title: app.tm('Page direction'), description: app.tm('Right to left or left to right for the whole page. Saved as dir in the front matter.') });
+    app.tooltips.register('lang.options', { title: app.tm('Language options'), description: app.tm('Proofing languages, language packs and right-to-left fonts.') });
+    app.tooltips.register('lang.installFromFile', { title: app.tm('Install language pack from file'), description: app.tm('Add a Markooj language pack (.zip). Every file is checked before it is installed.') });
+    app.tooltips.register('lang.setDocLanguage', { title: app.tm('Set document language'), description: app.tm('Saved as lang in the front matter.') });
   }
   // Word's keys: Ctrl+Right Shift = right to left, Ctrl+Left Shift = left to right (press and release, nothing else)
   let shiftSide = null;
@@ -524,15 +605,15 @@
   }
   async function installFromFile() {
     let file = null;
-    try { file = await invoke('pick-file', [{ name: 'Markooj language pack', extensions: ['zip'] }], { title: 'Install language pack' }); } catch (e) { app.ui.fail(e, { lead: 'Try Install from file again.', retry: () => installFromFile() }); return; }
+    try { file = await invoke('pick-file', [{ name: app.t('Markooj language pack'), extensions: ['zip'] }], { title: app.t('Install language pack') }); } catch (e) { app.ui.fail(e, { lead: app.t('Try Install from file again.'), retry: () => installFromFile() }); return; }
     if (Array.isArray(file)) file = file[0];
     if (!file) return;
-    try { const r = await installPack({ file }); app.ui.toast(`${r.name} language pack installed.`); renderOptionsAgain(); }
-    catch (e) { app.ui.fail(e, { lead: 'Choose a Markooj language pack (.zip), or download it again.', actions: [{ label: 'Choose another file', run: () => installFromFile() }], still: 'Your installed languages keep working.' }); }
+    try { const r = await installPack({ file }); app.ui.toast(app.t('{language} language pack installed.', { language: shownName(r.name) })); renderOptionsAgain(); }
+    catch (e) { app.ui.fail(e, { lead: app.t('Choose a Markooj language pack (.zip), or download it again.'), actions: [{ label: app.t('Choose another file'), run: () => installFromFile() }], still: app.t('Your installed languages keep working.') }); }
   }
 
   // ------------------------------------------------------------------ File → Options → Language
-  let optEl = null, available = null, availErr = '', busy = false;
+  let optEl = null, available = null, availErr = null, busy = false;
   function renderOptionsAgain() { if (optEl && optEl.isConnected) renderOptions(optEl); }
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
   function proofingChoices() {
@@ -541,16 +622,16 @@
     for (const p of installed) if (p.spelling && !list.find(x => x.code === p.code)) list.push({ code: p.code, name: p.name });
     return list;
   }
-  const sizeText = n => (n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
+  const num = n => { try { if (app.i18n?.number) return app.i18n.number(Number(n)); } catch {} return Number(n).toLocaleString('en-US'); };
+  const sizeText = n => (n > 1048576 ? app.t('{size} MB', { size: (() => { try { if (app.i18n?.number) return app.i18n.number(n / 1048576, { minimumFractionDigits: 1, maximumFractionDigits: 1 }); } catch {} return (n / 1048576).toFixed(1); })() }) : app.t('{size} KB', { size: num(Math.max(1, Math.round(n / 1024))) }));
   const sample = { ur: 'اردو زبان', ar: 'اللغة العربية', fa: 'زبان فارسی' };
   const HELP_PACKS = 'https://github.com/datakeen/markooj-language-packs/blob/main/CONTRIBUTING.md';
-  const num = n => Number(n).toLocaleString('en-US');
   /** "1,940 words · 0 checked so far · Help improve" for packs that say how many words they have
    *  ("95,210 words (94,654 from outside word lists) · …" when part of the list comes from a credited source). */
   function wordsLine(p) {
     if (p.words == null) return '';
-    const outside = p.sourceWords > 0 ? ` (${num(p.sourceWords)} from outside word lists)` : '';
-    return `<span class="lang-words">${num(p.words)} words${outside} · ${num(p.checked || 0)} checked so far · <a href="#" class="lang-help" data-act="help" data-tip="Help improve ${esc(p.name)}" data-tip-d="Native speakers check and add words in a spreadsheet, no coding needed. Opens the guide on GitHub in your browser.">Help improve</a></span>`;
+    const words = p.sourceWords > 0 ? app.th('{count} words ({outside} from outside word lists)', { count: Number(p.words), outside: num(p.sourceWords) }) : app.th('{count} words', { count: Number(p.words) });
+    return `<span class="lang-words">${words} · ${app.th('{count} checked so far', { count: Number(p.checked || 0) })} · <a href="#" class="lang-help" data-act="help" data-tip="${esc(app.t('Help improve {language}', { language: shownName(p.name) }))}" data-tip-d="${esc(app.t('Native speakers check and add words in a spreadsheet, no coding needed. Opens the guide on GitHub in your browser.'))}">${app.th('Help improve')}</a></span>`;
   }
   /** "GPL-3.0" → "GPL v3", "CC-BY-SA-4.0" → "CC BY-SA 4.0" (as people say them). */
   const licenseName = l => String(l || '').replace(/^GPL-(\d)\.0(-only)?$/i, 'GPL v$1').replace(/^GPL-(\d)\.0-or-later$/i, 'GPL v$1 or later').replace(/^AGPL-(\d)\.0(-or-later)?$/i, 'AGPL v$1')
@@ -563,23 +644,23 @@
       const lic = licenseName(x.license); const text = x.credit || x.what;
       // the license is named once: in the credit text itself, or after it
       const said = !lic || /\b(GPL|GNU|CC BY|Creative Commons|Apache|MIT|BSD|public domain)\b/i.test(text);
-      const what = x.url ? `<a href="#" class="lang-src" data-url="${esc(x.url)}" data-tip="Open the source" data-tip-d="${esc(x.url)}">${esc(text)}</a>` : esc(text);
+      const what = x.url ? `<a href="#" class="lang-src" data-url="${esc(x.url)}" data-tip="${esc(app.t('Open the source'))}" data-tip-d="${esc(x.url)}">${esc(text)}</a>` : esc(text);
       return `<span class="lang-credit">${what}${said ? '' : ` (${esc(lic)})`}</span>`;
     };
-    return `<small class="lang-credits"><span class="lang-credits-h">Credits:</span> ${list.map(one).join('<span class="lang-sep"> · </span>')}</small>`;
+    return `<small class="lang-credits"><span class="lang-credits-h">${app.th('Credits:')}</span> ${list.map(one).join('<span class="lang-sep"> · </span>')}</small>`;
   }
   function wireHelp(it) {
     it.querySelector('[data-act=help]')?.addEventListener('click', ev => { ev.preventDefault(); invoke('open-external', HELP_PACKS).catch?.(() => {}); });
     for (const a of it.querySelectorAll('.lang-src[data-url]')) a.addEventListener('click', ev => { ev.preventDefault(); if (/^https?:\/\//i.test(a.dataset.url)) invoke('open-external', a.dataset.url).catch?.(() => {}); });
   }
-  const spellingText = (p, avail) => (p.spellingMode === 'near-miss' ? 'Spelling: likely typos' : p.spellingMode === 'full' ? 'Spelling: every word' : p.spelling ? 'Spelling list' : avail ? 'Rules and fonts, no spelling list yet' : 'No spelling list yet');
+  const spellingText = (p, avail) => (p.spellingMode === 'near-miss' ? app.t('Spelling: likely typos') : p.spellingMode === 'full' ? app.t('Spelling: every word') : p.spelling ? app.t('Spelling list') : avail ? app.t('Rules and fonts, no spelling list yet') : app.t('No spelling list yet'));
   function renderOptions(el) {
     optEl = el; el.innerHTML = ''; el.classList.add('mk-lang');
     const cur = app.settings.get('proofingLanguage', 'en-US');
-    const row = h(`<div class="opt-row"><div class="ol"><b>Default proofing language</b><small>Used for spelling and grammar when a document does not name its language (lang in the front matter, or the language on the status bar).</small></div><div class="oc"><select class="sel" aria-label="Default proofing language" data-tip="Default proofing language" data-tip-d="Spelling and grammar use this language unless a document names its own."></select></div></div>`);
+    const row = h(`<div class="opt-row"><div class="ol"><b>${app.th('Default proofing language')}</b><small>${app.th('Used for spelling and grammar when a document does not name its language (lang in the front matter, or the language on the status bar).')}</small></div><div class="oc"><select class="sel" aria-label="${esc(app.t('Default proofing language'))}" data-tip="${esc(app.t('Default proofing language'))}" data-tip-d="${esc(app.t('Spelling and grammar use this language unless a document names its own.'))}"></select></div></div>`);
     const sel = row.querySelector('select');
-    for (const l of proofingChoices()) sel.append(new Option(l.name, l.code, false, l.code === cur));
-    sel.addEventListener('change', () => { app.settings.set('proofingLanguage', sel.value); app.ui.toast(`Proofing language: ${nameOf(sel.value)}`); });
+    for (const l of proofingChoices()) sel.append(new Option(shownName(l.name), l.code, false, l.code === cur));
+    sel.addEventListener('change', () => { app.settings.set('proofingLanguage', sel.value); app.ui.toast(app.t('Proofing language: {language}', { language: shownName(nameOf(sel.value)) })); });
     // Options → Writing has the same setting: follow it when it changes there
     const follow = p => {
       if (!sel.isConnected && sel.dataset.mounted) { app.events.off('settings:changed', follow); return; }
@@ -588,49 +669,58 @@
     };
     app.events.on('settings:changed', follow); requestAnimationFrame(() => { if (sel.isConnected) sel.dataset.mounted = '1'; });
     el.append(row);
+    // typing keyboards (keyboards.js) and aarab (aarab.js) keep their settings here, next to the languages
+    try { app.keyboards?.renderOptions?.(el); } catch (e) { console.warn('keyboard options', e); }
+    try { app.aarab?.renderOptions?.(el); } catch (e) { console.warn('aarab options', e); }
 
-    el.append(h('<div class="lang-head"><h4>Languages in Markooj</h4></div>'));
+    el.append(h(`<div class="lang-head"><h4>${app.th('Languages in Markooj')}</h4></div>`));
     const list = h('<div class="lang-list"></div>');
     for (const l of LANGS.slice(0, 2)) {
-      list.append(h(`<div class="lang-item"><span class="lang-badge">${l.code === 'en-US' ? 'US' : 'UK'}</span><div class="lang-main"><b>${esc(l.name)}</b><small>Spelling and grammar, built in.</small></div><div class="lang-acts"><span class="lang-tag">Built in</span></div></div>`));
+      list.append(h(`<div class="lang-item"><span class="lang-badge">${l.code === 'en-US' ? 'US' : 'UK'}</span><div class="lang-main"><b>${esc(shownName(l.name))}</b><small>${app.th('Spelling and grammar, built in.')}</small></div><div class="lang-acts"><span class="lang-tag">${app.th('Built in')}</span></div></div>`));
     }
     for (const p of installed) {
-      const it = h(`<div class="lang-item" data-code="${esc(p.code)}"><span class="lang-badge ${p.dir === 'rtl' ? 'rtl' : ''}">${esc((p.nativeName || p.code).slice(0, 2))}</span><div class="lang-main"><b>${esc(p.name)}<span class="nat">${esc(p.nativeName || '')}</span></b><small>Version ${esc(p.version)} · ${p.dir === 'rtl' ? 'Right to left' : 'Left to right'} · ${spellingText(p)} · Font: ${esc((p.font && p.font.family) || 'system')} · ${sizeText(p.size || 0)}</small>${wordsLine(p) ? `<small>${wordsLine(p)}</small>` : ''}${creditsLine(p)}</div><div class="lang-acts"><button type="button" class="btn sm" data-act="remove" data-tip="Remove ${esc(p.name)}" data-tip-d="Delete this language pack from this computer. You can install it again later.">Remove</button></div></div>`);
+      const name = shownName(p.name);
+      const facts = [app.t('Version {version}', { version: p.version }), p.dir === 'rtl' ? app.t('Right to left') : app.t('Left to right'), spellingText(p), app.t('Font: {font}', { font: (p.font && p.font.family) || app.t('system@@font') }), sizeText(p.size || 0)];
+      const it = h(`<div class="lang-item" data-code="${esc(p.code)}"><span class="lang-badge ${p.dir === 'rtl' ? 'rtl' : ''}">${esc((p.nativeName || p.code).slice(0, 2))}</span><div class="lang-main"><b>${esc(name)}<span class="nat">${esc(p.nativeName || '')}</span></b><small>${esc(facts.join(' · '))}</small>${wordsLine(p) ? `<small>${wordsLine(p)}</small>` : ''}${creditsLine(p)}</div><div class="lang-acts"><button type="button" class="btn sm" data-act="remove" data-tip="${esc(app.t('Remove {language}', { language: name }))}" data-tip-d="${esc(app.t('Delete this language pack from this computer. You can install it again later.'))}">${app.th('Remove')}</button></div></div>`);
       wireHelp(it);
       it.querySelector('[data-act=remove]').addEventListener('click', async ev => {
         app.ui.ripple?.(ev.currentTarget);
-        const ok = await app.ui.confirm(`Remove ${p.name}?`, 'The language pack is deleted from this computer. Documents in this language keep their text, direction and fonts.');
+        const ok = await app.ui.confirm(app.t('Remove {language}?', { language: name }), app.t('The language pack is deleted from this computer. Documents in this language keep their text, direction and fonts.'));
         if (!ok) return;
-        try { await removePack(p.code); app.ui.toast(`${p.name} language pack removed.`); } catch (e) { app.ui.fail(e, { lead: `Close any document that uses ${p.name}, then try Remove again.`, retry: () => removePack(p.code).then(renderOptionsAgain) }); }
+        try { await removePack(p.code); app.ui.toast(app.t('{language} language pack removed.', { language: name })); } catch (e) { app.ui.fail(e, { lead: app.t('Close any document that uses {language}, then try Remove again.', { language: name }), retry: () => removePack(p.code).then(renderOptionsAgain) }); }
         renderOptionsAgain();
       });
       list.append(it);
     }
-    if (!installed.length) list.append(h('<div class="lang-empty">No language packs yet. Urdu, Arabic, Persian and Punjabi (Shahmukhi) already read right to left with their own fonts; a pack adds spelling and checks.</div>'));
+    if (!installed.length) list.append(h(`<div class="lang-empty">${app.th('No language packs yet. Urdu, Arabic, Persian and Punjabi (Shahmukhi) already read right to left with their own fonts; a pack adds spelling and checks.')}</div>`));
     el.append(list);
 
-    const head = h(`<div class="lang-head"><h4>Get more languages</h4><div class="lang-acts">
-      <button type="button" class="btn sm" data-act="check" data-tip="Check for language packs" data-tip-d="Ask GitHub which language packs are available. Nothing is sent but the request.">${available ? 'Check again' : 'Check for language packs'}</button>
-      <button type="button" class="btn sm" data-act="file" data-tip="Install from file" data-tip-d="Install a language pack (.zip) you downloaded. Every file is checked first.">Install from file…</button></div></div>`);
+    const head = h(`<div class="lang-head"><h4>${app.th('Get more languages')}</h4><div class="lang-acts">
+      <button type="button" class="btn sm" data-act="check" data-tip="${esc(app.t('Check for language packs'))}" data-tip-d="${esc(app.t('Ask GitHub which language packs are available. Nothing is sent but the request.'))}">${available ? app.th('Check again') : app.th('Check for language packs')}</button>
+      <button type="button" class="btn sm" data-act="file" data-tip="${esc(app.t('Install from file'))}" data-tip-d="${esc(app.t('Install a language pack (.zip) you downloaded. Every file is checked first.'))}">${app.th('Install from file…')}</button></div></div>`);
     head.querySelector('[data-act=check]').addEventListener('click', async ev => { app.ui.ripple?.(ev.currentTarget); await checkAvailable(); });
     head.querySelector('[data-act=file]').addEventListener('click', ev => { app.ui.ripple?.(ev.currentTarget); installFromFile(); });
     el.append(head);
     const avail = h('<div class="lang-list" data-part="available"></div>');
-    if (busy) avail.append(h('<div class="lang-empty">Checking GitHub…</div>'));
-    else if (availErr) { const er = h(`<div class="lang-err">${esc(availErr)} <button type="button" class="btn sm" data-act="retry">Try again</button></div>`); er.querySelector('[data-act=retry]').addEventListener('click', () => checkAvailable()); avail.append(er); }
-    else if (!available) avail.append(h('<div class="lang-empty">Language packs for Urdu, Arabic, Punjabi (Shahmukhi) and Persian come from the Markooj language packs on GitHub. Click Check for language packs, or install one from a file.</div>'));
+    if (busy) avail.append(h(`<div class="lang-empty">${app.th('Checking GitHub…')}</div>`));
+    else if (availErr) { const er = h(`<div class="lang-err">${esc(availText())} <button type="button" class="btn sm" data-act="retry">${app.th('Try again')}</button></div>`); er.querySelector('[data-act=retry]').addEventListener('click', () => checkAvailable()); avail.append(er); }
+    else if (!available) avail.append(h(`<div class="lang-empty">${app.th('Language packs for Urdu, Arabic, Punjabi (Shahmukhi) and Persian come from the Markooj language packs on GitHub. Click Check for language packs, or install one from a file.')}</div>`));
     else {
-      if (!available.packs.length) avail.append(h('<div class="lang-empty">Check again later, or install a pack from a file. None are published yet.</div>'));
+      if (!available.packs.length) avail.append(h(`<div class="lang-empty">${app.th('Check again later, or install a pack from a file. None are published yet.')}</div>`));
       for (const p of available.packs) {
         const have = installed.find(x => x.code === p.code);
         const newer = have && String(have.version) !== String(p.version);
-        const act = !have ? 'Download' : newer ? 'Update' : '';
-        const it = h(`<div class="lang-item" data-code="${esc(p.code)}"><span class="lang-badge ${p.dir === 'rtl' ? 'rtl' : ''}">${esc((p.nativeName || p.code).slice(0, 2))}</span><div class="lang-main"><b>${esc(p.name)}<span class="nat">${esc(p.nativeName || '')}</span></b><small>Version ${esc(p.version)} · ${sizeText(p.size || 0)} · ${spellingText(p, true)} · ${esc(p.license || '')}</small>${wordsLine(p) ? `<small>${wordsLine(p)}</small>` : ''}${creditsLine(p)}</div><div class="lang-acts">${act ? `<button type="button" class="btn sm primary" data-act="get" data-tip="${act} ${esc(p.name)}" data-tip-d="Download from GitHub and install. Markooj checks the SHA-256 before installing.">${act}</button>` : '<span class="lang-tag">Installed</span>'}</div></div>`);
+        const name = shownName(p.name);
+        const act = !have ? app.t('Download') : newer ? app.t('Update') : '';
+        const actTip = !have ? app.t('Download {language}', { language: name }) : app.t('Update {language}', { language: name });
+        const facts = [app.t('Version {version}', { version: p.version }), sizeText(p.size || 0), spellingText(p, true), p.license || ''];
+        const it = h(`<div class="lang-item" data-code="${esc(p.code)}"><span class="lang-badge ${p.dir === 'rtl' ? 'rtl' : ''}">${esc((p.nativeName || p.code).slice(0, 2))}</span><div class="lang-main"><b>${esc(name)}<span class="nat">${esc(p.nativeName || '')}</span></b><small>${esc(facts.join(' · '))}</small>${wordsLine(p) ? `<small>${wordsLine(p)}</small>` : ''}${creditsLine(p)}</div><div class="lang-acts">${act ? `<button type="button" class="btn sm primary" data-act="get" data-tip="${esc(actTip)}" data-tip-d="${esc(app.t('Download from GitHub and install. Markooj checks the SHA-256 before installing.'))}">${esc(act)}</button>` : `<span class="lang-tag">${app.th('Installed')}</span>`}</div></div>`);
         wireHelp(it);
         it.querySelector('[data-act=get]')?.addEventListener('click', async ev => {
-          const b = ev.currentTarget; app.ui.ripple?.(b); it.classList.add('lang-busy'); b.textContent = 'Downloading…';
-          try { const r = await installPack({ url: p.url }); app.ui.toast(`${r.name} language pack installed.`); }
-          catch (e) { app.ui.fail(e, { lead: `Try downloading ${p.name} again, or install it from a file.`, retry: () => installPack({ url: p.url }).then(r => { app.ui.toast(`${r.name} language pack installed.`); renderOptionsAgain(); }), actions: [{ label: 'Install from file', run: () => installFromFile() }], still: 'Your installed languages keep working.' }); }
+          const b = ev.currentTarget; app.ui.ripple?.(b); it.classList.add('lang-busy'); b.textContent = app.t('Downloading…');
+          const done = r => app.ui.toast(app.t('{language} language pack installed.', { language: shownName(r.name) }));
+          try { done(await installPack({ url: p.url })); }
+          catch (e) { app.ui.fail(e, { lead: app.t('Try downloading {language} again, or install it from a file.', { language: name }), retry: () => installPack({ url: p.url }).then(r => { done(r); renderOptionsAgain(); }), actions: [{ label: app.t('Install from file'), run: () => installFromFile() }], still: app.t('Your installed languages keep working.') }); }
           renderOptionsAgain();
         });
         avail.append(it);
@@ -638,29 +728,37 @@
     }
     el.append(avail);
 
-    el.append(h('<div class="lang-head"><h4>Fonts for right-to-left languages</h4></div>'));
+    el.append(h(`<div class="lang-head"><h4>${app.th('Fonts for right-to-left languages')}</h4></div>`));
     const fonts = app.settings.get('rtlFonts', {}) || {};
     for (const [code, label] of [['ur', 'Urdu'], ['ar', 'Arabic'], ['fa', 'Persian']]) {
-      const r = h(`<div class="opt-row"><div class="ol"><b>${label}</b><small>Used for ${code === 'ur' ? 'Urdu and Punjabi (Shahmukhi)' : label} text on the page, in Read mode and in PDF and web page exports.</small></div><div class="oc"><span class="lang-sample" data-mk-script="${code}" dir="rtl">${sample[code]}</span><select class="sel" aria-label="${label} font" data-tip="${label} font" data-tip-d="The font for ${label} text. ${DEFAULT_FONTS[code]} comes with Markooj."></select></div></div>`);
+      const name = shownName(label);
+      const usedFor = code === 'ur' ? app.t('Urdu and Punjabi (Shahmukhi)') : name;
+      const r = h(`<div class="opt-row"><div class="ol"><b>${esc(name)}</b><small>${app.th('Used for {language} text on the page, in Read mode and in PDF and web page exports.', { language: usedFor })}</small></div><div class="oc"><span class="lang-sample" data-mk-script="${code}" dir="rtl">${sample[code]}</span><select class="sel" aria-label="${esc(app.t('{language} font', { language: name }))}" data-tip="${esc(app.t('{language} font', { language: name }))}" data-tip-d="${esc(app.t('The font for {language} text. {font} comes with Markooj.', { language: name, font: DEFAULT_FONTS[code] }))}"></select></div></div>`);
       const s = r.querySelector('select'); const curF = fonts[code] || DEFAULT_FONTS[code];
-      for (const f of FONT_CHOICES) s.append(new Option(f + (f === DEFAULT_FONTS[code] ? ' (default)' : ''), f, false, f === curF));
+      for (const f of FONT_CHOICES) s.append(new Option(f === DEFAULT_FONTS[code] ? app.t('{font} (default)', { font: f }) : f, f, false, f === curF));
       s.addEventListener('change', () => { app.settings.set('rtlFonts', { ...(app.settings.get('rtlFonts', {}) || {}), [code]: s.value }); app.ui.check?.(s); });
       el.append(r);
     }
   }
+  // The message under "Get more languages" after a failed check, built when it is drawn (the language can change)
+  function availText() {
+    const x = availErr || {};
+    if (x.plain) return app.t('{reason} Installed languages keep working.', { reason: x.why });
+    return app.t('{reason} You can also install a pack from a file. Installed languages keep working.', { reason: x.friendly || app.t('Check your internet connection, then click Try again.') });
+  }
   async function checkAvailable() {
-    busy = true; availErr = ''; renderOptionsAgain();
+    busy = true; availErr = null; renderOptionsAgain();
     try { available = await invoke('langpack-index'); }
     catch (e) {
       const why = app.ui.plainError(e, '');
-      // main's own text when it is plain English (for example "none published yet"), else the network remedy
-      const plain = why && !/\b(?:E[A-Z]{3,}|HTTP \d{3}|status \d{3}|undefined|null|TypeError)\b/.test(why) && !app.ui.friendlyError?.(e);
-      availErr = plain ? why + ' Installed languages keep working.'
-        : (app.ui.friendlyError?.(e) || 'Check your internet connection, then click Try again.') + ' You can also install a pack from a file. Installed languages keep working.';
+      // main's own text when it is plain (for example "none published yet"), else the network remedy
+      const friendly = app.ui.friendlyError?.(e) || '';
+      const plain = !!(why && !/\b(?:E[A-Z]{3,}|HTTP \d{3}|status \d{3}|undefined|null|TypeError)\b/.test(why) && !friendly);
+      availErr = { plain, why, friendly };
     }
     busy = false; renderOptionsAgain();
   }
-  app.options.addSection({ id: 'language', label: 'Language', order: 25, render: renderOptions });
+  app.options.addSection({ id: 'language', label: app.tm('Language'), order: 25, render: renderOptions });
   app.events.on('lang:packs', () => renderOptionsAgain());
 
   // ------------------------------------------------------------------ exports
@@ -758,6 +856,7 @@
     packs: { list: refreshInstalled, installed: () => installed.slice(), install: installPack, remove: removePack, index: () => invoke('langpack-index'), registerAll, helpUrl: HELP_PACKS },
     lexicon, roman,
     fonts: { defaults: { ...DEFAULT_FONTS }, fontFor, load: loadFontData },
+    bidi: { isolateInline: b => isolateInline(b, null), isolateRuns, atoms: ATOMS },
   };
 
   // ------------------------------------------------------------------ smoke tests
@@ -1245,6 +1344,69 @@
       } finally { await removePack(code); }
       A(!(await listed(code)), code + ' removed');
     }
+  });
+  // ---- mixed-direction text and selection (PLAN-v5 item 61) ----
+  const MIXED = 'یہ Markooj میں English words اور 2024 کا نمبر ہے، اور [ایک ربط](https://example.com) بھی۔';
+  app.tests.register('bidi: a paragraph that starts with math or code reads by its first letter; inline pieces are isolated', async () => {
+    const { host, page } = await renderInto(`$x^2$ کے بعد اردو ہے۔\n\n\`code\` اور اردو\n\n${MIXED}\n\nAn English line with **اردو میں** inside.\n\n- اردو نکتہ [Link text](https://example.com)\n`);
+    try {
+      const ps = [...page.querySelectorAll('p')];
+      const math = ps[0], code = ps[1], mixed = ps[2], en = ps[3];
+      A(math.getAttribute('dir') === 'rtl' && getComputedStyle(math).direction === 'rtl', 'math first, Urdu letters: right to left (' + math.getAttribute('dir') + ')');
+      A(code.getAttribute('dir') === 'rtl' && getComputedStyle(code).direction === 'rtl', 'code first, Urdu letters: right to left');
+      A(mixed.getAttribute('dir') === 'auto' && getComputedStyle(mixed).direction === 'rtl', 'mixed Urdu paragraph stays dir=auto and rtl');
+      const a = mixed.querySelector('a'); A(a && !a.hasAttribute('data-mk-iso'), 'an Urdu link in an Urdu paragraph is not isolated');
+      const c = code.querySelector('code'); A(c && c.getAttribute('data-mk-iso') === 'ltr' && getComputedStyle(c).unicodeBidi === 'isolate', 'code is isolated left to right');
+      const st = en.querySelector('strong'); A(st && st.getAttribute('data-mk-iso') === 'rtl' && getComputedStyle(st).direction === 'rtl' && getComputedStyle(st).unicodeBidi === 'isolate', 'Urdu bold inside English is isolated right to left');
+      const li = page.querySelector('li'); const la = li && li.querySelector('a');
+      A(la && la.getAttribute('data-mk-iso') === 'ltr', 'an English link in an Urdu list item is isolated');
+      // the Markdown never sees the attributes
+      A(!/data-mk-iso/.test(mk.toMarkdown(page.innerHTML)), 'data-mk-iso stays out of the Markdown');
+    } finally { host.remove(); }
+  });
+  app.tests.register('bidi: selecting mixed Urdu and English text grows in reading order (Shift+arrows)', async () => {
+    const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:0;top:0;width:640px;opacity:0;pointer-events:none';
+    const ed = document.createElement('div'); ed.className = 'mk-page'; ed.contentEditable = 'true'; host.append(ed); document.body.append(host);
+    try {
+      const r0 = await app.render(MIXED, { doc: { id: 'bidi', text: MIXED, kind: 'markdown', meta: {} } }); ed.innerHTML = r0.html; applyBlocks(ed, { text: MIXED });
+      const p = ed.querySelector('p'); const full = p.textContent;
+      A(getComputedStyle(p).direction === 'rtl', 'paragraph is rtl');
+      ed.focus(); const s = getSelection();
+      const start = () => { const r = document.createRange(); r.setStart(p.firstChild, 0); r.collapse(true); s.removeAllRanges(); s.addRange(r); };
+      // Shift+Ctrl+→/← in Word, logically: the selection always is the start of the text, and it grows
+      start(); let prev = 0, steps = 0;
+      while (steps++ < 40) {
+        s.modify('extend', 'forward', 'word');
+        const t = s.toString(); A(full.startsWith(t), `step ${steps}: the selection is the beginning of the text: ${JSON.stringify(t)}`);
+        if (t.length <= prev) break; prev = t.length;
+      }
+      A(prev >= full.length - 2, `word by word reaches the end (${prev} of ${full.length})`);
+      // Shift+→ letter by letter: one more letter of the text each time, across the English words and the number
+      start(); let ok = true, last = '';
+      for (let i = 0; i < 30; i++) { s.modify('extend', 'forward', 'character'); const t = s.toString(); if (!(full.startsWith(t) && t.length > last.length)) { ok = false; break; } last = t; }
+      A(ok && last.length >= 25, 'letter by letter in reading order: ' + JSON.stringify(last));
+      // a selection from inside the Urdu text to inside the English words holds exactly those letters
+      const tn = [...p.childNodes].find(n => n.nodeType === 3 && n.data.includes('English'));
+      const i = tn.data.indexOf('English'); const r = document.createRange(); r.setStart(tn, i - 4); r.setEnd(tn, i + 13); s.removeAllRanges(); s.addRange(r);
+      A(s.toString() === tn.data.slice(i - 4, i + 13), 'range text: ' + JSON.stringify(s.toString()));
+    } finally { getSelection().removeAllRanges(); host.remove(); }
+  });
+  app.tests.register('bidi: Read mode wraps English runs in Urdu paragraphs in <bdi> without changing the text', async () => {
+    const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-14000px;top:0;width:800px';
+    const page = document.createElement('article'); page.className = 'mk-page mk-read-page'; host.append(page); document.body.append(host);
+    try {
+      const d = { id: 'bidi-read', text: MIXED + '\n\nEnglish with اردو الفاظ inside.\n', kind: 'markdown', meta: {} };
+      const r = await app.render(d.text, { doc: d }); page.innerHTML = r.html; await app.decorate(page, d);
+      const before = [...page.querySelectorAll('p')].map(p => p.textContent);
+      isolateRuns(page);
+      const ps = [...page.querySelectorAll('p')];
+      A(ps.map(p => p.textContent).join('|') === before.join('|'), 'the text is unchanged');
+      const b1 = [...ps[0].querySelectorAll('bdi')].map(b => b.textContent);
+      A(b1.includes('Markooj') && b1.includes('English words') && b1.every(t => !/\s$/.test(t)), 'English runs isolated: ' + JSON.stringify(b1));
+      const b2 = [...ps[1].querySelectorAll('bdi[dir="rtl"]')].map(b => b.textContent);
+      A(b2.includes('اردو الفاظ'), 'Urdu run in English isolated: ' + JSON.stringify(b2));
+      A(isolateRuns(page) === 0, 'running again adds nothing');
+    } finally { host.remove(); }
   });
   app.tests.register('lang: Punjabi (Shahmukhi) reads right to left in the Nastaliq font', async () => {
     A(isRtlLang('pnb') && nameOf('pnb') === 'Punjabi (Shahmukhi)' && info('pnb').font === 'Noto Nastaliq Urdu', 'pnb is known');

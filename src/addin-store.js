@@ -9,12 +9,13 @@
   const invoke = (ch, ...a) => mk.invoke(ch, ...a);
   const esc = app.esc || (s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])));
   const toast = (m, o) => { try { return app.ui.toast(m, o); } catch { console.log('[toast]', m); } };
-  const plainError = (e, fb) => (app.ui.plainError ? app.ui.plainError(e, fb) : String((e && e.message) || e || fb || 'Try that again.'));
+  const plainError = (e, fb) => (app.ui.plainError ? app.ui.plainError(e, fb) : String((e && e.message) || e || fb || app.t('Try that again.')));
   const svg = (name) => `<svg class="i" aria-hidden="true"><use href="#${name}"/></svg>`;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const A = app.assert || ((c, m) => { if (!c) throw new Error('Assertion failed: ' + m); });
 
-  const CATEGORIES = [['all', 'All'], ['writing', 'Writing'], ['research', 'Research'], ['math', 'Math'], ['languages', 'Languages'], ['export', 'Export'], ['productivity', 'Productivity'], ['developer', 'Developer'], ['fun', 'Fun'], ['other', 'Other']];
+  // category names: English marked here, translated where they are drawn (catLabel, the chips)
+  const CATEGORIES = [['all', app.tm('All@@add-in category')], ['writing', app.tm('Writing@@add-in category')], ['research', app.tm('Research@@add-in category')], ['math', app.tm('Math@@add-in category')], ['languages', app.tm('Languages@@add-in category')], ['export', app.tm('Export@@add-in category')], ['productivity', app.tm('Productivity@@add-in category')], ['developer', app.tm('Developer@@add-in category')], ['fun', app.tm('Fun@@add-in category')], ['other', app.tm('Other@@add-in category')]];
   const REGISTRY_URL = 'https://github.com/datakeen/markooj-addins';
   const TEMPLATE_URL = 'https://github.com/datakeen/markooj-addin-template';
   const LAST_CHECK = 'addins.lastCheck';
@@ -54,13 +55,13 @@
   /** The quiet daily check runs only with community add-ins on, at most once a day. */
   const shouldCheck = (now, last, on) => !!on && (!Number(last) || now - Number(last) >= DAY);
   const sizeText = n => (!n ? '' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
-  const dateText = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); };
-  const catLabel = c => (CATEGORIES.find(x => x[0] === c) || [c, 'Other'])[1];
+  const dateText = s => { const d = new Date(s); const o = { year: 'numeric', month: 'short', day: 'numeric' }; return isNaN(d) ? '' : app.i18n?.date ? app.i18n.date(d, o) : d.toLocaleDateString('en-US', o); };
+  const catLabel = c => app.t((CATEGORIES.find(x => x[0] === c) || [c, 'Other@@add-in category'])[1]);
   function iconBg(a) {
     try { return app.addons.colorFor({ id: a.id, meta: { color: a.color } }); } catch { return 'linear-gradient(135deg,#0a84ff,#0a52e0)'; }
   }
   const iconHtml = (a, big) => `<div class="mks-ic${big ? ' big' : ''}" style="background:${iconBg(a)}" aria-hidden="true">${a.icon && document.getElementById(a.icon) ? svg(a.icon) : esc(String(a.name || a.id).trim().charAt(0).toUpperCase())}</div>`;
-  const checkMark = () => `<span class="mks-check" role="img" aria-label="Made by the Markooj team" data-tip="Made by the Markooj team" data-tip-d="The Markooj team made this add-in and keeps it up to date.">${svg('check')}</span>`;
+  const checkMark = () => { const who = app.th('Made by the Markooj team'); return `<span class="mks-check" role="img" aria-label="${who}" data-tip="${who}" data-tip-d="${app.th('The Markooj team made this add-in and keeps it up to date.')}">${svg('check')}</span>`; };
 
   // ---------- data ----------
   const installedOf = id => S.installed.find(x => x.id === id && x.source === 'store');
@@ -68,13 +69,13 @@
   function statusOf(e) {
     const have = installedOf(e.id);
     const folder = S.installed.find(x => x.id === e.id && x.source !== 'store');
-    if (S.busy.has(e.id)) return { key: 'busy', label: have ? 'Updating…' : 'Installing…' };
-    if (folder) return { key: 'taken', label: 'Folder in use', why: `An add-in folder named “${e.id}” is already in your add-ins folder.` };
+    if (S.busy.has(e.id)) return { key: 'busy', label: have ? app.t('Updating…') : app.t('Installing…') };
+    if (folder) return { key: 'taken', label: app.t('Folder in use'), why: app.t('An add-in folder named “{id}” is already in your add-ins folder.', { id: e.id }) };
     const tooNew = compareVersions(e.minMarkooj, app.version) > 0;
-    if (have && compareVersions(e.version, have.version) > 0) return tooNew ? { key: 'old', label: 'Needs update', why: `Version ${e.version} needs Markooj ${e.minMarkooj} or newer.` } : { key: 'update', label: 'Update' };
-    if (have) return { key: 'installed', label: 'Installed' };
-    if (tooNew) return { key: 'old', label: `Needs ${e.minMarkooj}`, why: `Needs Markooj ${e.minMarkooj} or newer. This is Markooj ${app.version}.` };
-    return { key: 'install', label: 'Install' };
+    if (have && compareVersions(e.version, have.version) > 0) return tooNew ? { key: 'old', label: app.t('Needs update'), why: app.t('Version {version} needs Markooj {needed} or newer.', { version: e.version, needed: e.minMarkooj }) } : { key: 'update', label: app.t('Update') };
+    if (have) return { key: 'installed', label: app.t('Installed') };
+    if (tooNew) return { key: 'old', label: app.t('Needs {version}', { version: e.minMarkooj }), why: app.t('Needs Markooj {needed} or newer. This is Markooj {version}.', { needed: e.minMarkooj, version: app.version }) };
+    return { key: 'install', label: app.t('Install') };
   }
   async function refreshInstalled() {
     try { S.installed = (await invoke('addins-installed')) || []; } catch { S.installed = []; }
@@ -86,12 +87,12 @@
     const why = plainError(e, '');
     const known = app.ui.friendlyError?.(e);
     const plain = why && !known && !/\b(?:E[A-Z]{3,}|HTTP \d{3}|status \d{3}|undefined|null|TypeError)\b/.test(why);
-    return (plain ? why : (known || 'Check your internet connection, then click Try again.')) + ` ${what}`;
+    return (plain ? why : (known || app.t('Check your internet connection, then click Try again.'))) + ` ${what}`;
   }
   async function loadIndex({ refresh = false } = {}) {
     S.loading = true; S.error = ''; rerender();
     try { S.index = await invoke('addins-index', { refresh }); }
-    catch (e) { S.error = listError(e, 'Your installed add-ins keep working.'); S.errorDetails = app.ui.technicalText?.(e) || ''; }
+    catch (e) { S.error = listError(e, app.t('Your installed add-ins keep working.')); S.errorDetails = app.ui.technicalText?.(e) || ''; }
     S.loading = false;
     await refreshInstalled();
     rerender();
@@ -112,19 +113,19 @@
       r = await invoke('addins-install', { id });
       const res = await app.addons.rescan();
       await refreshInstalled();
-      const reload = { label: 'Reload add-ins now', run: () => app.addons.reload() };
+      const reload = { label: app.t('Reload add-ins now'), run: () => app.addons.reload() };
       const started = app.addons.list.find(a => a.id === id);
-      if (started?.error) toast(`Turn “${r.name}” off, or report it to its author: it installed but didn’t start. Everything else works.`, { kind: 'error', actions: [{ label: 'Turn it off', run: () => app.addons.setEnabled?.(id, false) }, { label: 'Show', run: () => open('installed') }, reload] });
-      else if (wasInstalled || res.needsReload) toast(`Updated “${r.name}” to ${r.version}. Reload add-ins to use the new version.`, { kind: 'success', action: reload });
-      else toast(`Installed “${r.name}”. It is on now.`, { kind: 'success', action: reload });
+      if (started?.error) toast(app.t('Turn “{name}” off, or report it to its author: it installed but didn’t start. Everything else works.', { name: r.name }), { kind: 'error', actions: [{ label: app.t('Turn it off'), run: () => app.addons.setEnabled?.(id, false) }, { label: app.t('Show'), run: () => open('installed') }, reload] });
+      else if (wasInstalled || res.needsReload) toast(app.t('Updated “{name}” to {version}. Reload add-ins to use the new version.', { name: r.name, version: r.version }), { kind: 'success', action: reload });
+      else toast(app.t('Installed “{name}”. It is on now.', { name: r.name }), { kind: 'success', action: reload });
     } catch (err) {
-      app.ui.fail(err, { lead: `Try installing “${name}” again.`, retry: () => install(id), still: 'Nothing was changed.' });
+      app.ui.fail(err, { lead: app.t('Try installing “{name}” again.', { name }), retry: () => install(id), still: app.t('Nothing was changed.') });
     } finally { S.busy.delete(id); rerender(); }
     return r;
   }
   async function uninstall(id) {
     const a = app.addons.list.find(x => x.id === id) || installedOf(id) || entryOf(id) || { name: id };
-    const ok = await app.ui.confirm(`Uninstall “${a.name}”?`, 'The add-in moves to the trash. Your documents are not changed.', { ok: 'Uninstall', danger: true });
+    const ok = await app.ui.confirm(app.t('Uninstall “{name}”?', { name: a.name }), app.t('The add-in moves to the trash. Your documents are not changed.'), { ok: app.t('Uninstall'), danger: true });
     if (!ok) return false;
     return uninstallNow(id, a.name);
   }
@@ -133,23 +134,25 @@
       await invoke('addins-uninstall', id);
       const res = await app.addons.rescan();
       await refreshInstalled();
-      toast(`Uninstalled “${name}”.${res.needsReload ? ' It stops fully after a reload.' : ''}`, res.needsReload ? { action: { label: 'Reload add-ins now', run: () => app.addons.reload() } } : {});
+      toast(res.needsReload ? app.t('Uninstalled “{name}”. It stops fully after a reload.', { name }) : app.t('Uninstalled “{name}”.', { name }), res.needsReload ? { action: { label: app.t('Reload add-ins now'), run: () => app.addons.reload() } } : {});
       rerender();
       return true;
-    } catch (err) { app.ui.fail(err, { lead: 'Close any document the add-in is using, then try Uninstall again.', retry: () => uninstallNow(id, name) }); return false; }
+    } catch (err) { app.ui.fail(err, { lead: app.t('Close any document the add-in is using, then try Uninstall again.'), retry: () => uninstallNow(id, name) }); return false; }
   }
   async function updateAll() {
     const n = updates().length;
-    if (!n) { toast('All add-ins are up to date.'); return { updated: [], failed: [] }; }
-    const t = toast(`Updating ${n === 1 ? 'one add-in' : n + ' add-ins'}…`, { kind: 'info', timeout: 0 });
+    if (!n) { toast(app.t('All add-ins are up to date.')); return { updated: [], failed: [] }; }
+    const t = toast(app.tn('Updating {count} add-ins…', n), { kind: 'info', timeout: 0 });
     let r = { updated: [], failed: [] };
     try { r = await invoke('addins-update-all'); } catch (e) { r.failed.push({ id: '', error: plainError(e) }); }
     t?.close?.();
     const res = await app.addons.rescan();
     await refreshInstalled();
-    const reload = { label: 'Reload add-ins now', run: () => app.addons.reload() };
-    if (r.failed.length) toast(`Try Update all again${r.updated.length ? ` (${r.updated.length} updated)` : ''}. ${r.failed.length === 1 ? 'One add-in' : r.failed.length + ' add-ins'} didn’t update and still work${r.failed.length === 1 ? 's' : ''} in the old version: ${r.failed[0].error}`, { kind: 'error', actions: [{ label: 'Try again', run: () => updateAll() }, ...(r.updated.length ? [reload] : [])], details: r.failed.map(f => `${f.id || 'add-in'}: ${f.error}`).join('\n') });
-    else toast(`Updated ${r.updated.length === 1 ? 'one add-in' : r.updated.length + ' add-ins'}.${res.needsReload ? ' Reload add-ins to use the new versions.' : ''}`, { kind: 'success', action: reload });
+    const reload = { label: app.t('Reload add-ins now'), run: () => app.addons.reload() };
+    if (r.failed.length) toast(r.updated.length
+      ? app.tn('Try Update all again ({updated} updated). {count} add-ins didn’t update and still work in the old version: {error}', r.failed.length, { updated: r.updated.length, error: r.failed[0].error })
+      : app.tn('Try Update all again. {count} add-ins didn’t update and still work in the old version: {error}', r.failed.length, { error: r.failed[0].error }), { kind: 'error', actions: [{ label: app.t('Try again'), run: () => updateAll() }, ...(r.updated.length ? [reload] : [])], details: r.failed.map(f => `${f.id || 'add-in'}: ${f.error}`).join('\n') });
+    else toast(res.needsReload ? app.tn('Updated {count} add-ins. Reload add-ins to use the new versions.', r.updated.length) : app.tn('Updated {count} add-ins.', r.updated.length), { kind: 'success', action: reload });
     rerender();
     return r;
   }
@@ -157,14 +160,14 @@
   async function checkUpdates({ quiet = false } = {}) {
     try { app.settings.set(LAST_CHECK, Date.now()); } catch {}
     await loadIndex({ refresh: true });
-    if (S.error) { if (!quiet) toast(S.error, { kind: 'warn', actions: [{ label: 'Try again', run: () => checkUpdates() }], details: S.errorDetails }); return -1; }
+    if (S.error) { if (!quiet) toast(S.error, { kind: 'warn', actions: [{ label: app.t('Try again'), run: () => checkUpdates() }], details: S.errorDetails }); return -1; }
     const n = updates().length;
-    if (n) toast(`${n === 1 ? 'An add-in update is' : n + ' add-in updates are'} ready.`, { kind: 'info', actions: [{ label: 'Update all', run: () => updateAll() }, { label: 'Show', run: () => open('installed') }] });
-    else if (!quiet) toast(S.index?.offline ? 'Check your internet connection to look for updates. Until then Markooj shows the add-ins it saw last time.' : 'All add-ins are up to date.', S.index?.offline ? { kind: 'info', actions: [{ label: 'Try again', run: () => checkUpdates() }] } : {});
+    if (n) toast(app.tn('{count} add-in updates are ready.', n), { kind: 'info', actions: [{ label: app.t('Update all'), run: () => updateAll() }, { label: app.t('Show'), run: () => open('installed') }] });
+    else if (!quiet) toast(S.index?.offline ? app.t('Check your internet connection to look for updates. Until then Markooj shows the add-ins it saw last time.') : app.t('All add-ins are up to date.'), S.index?.offline ? { kind: 'info', actions: [{ label: app.t('Try again'), run: () => checkUpdates() }] } : {});
     return n;
   }
   function open(tab) { if (tab) S.tab = tab; S.details = null; app.backstage.open('addins'); }
-  function openExternal(url) { invoke('open-external', url).catch(e => app.ui.fail(e, { lead: 'Open this address in your browser yourself.', hideReason: true, actions: [{ label: 'Copy link', run: () => app.ui.copyText?.(url, 'Link copied. Paste it into your browser.') }] })); }
+  function openExternal(url) { invoke('open-external', url).catch(e => app.ui.fail(e, { lead: app.t('Open this address in your browser yourself.'), hideReason: true, actions: [{ label: app.t('Copy link'), run: () => app.ui.copyText?.(url, app.t('Link copied. Paste it into your browser.')) }] })); }
 
   // ---------- page ----------
   function rerender() { for (const el of [...pages]) { if (el.isConnected) drawPage(el); else pages.delete(el); } }
@@ -173,20 +176,20 @@
     drawPage(el);
     // the first visit to Browse fetches the list (an explicit action, never at start-up)
   }
-  const TABS = [['installed', 'Installed'], ['browse', 'Browse'], ['packs', 'Language packs']];
+  const TABS = [['installed', app.tm('Installed')], ['browse', app.tm('Browse')], ['packs', app.tm('Language packs')]];
   function drawPage(el) {
     const keepFocus = document.activeElement && el.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
     el.textContent = '';
     const root = document.createElement('div'); root.className = 'mks';
-    root.innerHTML = `<h2>Add-ins</h2><p class="sub">Add buttons, tools and languages to Markooj. Add-ins from the community install with one click.</p>`;
-    const tabs = document.createElement('div'); tabs.className = 'mks-tabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Add-ins');
+    root.innerHTML = `<h2>${app.th('Add-ins')}</h2><p class="sub">${app.th('Add buttons, tools and languages to Markooj. Add-ins from the community install with one click.')}</p>`;
+    const tabs = document.createElement('div'); tabs.className = 'mks-tabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', app.t('Add-ins'));
     const n = updates().length;
     for (const [id, label] of TABS) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'mks-tab'; b.setAttribute('role', 'tab'); b.id = 'mks-tab-' + id;
       b.setAttribute('aria-selected', String(S.tab === id)); b.tabIndex = S.tab === id ? 0 : -1; b.dataset.tab = id; b.dataset.focusKey = 'tab-' + id;
       b.setAttribute('aria-controls', 'mks-panel');
-      b.innerHTML = esc(label) + (id === 'installed' && n ? `<span class="mks-badge" aria-label="${n} update${n === 1 ? '' : 's'}">${n}</span>` : '');
-      b.dataset.tip = label; b.dataset.tipD = id === 'installed' ? 'Add-ins on this computer: turn them on or off, update or uninstall them.' : id === 'browse' ? 'Find add-ins made by the community and install them with one click.' : 'Spelling and checks for more languages.';
+      b.innerHTML = esc(app.t(label)) + (id === 'installed' && n ? `<span class="mks-badge" aria-label="${esc(app.tn('{count} updates', n))}">${n}</span>` : '');
+      b.dataset.tip = app.t(label); b.dataset.tipD = id === 'installed' ? app.t('Add-ins on this computer: turn them on or off, update or uninstall them.') : id === 'browse' ? app.t('Find add-ins made by the community and install them with one click.') : app.t('Spelling and checks for more languages.');
       b.addEventListener('click', () => selectTab(id));
       tabs.append(b);
     }
@@ -215,13 +218,13 @@
 
   // ---------- Installed tab (addons.js draws it; these add store buttons) ----------
   function decorateActions(actions, btn) {
-    const browse = btn('Browse add-ins', 'store', () => selectTab('browse'), 'primary');
-    browse.dataset.tip = 'Browse add-ins'; browse.dataset.tipD = 'Find add-ins made by the community and install them with one click.';
+    const browse = btn(app.t('Browse add-ins'), 'store', () => selectTab('browse'), 'primary');
+    browse.dataset.tip = app.t('Browse add-ins'); browse.dataset.tipD = app.t('Find add-ins made by the community and install them with one click.');
     actions.prepend(browse);
     const n = updates().length;
-    if (n) { const u = btn(`Update all (${n})`, 'refresh', () => updateAll(), 'primary'); u.dataset.act = 'update-all'; actions.insertBefore(u, browse.nextSibling); }
-    const c = btn('Check for updates', 'refresh', () => checkUpdates());
-    c.dataset.tip = 'Check add-in updates'; c.dataset.tipD = 'Ask GitHub for newer versions of the add-ins you installed from the store.';
+    if (n) { const u = btn(app.t('Update all ({number})', { number: n }), 'refresh', () => updateAll(), 'primary'); u.dataset.act = 'update-all'; actions.insertBefore(u, browse.nextSibling); }
+    const c = btn(app.t('Check for updates'), 'refresh', () => checkUpdates());
+    c.dataset.tip = app.t('Check add-in updates'); c.dataset.tipD = app.t('Ask GitHub for newer versions of the add-ins you installed from the store.');
     actions.append(c);
   }
   function decorateCard(a, card) {
@@ -229,19 +232,19 @@
     const foot = card.querySelector('.mka-foot'); if (!foot) return;
     const info = installedOf(a.id);
     const mini = (label, cls, fn, tip, tipD) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mka-mini ' + cls; b.textContent = label; if (tip) { b.dataset.tip = tip; b.dataset.tipD = tipD; } b.addEventListener('click', fn); return b; };
-    if (info?.update && info.compatible) foot.append(mini(`Update to ${info.latest}`, 'primary', () => install(a.id), 'Update', `Download version ${info.latest} from GitHub and install it.`));
-    if (entryOf(a.id)) foot.append(mini('Details', '', () => { S.tab = 'browse'; S.details = a.id; rerender(); }, 'Details', 'Read about this add-in.'));
-    const u = mini('Uninstall', 'danger', () => uninstall(a.id), 'Uninstall', 'Move this add-in to the trash.'); u.dataset.act = 'uninstall';
+    if (info?.update && info.compatible) foot.append(mini(app.t('Update to {version}', { version: info.latest }), 'primary', () => install(a.id), app.t('Update'), app.t('Download version {version} from GitHub and install it.', { version: info.latest })));
+    if (entryOf(a.id)) foot.append(mini(app.t('Details'), '', () => { S.tab = 'browse'; S.details = a.id; rerender(); }, app.t('Details'), app.t('Read about this add-in.')));
+    const u = mini(app.t('Uninstall'), 'danger', () => uninstall(a.id), app.t('Uninstall'), app.t('Move this add-in to the trash.')); u.dataset.act = 'uninstall';
     foot.append(u);
   }
 
   // ---------- Browse tab ----------
   function statusLine() {
     const st = document.createElement('div');
-    if (S.loading && !S.index) { st.className = 'mks-status'; st.textContent = 'Getting the add-in list from GitHub…'; return st; }
-    const retry = () => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mks-btn'; b.textContent = 'Try again'; b.style.marginLeft = '8px'; b.addEventListener('click', () => loadIndex({ refresh: true })); return b; };
+    if (S.loading && !S.index) { st.className = 'mks-status'; st.textContent = app.t('Getting the add-in list from GitHub…'); return st; }
+    const retry = () => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mks-btn'; b.textContent = app.t('Try again'); b.style.marginLeft = '8px'; b.addEventListener('click', () => loadIndex({ refresh: true })); return b; };
     if (S.error && !S.index) { st.className = 'mks-status err'; st.textContent = S.error; st.append(retry()); return st; }
-    if (S.index?.offline) { st.className = 'mks-status warn'; st.textContent = `Check your internet connection to see new add-ins. Showing the list Markooj saw ${S.index.fetchedAt ? 'on ' + dateText(S.index.fetchedAt) : 'last time'}.`; st.append(retry()); return st; }
+    if (S.index?.offline) { st.className = 'mks-status warn'; st.textContent = S.index.fetchedAt ? app.t('Check your internet connection to see new add-ins. Showing the list Markooj saw on {date}.', { date: dateText(S.index.fetchedAt) }) : app.t('Check your internet connection to see new add-ins. Showing the list Markooj saw last time.'); st.append(retry()); return st; }
     return null;
   }
   function actionButton(e) {
@@ -249,9 +252,9 @@
     const b = document.createElement('button'); b.type = 'button';
     b.className = 'mks-act' + (s.key === 'installed' ? ' installed' : s.key === 'busy' ? ' busy' : '');
     b.textContent = s.label; b.dataset.act = s.key; b.dataset.focusKey = 'act-' + e.id;
-    b.setAttribute('aria-label', `${s.label} ${e.name}`);
+    b.setAttribute('aria-label', app.t('{action} {name}', { action: s.label, name: e.name }));
     if (s.key === 'install' || s.key === 'update') {
-      b.dataset.tip = `${s.label} ${e.name}`; b.dataset.tipD = 'Downloads from GitHub. Markooj checks every file (SHA-256) before installing.';
+      b.dataset.tip = app.t('{action} {name}', { action: s.label, name: e.name }); b.dataset.tipD = app.t('Downloads from GitHub. Markooj checks every file (SHA-256) before installing.');
       b.addEventListener('click', ev => { ev.stopPropagation(); app.ui.ripple?.(b); install(e.id); });
     } else {
       b.disabled = s.key !== 'installed'; if (s.why) { b.dataset.tip = s.label; b.dataset.tipD = s.why; }
@@ -262,8 +265,8 @@
   function cardEl(e) {
     const c = document.createElement('div'); c.className = 'mks-card'; c.tabIndex = 0; c.setAttribute('role', 'button');
     c.dataset.id = e.id; c.dataset.focusKey = 'card-' + e.id;
-    c.setAttribute('aria-label', `${e.name}${e.verified ? ', made by the Markooj team' : ''}, by ${e.author}. ${e.description}`);
-    c.innerHTML = `${iconHtml(e)}<div class="mks-main"><div class="mks-name"><span>${esc(e.name)}</span>${e.verified ? checkMark() : ''}</div><div class="mks-by">${esc(e.author)}</div><div class="mks-desc" title="${esc(e.description)}">${esc(e.description)}</div><div class="mks-foot"><span class="mks-ver">Version ${esc(e.version)}</span><span class="grow"></span></div></div>`;
+    c.setAttribute('aria-label', e.verified ? app.t('{name}, made by the Markooj team, by {author}. {description}', { name: e.name, author: e.author, description: e.description }) : app.t('{name}, by {author}. {description}', { name: e.name, author: e.author, description: e.description }));
+    c.innerHTML = `${iconHtml(e)}<div class="mks-main"><div class="mks-name"><span>${esc(e.name)}</span>${e.verified ? checkMark() : ''}</div><div class="mks-by">${esc(e.author)}</div><div class="mks-desc" title="${esc(e.description)}">${esc(e.description)}</div><div class="mks-foot"><span class="mks-ver">${app.th('Version {version}', { version: e.version })}</span><span class="grow"></span></div></div>`;
     c.querySelector('.mks-foot').append(actionButton(e));
     c.addEventListener('click', () => showDetails(e.id));
     c.addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === c) { ev.preventDefault(); showDetails(e.id); } });
@@ -273,29 +276,33 @@
     grid.textContent = '';
     const list = filterAddins(S.index?.addins || [], S.query, S.category);
     if (!S.index) return;
-    if (!S.index.addins.length) { grid.innerHTML = `<div class="mks-empty">No add-ins are listed yet. Write the first one: start from the add-in template on GitHub.</div>`; return; }
-    if (!list.length) { grid.innerHTML = `<div class="mks-empty">No add-ins match${S.query ? ` “${esc(S.query)}”` : ''}${S.category !== 'all' ? ` in ${esc(catLabel(S.category))}` : ''}.</div>`; return; }
+    if (!S.index.addins.length) { grid.innerHTML = `<div class="mks-empty">${app.th('No add-ins are listed yet. Write the first one: start from the add-in template on GitHub.')}</div>`; return; }
+    if (!list.length) {
+      const v = { query: S.query, category: catLabel(S.category) }, inCat = S.category !== 'all';
+      const msg = S.query ? (inCat ? app.th('No add-ins match “{query}” in {category}.', v) : app.th('No add-ins match “{query}”.', v)) : inCat ? app.th('No add-ins match in {category}.', v) : app.th('No add-ins match.');
+      grid.innerHTML = `<div class="mks-empty">${msg}</div>`; return;
+    }
     for (const e of list) grid.append(cardEl(e));
   }
   function drawBrowse(panel) {
     const bar = document.createElement('div'); bar.className = 'mks-bar';
     const search = document.createElement('label'); search.className = 'mks-search';
     search.innerHTML = svg('search');
-    const input = document.createElement('input'); input.type = 'search'; input.placeholder = 'Search add-ins'; input.value = S.query; input.spellcheck = false;
-    input.setAttribute('aria-label', 'Search add-ins by name, description, tags or author'); input.dataset.focusKey = 'search';
+    const input = document.createElement('input'); input.type = 'search'; input.placeholder = app.t('Search add-ins'); input.value = S.query; input.spellcheck = false;
+    input.setAttribute('aria-label', app.t('Search add-ins by name, description, tags or author')); input.dataset.focusKey = 'search';
     search.append(input);
     const mkBtn = (label, icon, fn, cls, tip, tipD) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mks-btn ' + (cls || ''); b.innerHTML = (icon ? svg(icon) : '') + esc(label); if (tip) { b.dataset.tip = tip; b.dataset.tipD = tipD; } b.addEventListener('click', fn); return b; };
-    const refreshBtn = mkBtn(S.loading ? 'Checking…' : 'Check again', 'refresh', () => loadIndex({ refresh: true }), '', 'Check again', 'Get the newest add-in list from GitHub.');
+    const refreshBtn = mkBtn(S.loading ? app.t('Checking…') : app.t('Check again'), 'refresh', () => loadIndex({ refresh: true }), '', app.t('Check again'), app.t('Get the newest add-in list from GitHub.'));
     refreshBtn.disabled = S.loading; refreshBtn.dataset.focusKey = 'refresh';
     bar.append(search, refreshBtn);
     const n = updates().length;
-    if (n) { const u = mkBtn(`Update all (${n})`, 'refresh', () => updateAll(), 'primary', 'Update all add-ins', 'Install the newest version of every add-in that has an update.'); u.dataset.act = 'update-all'; bar.append(u); }
-    const submit = mkBtn('Submit an add-in', 'external', () => openExternal(TEMPLATE_URL), '', 'Submit an add-in', 'Opens the add-in template on GitHub in your browser: write an add-in and list it in the store.');
+    if (n) { const u = mkBtn(app.t('Update all ({number})', { number: n }), 'refresh', () => updateAll(), 'primary', app.t('Update all add-ins'), app.t('Install the newest version of every add-in that has an update.')); u.dataset.act = 'update-all'; bar.append(u); }
+    const submit = mkBtn(app.t('Submit an add-in'), 'external', () => openExternal(TEMPLATE_URL), '', app.t('Submit an add-in'), app.t('Opens the add-in template on GitHub in your browser: write an add-in and list it in the store.'));
     bar.append(submit);
     panel.append(bar);
-    const chips = document.createElement('div'); chips.className = 'mks-chips'; chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', 'Categories');
+    const chips = document.createElement('div'); chips.className = 'mks-chips'; chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', app.t('Categories'));
     for (const [id, label] of CATEGORIES) {
-      const c = document.createElement('button'); c.type = 'button'; c.className = 'mks-chip'; c.textContent = label; c.dataset.cat = id; c.dataset.focusKey = 'cat-' + id;
+      const c = document.createElement('button'); c.type = 'button'; c.className = 'mks-chip'; c.textContent = app.t(label); c.dataset.cat = id; c.dataset.focusKey = 'cat-' + id;
       c.setAttribute('aria-pressed', String(S.category === id));
       c.addEventListener('click', () => { S.category = id; for (const x of chips.children) x.setAttribute('aria-pressed', String(x.dataset.cat === id)); drawGrid(grid); });
       chips.append(c);
@@ -318,31 +325,31 @@
   function backToList() { const id = S.details; S.details = null; rerender(); if (id) for (const el of pages) el.querySelector(`.mks-card[data-id="${id}"]`)?.focus({ preventScroll: true }); }
   function drawDetails(panel) {
     const e = entryOf(S.details);
-    const back = document.createElement('button'); back.type = 'button'; back.className = 'mks-back'; back.innerHTML = svg('back') + 'All add-ins'; back.dataset.focusKey = 'back';
-    back.dataset.tip = 'All add-ins'; back.dataset.tipD = 'Back to the list.'; back.dataset.key = 'Escape';
+    const back = document.createElement('button'); back.type = 'button'; back.className = 'mks-back'; back.innerHTML = svg('back') + app.th('All add-ins'); back.dataset.focusKey = 'back';
+    back.dataset.tip = app.t('All add-ins'); back.dataset.tipD = app.t('Back to the list.'); back.dataset.key = 'Escape';
     back.addEventListener('click', backToList);
     panel.append(back);
     panel.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !ev.defaultPrevented) { ev.preventDefault(); backToList(); } });
-    if (!e) { const p = document.createElement('div'); p.className = 'mks-empty'; p.textContent = 'This add-in is no longer in the list.'; panel.append(p); return; }
+    if (!e) { const p = document.createElement('div'); p.className = 'mks-empty'; p.textContent = app.t('This add-in is no longer in the list.'); panel.append(p); return; }
     const hero = document.createElement('div'); hero.className = 'mks-hero';
     hero.innerHTML = `${iconHtml(e, true)}<div class="mks-main"><h3>${esc(e.name)}${e.verified ? checkMark() : ''}</h3><p>${esc(e.author)}</p><p>${esc(e.description)}</p><div class="acts"></div></div>`;
     const acts = hero.querySelector('.acts');
     const s = statusOf(e);
     const btn = (label, cls, fn, tip, tipD) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mks-btn ' + cls; b.textContent = label; if (tip) { b.dataset.tip = tip; b.dataset.tipD = tipD; } b.addEventListener('click', fn); return b; };
-    if (s.key === 'install' || s.key === 'update') { const b = btn(s.label, 'primary', () => install(e.id), `${s.label} ${e.name}`, 'Downloads from GitHub. Markooj checks every file (SHA-256) before installing.'); b.dataset.act = s.key; acts.append(b); }
-    else { const b = btn(s.label, '', () => {}, s.label, s.why || 'This add-in is installed.'); b.disabled = true; b.dataset.act = s.key; acts.append(b); }
-    if (installedOf(e.id)) { const u = btn('Uninstall', 'danger', () => uninstall(e.id), 'Uninstall', 'Move this add-in to the trash.'); u.dataset.act = 'uninstall'; acts.append(u); }
-    acts.append(btn('Project page', '', () => openExternal(e.homepage || `https://github.com/${e.repo}`), 'Project page', 'Opens the add-in’s page on GitHub in your browser.'));
+    if (s.key === 'install' || s.key === 'update') { const b = btn(s.label, 'primary', () => install(e.id), app.t('{action} {name}', { action: s.label, name: e.name }), app.t('Downloads from GitHub. Markooj checks every file (SHA-256) before installing.')); b.dataset.act = s.key; acts.append(b); }
+    else { const b = btn(s.label, '', () => {}, s.label, s.why || app.t('This add-in is installed.')); b.disabled = true; b.dataset.act = s.key; acts.append(b); }
+    if (installedOf(e.id)) { const u = btn(app.t('Uninstall'), 'danger', () => uninstall(e.id), app.t('Uninstall'), app.t('Move this add-in to the trash.')); u.dataset.act = 'uninstall'; acts.append(u); }
+    acts.append(btn(app.t('Project page'), '', () => openExternal(e.homepage || `https://github.com/${e.repo}`), app.t('Project page'), app.t('Opens the add-in’s page on GitHub in your browser.')));
     panel.append(hero);
     const cols = document.createElement('div'); cols.className = 'mks-cols';
-    const readme = document.createElement('article'); readme.className = 'mks-readme'; readme.setAttribute('aria-label', 'About ' + e.name);
+    const readme = document.createElement('article'); readme.className = 'mks-readme'; readme.setAttribute('aria-label', app.t('About {name}', { name: e.name }));
     const facts = document.createElement('dl'); facts.className = 'mks-facts';
     const have = installedOf(e.id);
-    const rows = [['Version', e.version + (have && have.version !== e.version ? ` (you have ${have.version})` : '')], ['Size', sizeText(e.size)], ['Category', catLabel(e.category)], ['Needs', 'Markooj ' + e.minMarkooj + ' or newer'],
-      ['Updated', dateText(e.updatedAt)], ['Author', e.author], ['Made by', e.verified ? 'The Markooj team' : 'The community'], ['Also does', e.permissions]].filter(r => r[1]);
+    const rows = [[app.t('Version'), have && have.version !== e.version ? app.t('{version} (you have {installed})', { version: e.version, installed: have.version }) : e.version], [app.t('Size'), sizeText(e.size)], [app.t('Category'), catLabel(e.category)], [app.t('Needs'), app.t('Markooj {version} or newer', { version: e.minMarkooj })],
+      [app.t('Updated'), dateText(e.updatedAt)], [app.t('Author'), e.author], [app.t('Made by'), e.verified ? app.t('The Markooj team') : app.t('The community')], [app.t('Also does'), e.permissions]].filter(r => r[1]);
     facts.innerHTML = rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd title="${esc(v)}">${esc(v)}</dd></div>`).join('')
-      + `<div><dt>Repository</dt><dd><a class="mks-link" href="#" data-href="https://github.com/${esc(e.repo)}" data-tip="${esc(e.repo)}" data-tip-d="Opens the source code on GitHub in your browser.">${esc(e.repo)}</a></dd></div>`
-      + (e.tags?.length ? `<div><dt>Tags</dt><dd title="${esc(e.tags.join(', '))}">${esc(e.tags.join(', '))}</dd></div>` : '');
+      + `<div><dt>${app.th('Repository')}</dt><dd><a class="mks-link" href="#" data-href="https://github.com/${esc(e.repo)}" data-tip="${esc(e.repo)}" data-tip-d="${app.th('Opens the source code on GitHub in your browser.')}">${esc(e.repo)}</a></dd></div>`
+      + (e.tags?.length ? `<div><dt>${app.th('Tags')}</dt><dd title="${esc(e.tags.join(', '))}">${esc(e.tags.join(', '))}</dd></div>` : '');
     facts.addEventListener('click', ev => { const a = ev.target.closest('a[data-href]'); if (a) { ev.preventDefault(); openExternal(a.dataset.href); } });
     cols.append(readme, facts);
     panel.append(cols);
@@ -372,7 +379,7 @@
     });
   }
   async function fillReadme(el, e) {
-    el.innerHTML = '<p class="mks-empty" style="padding:0">Loading the description…</p>';
+    el.innerHTML = `<p class="mks-empty" style="padding:0">${app.th('Loading the description…')}</p>`;
     try {
       const text = await readmeOf(e);
       if (!el.isConnected) return;
@@ -392,7 +399,7 @@
       el.dataset.loaded = '1';
     } catch (err) {
       if (!el.isConnected) return;
-      el.innerHTML = `<p class="mks-empty" style="padding:0">${esc(e.description)}</p><p class="mks-status">${esc(listError(err, 'The short description above is all Markooj has for now.'))}</p>`;
+      el.innerHTML = `<p class="mks-empty" style="padding:0">${esc(e.description)}</p><p class="mks-status">${esc(listError(err, app.t('The short description above is all Markooj has for now.')))}</p>`;
     }
   }
 
@@ -400,62 +407,62 @@
   async function loadPacks() {
     if (!app.lang?.packs) return;
     S.packs.loading = true; S.packs.error = ''; rerender();
-    try { S.packs.index = await app.lang.packs.index(); } catch (e) { S.packs.error = listError(e, 'You can also install a pack from a file. Installed languages keep working.'); }
+    try { S.packs.index = await app.lang.packs.index(); } catch (e) { S.packs.error = listError(e, app.t('You can also install a pack from a file. Installed languages keep working.')); }
     try { await app.lang.packs.list(); } catch {}
     S.packs.loading = false; rerender();
   }
   function drawPacks(panel) {
     const P = app.lang?.packs;
-    if (!P) { panel.innerHTML = '<div class="mks-empty">Restart Markooj to use language packs. The language tools did not load this time.</div>'; return; }
+    if (!P) { panel.innerHTML = `<div class="mks-empty">${app.th('Restart Markooj to use language packs. The language tools did not load this time.')}</div>`; return; }
     const head = document.createElement('div'); head.className = 'mks-bar';
     const mkBtn = (label, icon, fn, cls, tip, tipD) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mks-btn ' + (cls || ''); b.innerHTML = (icon ? svg(icon) : '') + esc(label); if (tip) { b.dataset.tip = tip; b.dataset.tipD = tipD; } b.addEventListener('click', fn); return b; };
-    const chk = mkBtn(S.packs.loading ? 'Checking…' : S.packs.index ? 'Check again' : 'Check for language packs', 'refresh', () => loadPacks(), 'primary', 'Check for language packs', 'Ask GitHub which language packs are available.');
+    const chk = mkBtn(S.packs.loading ? app.t('Checking…') : S.packs.index ? app.t('Check again') : app.t('Check for language packs'), 'refresh', () => loadPacks(), 'primary', app.t('Check for language packs'), app.t('Ask GitHub which language packs are available.'));
     chk.disabled = S.packs.loading; chk.dataset.focusKey = 'packs-check';
     head.append(chk,
-      mkBtn('Install from file…', 'open', () => app.commands.run('lang.installFromFile'), '', 'Install from file', 'Install a language pack (.zip) you downloaded. Every file is checked first.'),
-      mkBtn('Language options', 'lang', () => app.lang.openOptions?.(), '', 'Language options', 'Proofing language and fonts for right-to-left languages.'));
+      mkBtn(app.t('Install from file…'), 'open', () => app.commands.run('lang.installFromFile'), '', app.t('Install from file'), app.t('Install a language pack (.zip) you downloaded. Every file is checked first.')),
+      mkBtn(app.t('Language options'), 'lang', () => app.lang.openOptions?.(), '', app.t('Language options'), app.t('Proofing language and fonts for right-to-left languages.')));
     panel.append(head);
     const installed = P.installed();
     const sec = (t) => { const s = document.createElement('div'); s.className = 'mks-sec'; s.textContent = t; return s; };
-    panel.append(sec('On this computer'));
+    panel.append(sec(app.t('On this computer')));
     const mine = document.createElement('div'); mine.className = 'mks-packs';
-    mine.append(packRow({ code: 'en', name: 'English (US and UK)', nativeName: '', version: '' }, { builtIn: true }));
+    mine.append(packRow({ code: 'en', name: app.t('English (US and UK)'), nativeName: '', version: '' }, { builtIn: true }));
     for (const p of installed) mine.append(packRow(p, { installed: true }));
     panel.append(mine);
-    panel.append(sec('Available on GitHub'));
+    panel.append(sec(app.t('Available on GitHub')));
     const avail = document.createElement('div'); avail.className = 'mks-packs';
-    if (S.packs.loading && !S.packs.index) avail.innerHTML = '<div class="mks-status">Getting the language pack list from GitHub…</div>';
-    else if (S.packs.error) { avail.innerHTML = `<div class="mks-status err">${esc(S.packs.error)} <button type="button" class="mks-btn" data-act="retry">Try again</button></div>`; avail.querySelector('[data-act=retry]').addEventListener('click', () => loadPacks()); }
-    else if (!S.packs.index) avail.innerHTML = '<div class="mks-empty">Urdu, Arabic, Punjabi (Shahmukhi) and Persian packs come from the Markooj language packs on GitHub. Click Check for language packs.</div>';
-    else if (!S.packs.index.packs.length) avail.innerHTML = '<div class="mks-empty">Check again later, or install a pack from a file. None are published yet.</div>';
+    if (S.packs.loading && !S.packs.index) avail.innerHTML = `<div class="mks-status">${app.th('Getting the language pack list from GitHub…')}</div>`;
+    else if (S.packs.error) { avail.innerHTML = `<div class="mks-status err">${esc(S.packs.error)} <button type="button" class="mks-btn" data-act="retry">${app.th('Try again')}</button></div>`; avail.querySelector('[data-act=retry]').addEventListener('click', () => loadPacks()); }
+    else if (!S.packs.index) avail.innerHTML = `<div class="mks-empty">${app.th('Urdu, Arabic, Punjabi (Shahmukhi) and Persian packs come from the Markooj language packs on GitHub. Click Check for language packs.')}</div>`;
+    else if (!S.packs.index.packs.length) avail.innerHTML = `<div class="mks-empty">${app.th('Check again later, or install a pack from a file. None are published yet.')}</div>`;
     else for (const p of S.packs.index.packs) avail.append(packRow(p, { available: true, have: installed.find(x => x.code === p.code) }));
     panel.append(avail);
   }
   function packRow(p, o = {}) {
     const row = document.createElement('div'); row.className = 'mks-pack'; row.dataset.code = p.code;
-    const facts = o.builtIn ? 'Spelling and grammar, built in.' : [p.version && 'Version ' + p.version, p.size && sizeText(p.size), p.words != null && `${Number(p.words).toLocaleString('en-US')} words`, p.license].filter(Boolean).join(' · ');
-    row.innerHTML = `<div class="mks-ic" aria-hidden="true">${esc((p.nativeName || p.code).slice(0, 2))}</div><div class="mks-main"><b>${esc(p.name)}${p.nativeName ? `<span class="nat" dir="auto">${esc(p.nativeName)}</span>` : ''}</b><small>${esc(facts)}</small></div>`;
+    const facts = o.builtIn ? app.t('Spelling and grammar, built in.') : [p.version && app.t('Version {version}', { version: p.version }), p.size && sizeText(p.size), p.words != null && app.tn('{count} words', Number(p.words)), p.license].filter(Boolean).join(' · ');
+    row.innerHTML = `<div class="mks-ic" aria-hidden="true">${esc((p.nativeName || p.code).slice(0, 2))}</div><div class="mks-main"><b>${esc(app.t(p.name))}${p.nativeName ? `<span class="nat" dir="auto">${esc(p.nativeName)}</span>` : ''}</b><small>${esc(facts)}</small></div>`;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'mks-act';
-    if (o.builtIn) { b.textContent = 'Built in'; b.className += ' installed'; b.disabled = true; }
+    if (o.builtIn) { b.textContent = app.t('Built in'); b.className += ' installed'; b.disabled = true; }
     else if (o.installed) {
-      b.textContent = 'Remove'; b.dataset.tip = `Remove ${p.name}`; b.dataset.tipD = 'Delete this language pack from this computer. You can install it again later.';
+      b.textContent = app.t('Remove'); b.dataset.tip = app.t('Remove {name}', { name: p.name }); b.dataset.tipD = app.t('Delete this language pack from this computer. You can install it again later.');
       b.addEventListener('click', async () => {
-        if (!(await app.ui.confirm(`Remove ${p.name}?`, 'The language pack is deleted from this computer. Documents in this language keep their text, direction and fonts.', { ok: 'Remove', danger: true }))) return;
-        try { await app.lang.packs.remove(p.code); toast(`${p.name} language pack removed.`); } catch (e) { app.ui.fail(e, { lead: `Close any document that uses ${p.name}, then try Remove again.`, retry: () => app.lang.packs.remove(p.code).then(rerender) }); }
+        if (!(await app.ui.confirm(app.t('Remove {name}?', { name: p.name }), app.t('The language pack is deleted from this computer. Documents in this language keep their text, direction and fonts.'), { ok: app.t('Remove'), danger: true }))) return;
+        try { await app.lang.packs.remove(p.code); toast(app.t('{name} language pack removed.', { name: p.name })); } catch (e) { app.ui.fail(e, { lead: app.t('Close any document that uses {name}, then try Remove again.', { name: p.name }), retry: () => app.lang.packs.remove(p.code).then(rerender) }); }
         rerender();
       });
     } else {
       const newer = o.have && String(o.have.version) !== String(p.version);
       const busy = S.packs.busy.has(p.code);
-      b.textContent = busy ? 'Installing…' : !o.have ? 'Install' : newer ? 'Update' : 'Installed';
+      b.textContent = busy ? app.t('Installing…') : !o.have ? app.t('Install') : newer ? app.t('Update') : app.t('Installed');
       if (o.have && !newer) { b.className += ' installed'; b.disabled = true; }
       else if (busy) { b.className += ' busy'; b.disabled = true; }
       else {
-        b.dataset.tip = `${b.textContent} ${p.name}`; b.dataset.tipD = 'Download from GitHub and install. Markooj checks the SHA-256 before installing.';
+        b.dataset.tip = app.t('{action} {name}', { action: b.textContent, name: p.name }); b.dataset.tipD = app.t('Download from GitHub and install. Markooj checks the SHA-256 before installing.');
         b.addEventListener('click', async () => {
           S.packs.busy.add(p.code); rerender();
-          try { const r = await app.lang.packs.install({ url: p.url }); toast(`${r.name || p.name} language pack installed.`); }
-          catch (e) { app.ui.fail(e, { lead: `Try installing ${p.name} again, or install it from a file.`, retry: () => app.lang.packs.install({ url: p.url }).then(r => { toast(`${r.name || p.name} language pack installed.`); rerender(); }), actions: [{ label: 'Install from file', run: () => app.commands.run('lang.installFromFile') }], still: 'Installed languages keep working.' }); }
+          try { const r = await app.lang.packs.install({ url: p.url }); toast(app.t('{name} language pack installed.', { name: r.name || p.name })); }
+          catch (e) { app.ui.fail(e, { lead: app.t('Try installing {name} again, or install it from a file.', { name: p.name }), retry: () => app.lang.packs.install({ url: p.url }).then(r => { toast(app.t('{name} language pack installed.', { name: r.name || p.name })); rerender(); }), actions: [{ label: app.t('Install from file'), run: () => app.commands.run('lang.installFromFile') }], still: app.t('Installed languages keep working.') }); }
           S.packs.busy.delete(p.code); rerender();
         });
       }
@@ -466,24 +473,24 @@
 
   // ---------- commands, ribbon, page ----------
   const TIPS = {
-    'addins.browse': ['Get add-ins', 'Browse add-ins made by the community and install them with one click.'],
-    'addins.checkUpdates': ['Check add-in updates', 'Ask GitHub for newer versions of the add-ins you installed from the store.'],
-    'addins.updateAll': ['Update all add-ins', 'Install the newest version of every add-in that has an update.'],
-    'addins.languagePacks': ['Get language packs', 'Spelling and checks for Urdu, Arabic, Punjabi (Shahmukhi), Persian and more.'],
+    'addins.browse': [app.tm('Get add-ins'), app.tm('Browse add-ins made by the community and install them with one click.')],
+    'addins.checkUpdates': [app.tm('Check add-in updates'), app.tm('Ask GitHub for newer versions of the add-ins you installed from the store.')],
+    'addins.updateAll': [app.tm('Update all add-ins'), app.tm('Install the newest version of every add-in that has an update.')],
+    'addins.languagePacks': [app.tm('Get language packs'), app.tm('Spelling and checks for Urdu, Arabic, Punjabi (Shahmukhi), Persian and more.')],
   };
-  app.commands.register('addins.browse', { label: 'Browse add-ins', icon: 'store', description: TIPS['addins.browse'][1], run: () => { open('browse'); if (!S.index && !S.loading) loadIndex(); } });
-  app.commands.register('addins.checkUpdates', { label: 'Check add-in updates', icon: 'refresh', description: TIPS['addins.checkUpdates'][1], run: () => checkUpdates() });
-  app.commands.register('addins.updateAll', { label: 'Update all add-ins', icon: 'refresh', description: TIPS['addins.updateAll'][1], run: async () => { if (!S.index) await loadIndex({ refresh: true }); else await refreshInstalled(); return updateAll(); } });
-  app.commands.register('addins.languagePacks', { label: 'Get language packs', icon: 'lang', description: TIPS['addins.languagePacks'][1], run: () => { open('packs'); if (!S.packs.index && !S.packs.loading) loadPacks(); } });
+  app.commands.register('addins.browse', { label: app.tm('Browse add-ins'), icon: 'store', description: TIPS['addins.browse'][1], run: () => { open('browse'); if (!S.index && !S.loading) loadIndex(); } });
+  app.commands.register('addins.checkUpdates', { label: app.tm('Check add-in updates'), icon: 'refresh', description: TIPS['addins.checkUpdates'][1], run: () => checkUpdates() });
+  app.commands.register('addins.updateAll', { label: app.tm('Update all add-ins'), icon: 'refresh', description: TIPS['addins.updateAll'][1], run: async () => { if (!S.index) await loadIndex({ refresh: true }); else await refreshInstalled(); return updateAll(); } });
+  app.commands.register('addins.languagePacks', { label: app.tm('Get language packs'), icon: 'lang', description: TIPS['addins.languagePacks'][1], run: () => { open('packs'); if (!S.packs.index && !S.packs.loading) loadPacks(); } });
   for (const [id, [title, description]] of Object.entries(TIPS)) { try { app.tooltips?.register?.(id, { title, description }); } catch {} }
   app.ribbon.addGroup('addins', {
-    id: 'addins-store', label: 'Store', order: 5, items: [
-      { type: 'big', command: 'addins.browse', label: 'Get add-ins', icon: 'store' },
-      { type: 'big', command: 'addins.checkUpdates', label: 'Updates', icon: 'refresh' },
+    id: 'addins-store', label: app.tm('Store@@ribbon group'), order: 5, items: [
+      { type: 'big', command: 'addins.browse', label: app.tm('Get add-ins'), icon: 'store' },
+      { type: 'big', command: 'addins.checkUpdates', label: app.tm('Updates'), icon: 'refresh' },
     ],
   });
   // File → Add-ins with tabs (addons.js keeps the Installed list and falls back to it without this file)
-  app.backstage.addPage({ id: 'addins', label: 'Add-ins', icon: 'puzzle', order: 80, render: renderPage });
+  app.backstage.addPage({ id: 'addins', label: app.tm('Add-ins'), icon: 'puzzle', order: 80, render: renderPage });
   app.events.on('addons:changed', () => { for (const el of pages) if (el.isConnected && S.tab !== 'installed') drawPage(el); });
   app.events.on('lang:packs', () => { if (S.tab === 'packs') rerender(); });
   app.events.on('backstage:hidden', () => { S.details = null; });

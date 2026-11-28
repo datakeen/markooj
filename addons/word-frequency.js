@@ -42,38 +42,38 @@ function toTable({ rows, total }) {
 }
 
 app.commands.register('wordfreq.insert', {
-  label: 'Insert word frequency table',
+  label: app.tm('Insert word frequency table'),
   icon: 'count',
   run: async () => {
     const d = app.docs.active();
-    if (!d || d.kind !== 'markdown' || d.readOnly) { app.ui.toast('Open an editable Markdown document first.'); return; }
+    if (!d || d.kind !== 'markdown' || d.readOnly) { app.ui.toast(app.t('Open an editable Markdown document first.')); return; }
     const body = document.createElement('div');
     body.innerHTML = `<div style="display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:center;min-width:320px">
-        <label for="wf-n">Number of words</label>
+        <label for="wf-n">${app.th('Number of words')}</label>
         <input id="wf-n" type="number" min="3" max="200" value="${Number(app.settings.get('wordfreq.n', 15))}" style="width:90px;height:28px;border-radius:7px;border:.5px solid var(--line-2);background:var(--surface);color:var(--text);padding:0 8px;font:inherit">
-        <span></span><label><input id="wf-c" type="checkbox" ${app.settings.get('wordfreq.skip', true) ? 'checked' : ''}> Skip common words (the, and, of…)</label>
-        <span></span><label><input id="wf-l" type="checkbox" checked> Ignore words shorter than 3 letters</label>
+        <span></span><label><input id="wf-c" type="checkbox" ${app.settings.get('wordfreq.skip', true) ? 'checked' : ''}> ${app.th('Skip common words (the, and, of…)')}</label>
+        <span></span><label><input id="wf-l" type="checkbox" checked> ${app.th('Ignore words shorter than 3 letters')}</label>
       </div>
-      <p style="margin:12px 0 0;color:var(--text-2);font-size:12.5px">The table goes where your cursor is. Math, code and links are not counted.</p>`;
+      <p style="margin:12px 0 0;color:var(--text-2);font-size:12.5px">${app.th('The table goes where your cursor is. Math, code and links are not counted.')}</p>`;
     setTimeout(() => body.querySelector('#wf-n')?.select(), 60);
-    const v = await app.ui.dialog({ title: 'Word frequency', body, buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Insert table', value: 'ok', primary: true }] });
+    const v = await app.ui.dialog({ title: app.t('Word frequency'), body, buttons: [{ label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Insert table'), value: 'ok', primary: true }] });
     if (v !== 'ok') return;
     const limit = Math.max(3, Math.min(200, Number(body.querySelector('#wf-n').value) || 15));
     const skipCommon = body.querySelector('#wf-c').checked;
     const minLength = body.querySelector('#wf-l').checked ? 3 : 1;
     app.settings.set('wordfreq.n', limit); app.settings.set('wordfreq.skip', skipCommon);
     const res = topWords(d.text, { limit, skipCommon, minLength });
-    if (!res.rows.length) { app.ui.toast('Write some text first, then count the words again.'); return; }
+    if (!res.rows.length) { app.ui.toast(app.t('Write some text first, then count the words again.')); return; }
     const table = '\n\n' + toTable(res) + '\n\n: Most frequent words\n';
     if (markooj?.doc) markooj.doc.insert(table);
     else app.editors.active()?.insert(table);
-    app.ui.toast(`Inserted the top ${res.rows.length} words.`);
+    app.ui.toast(app.tn('Inserted the top {count} words.', res.rows.length));
   },
 });
 // A Save As format from an add-in: File → Save As → From add-ins → Word list (CSV)
 app.exporter?.register?.({
-  id: 'wordfreq-csv', label: 'Word list (CSV)', ext: 'csv',
-  description: 'Every word with its count, for Excel.',
+  id: 'wordfreq-csv', label: app.tm('Word list (CSV)'), ext: 'csv',
+  description: app.tm('Every word with its count, for Excel.'),
   run: doc => {
     const res = topWords(doc.text, { limit: 100000 });
     const NL = String.fromCharCode(13, 10);
@@ -81,8 +81,8 @@ app.exporter?.register?.({
   },
 });
 app.ribbon.addGroup('addins', {
-  id: 'wordfreq', label: 'Word frequency', order: 61,
-  items: [{ type: 'big', command: 'wordfreq.insert', label: 'Word list', icon: 'count' }],
+  id: 'wordfreq', label: app.tm('Word frequency'), order: 61,
+  items: [{ type: 'big', command: 'wordfreq.insert', label: app.tm('Word list'), icon: 'count' }],
 });
 
 app.tests.register('add-in word frequency: counts words', () => {

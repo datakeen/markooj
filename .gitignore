@@ -6,8 +6,12 @@ out/
 
 # bundled tools are fetched by `npm run fetch-tools` (pandoc.exe is over GitHub's 100 MB file limit);
 # their GPL sources by `node scripts/fetch-tools.js --with-source`
-vendor/
-vendor-src/
+/vendor/
+/vendor-src/
+
+# written by scripts/make-features.js in CI (the Features download list and the installer sizes)
+build/features-manifest.json
+build/features-sizes.nsh
 
 # smoke tests and scratch output
 smoke-out/

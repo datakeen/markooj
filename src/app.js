@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const app = window.app;
-  if (!app) { document.body.textContent = 'Markooj could not start (core.js missing).'; return; }
+  if (!app) { document.body.textContent = window.mkI18n ? window.mkI18n.t('Markooj could not start (core.js missing).') : 'Markooj could not start (core.js missing).'; return; }
   const mk = app.mk;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -13,7 +13,7 @@
   const bootPromise = new Promise(r => { resolveBoot = r; });
   async function openPath(p) {
     if (app.shell?.openPath) return app.shell.openPath(p);
-    try { await app.docs.open(p); return true; } catch (e) { app.ui.fail(e, { lead: `Check that “${String(p).split(/[\\/]/).pop()}” is still there, then try again.`, retry: () => openPath(p) }); return false; }
+    try { await app.docs.open(p); return true; } catch (e) { app.ui.fail(e, { lead: app.t('Check that “{name}” is still there, then try again.', { name: String(p).split(/[\\/]/).pop() }), retry: () => openPath(p) }); return false; }
   }
   mk.on('open-path', p => { if (booted) openPath(p); else pendingPaths.push(p); });
   mk.on('request-close', () => { bootPromise.then(onRequestClose); });
@@ -32,7 +32,7 @@
     for (const p of pendingPaths.splice(0)) await openPath(p);
     // Give a double-clicked file a moment to arrive before showing a blank page.
     if (!app.docs.list().length) await sleep(350);
-    if (!app.docs.list().length) app.docs.create({ title: 'Untitled' });
+    if (!app.docs.list().length) app.docs.create({ title: app.t('Untitled') });
     wireDrops();
     app.events.emit('ready');
     resolveBoot();
@@ -60,7 +60,7 @@
         if (/\.(md|markdown|mdown|mkd|mdx|rmd|qmd|txt)$/i.test(f.name)) {
           const text = await f.text();
           app.docs.create({ title: f.name.replace(/\.[^.]+$/, ''), text, ext: f.name.split('.').pop() });
-        } else app.ui.toast(`Use File → Open to open “${f.name}”. Markooj can’t read it from a drop.`, { kind: 'warn', actions: [{ label: 'Open…', run: () => app.commands.run('file.open') }] });
+        } else app.ui.toast(app.t('Use File → Open to open “{name}”. Markooj can’t read it from a drop.', { name: f.name }), { kind: 'warn', actions: [{ label: app.t('Open…'), run: () => app.commands.run('file.open') }] });
       }
     });
   }
@@ -74,24 +74,24 @@
     if (!imgs.length) return;
     for (const img of imgs) {
       img.classList.add('mk-remote-off');
-      img.title = 'A picture from the web. Markooj does not load it, so opening a document never contacts other servers. Turn it on in File → Options → Privacy.';
+      img.title = app.t('A picture from the web. Markooj does not load it, so opening a document never contacts other servers. Turn it on in File → Options → Privacy.');
     }
     const key = doc?.id || 'x';
     if (remoteToldFor.has(key)) return;
     remoteToldFor.add(key);
-    app.ui.toast(`This document has ${imgs.length === 1 ? 'a picture' : imgs.length + ' pictures'} from the web. Markooj didn’t load ${imgs.length === 1 ? 'it' : 'them'}.`, { kind: 'info', action: { label: 'Load pictures', run: () => { app.settings.set('remoteImages', true); app.editors.active()?.refresh?.(); } } });
+    app.ui.toast(app.tn('This document has {count} pictures from the web. Markooj didn’t load them.', imgs.length), { kind: 'info', action: { label: app.t('Load pictures'), run: () => { app.settings.set('remoteImages', true); app.editors.active()?.refresh?.(); } } });
   });
   app.options.addSection({
-    id: 'privacy', label: 'Privacy', order: 65,
+    id: 'privacy', label: app.tm('Privacy'), order: 65,
     render(el) {
       el.innerHTML = '';
       const row = document.createElement('label');
       row.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:13px;color:var(--text)';
       const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = remoteOn();
-      cb.addEventListener('change', () => { app.settings.set('remoteImages', cb.checked); app.editors.active()?.refresh?.(); app.ui.toast(cb.checked ? 'Pictures from the web will load.' : 'Pictures from the web stay hidden.'); });
-      row.append(cb, document.createTextNode('Load pictures from the web in documents'));
+      cb.addEventListener('change', () => { app.settings.set('remoteImages', cb.checked); app.editors.active()?.refresh?.(); app.ui.toast(cb.checked ? app.t('Pictures from the web will load.') : app.t('Pictures from the web stay hidden.')); });
+      row.append(cb, document.createTextNode(app.t('Load pictures from the web in documents')));
       const hint = document.createElement('p'); hint.style.cssText = 'margin:8px 0 0;font-size:12px;color:var(--text-3)';
-      hint.textContent = 'Off by default: a picture on someone’s server tells them when you opened their document. Links still open in your browser when you click them.';
+      hint.textContent = app.t('Off by default: a picture on someone’s server tells them when you opened their document. Links still open in your browser when you click them.');
       el.append(row, hint);
     },
   });
@@ -105,22 +105,27 @@
     try {
       // the native X / Alt+F4 does not blur the page, so typing the Word editor still holds must be committed now
       try { app.editors.active()?.flush?.(); } catch {}
-      const dirty = app.docs.list().filter(d => d.dirty && d.kind === 'markdown');
-      // clean documents leave no recovery copies (they would show up as a "crash" next time)
-      for (const d of app.docs.list()) if (!d.dirty && d.kind === 'markdown') await mk.invoke('recovery-delete', d.recoveryId).catch(() => {});
+      // a document another Markooj window still shows (View → New Window) stays open there, so closing this window never
+      // asks about it; when both windows close at once, exactly one of them asks (src/windows.js prepareClose)
+      let elsewhere = null;
+      try { elsewhere = (await app.windows?.prepareClose?.()) || null; } catch {}
+      const shared = d => (elsewhere ? elsewhere.has(d.id) : false);
+      const dirty = app.docs.list().filter(d => d.dirty && d.kind === 'markdown' && !shared(d));
+      // clean documents leave no recovery copies (they would show up as a "crash" next time); nor do documents another window keeps
+      for (const d of app.docs.list()) if ((!d.dirty || shared(d)) && d.kind === 'markdown') await mk.invoke('recovery-delete', d.recoveryId).catch(() => {});
       if (!dirty.length) { closed = true; await mk.invoke('confirm-close'); return; }
       // Always keep a recovery copy first, so nothing is lost even if something fails below.
       for (const d of dirty) await mk.invoke('recovery-save', { docId: d.recoveryId, path: d.path, title: d.title, text: d.text }).catch(() => {});
       const days = app.settings.get('recoveryDays', 7);
-      const list = dirty.map(d => `<li>${app.esc(d.title)}${d.path ? '' : ' <span style="color:var(--text-3)">(never saved)</span>'}</li>`).join('');
+      const list = dirty.map(d => `<li>${app.esc(d.title)}${d.path ? '' : ` <span style="color:var(--text-3)">${app.th('(never saved)')}</span>`}</li>`).join('');
       const v = await app.ui.dialog({
-        title: 'You have unsaved documents',
+        title: app.t('You have unsaved documents'),
         icon: 'save', kind: 'warn',
-        body: `<p>Save your changes before closing?</p><ul style="margin:6px 0 10px;padding-left:18px">${list}</ul><p style="font-size:12px;color:var(--text-3)">If you don’t save, Markooj keeps a copy in File → Recover for ${days} days.</p>`,
+        body: `<p>${app.th('Save your changes before closing?')}</p><ul style="margin:6px 0 10px;padding-left:18px">${list}</ul><p style="font-size:12px;color:var(--text-3)">${app.th('If you don’t save, Markooj keeps a copy in File → Recover for {count} days.', { count: days })}</p>`,
         buttons: [
-          { label: `Don’t Save (keep in Recover ${days} days)`, value: 'discard', danger: true, left: true },
-          { label: 'Cancel', value: 'cancel' },
-          { label: 'Save All', value: 'save', primary: true },
+          { label: app.tn('Don’t Save (keep in Recover {count} days)', days), value: 'discard', danger: true, left: true },
+          { label: app.t('Cancel'), value: 'cancel' },
+          { label: app.t('Save All'), value: 'save', primary: true },
         ],
         cancelValue: 'cancel',
       });
@@ -128,7 +133,7 @@
         for (const d of dirty) {
           app.docs.activate(d.id);
           const ok = await app.docs.save(d);
-          if (!ok) { app.ui.toast(`Save “${d.title}”, or close again and choose Don’t Save. Markooj stays open until then.`, { kind: 'warn', actions: [{ label: 'Close again', run: () => onRequestClose() }] }); return; }
+          if (!ok) { app.ui.toast(app.t('Save “{name}”, or close again and choose Don’t Save. Markooj stays open until then.', { name: d.title }), { kind: 'warn', actions: [{ label: app.t('Close again'), run: () => onRequestClose() }] }); return; }
         }
         closed = true; await mk.invoke('confirm-close');
       } else if (v === 'discard') {
@@ -137,11 +142,11 @@
       }
     } catch (e) {
       console.error(e);
-      app.ui.fail(e, { lead: 'Try closing again. Your unsaved text is kept in File → Recover.', hideReason: true, retry: () => onRequestClose() });
+      app.ui.fail(e, { lead: app.t('Try closing again. Your unsaved text is kept in File → Recover.'), hideReason: true, retry: () => onRequestClose() });
     } finally {
       closing = false;
       // tell main the request was answered, so the next X shows the save prompt again (not "Close anyway?")
-      if (!closed) mk.invoke('close-cancelled').catch(() => {});
+      if (!closed) { mk.invoke('close-cancelled').catch(() => {}); try { app.windows?.closeCancelled?.(); } catch {} }
     }
   }
 
@@ -206,7 +211,11 @@ print("hello")
   }
   // End-to-end checks that need the files the export step just wrote.
   async function integration(outDir, results) {
-    const check = async (name, fn) => {
+    // since 1.2 Pandoc and the DjVu tools are optional Features: a slim copy without them skips the checks that need them
+    let tools = {}; try { tools = await mk.invoke('tools') || {}; } catch {}
+    const have = { pandoc: !!tools.pandoc, djvu: !!(tools.ddjvu && tools.pdf2djvu) };
+    const check = async (name, fn, needs) => {
+      if (needs && !have[needs]) { results.push({ name: 'e2e: ' + name, ok: true, skipped: `${needs} is not installed (optional feature)` }); return; }
       try { await fn(); results.push({ name: 'e2e: ' + name, ok: true }); }
       catch (e) { results.push({ name: 'e2e: ' + name, ok: false, error: String(e && e.stack || e) }); }
     };
@@ -218,7 +227,7 @@ print("hello")
       const d = await open('smoke.docx');
       A(d.kind === 'markdown' && d.convertedFrom === 'docx', 'converted docx: ' + d.kind + ' ' + d.convertedFrom);
       A(/\$/.test(d.text) && /title:\s*Smoke Test Paper/.test(d.text), 'math and front matter came back');
-    });
+    }, 'pandoc');
     await check('Pandoc exports expand math macros and turn callouts and diagrams into plain content', async () => {
       const tex = await mk.invoke('read-text', joinPath(outDir, 'smoke.tex'));
       A(!/\[!NOTE\]|\{\[\}!NOTE/.test(tex), 'no literal [!NOTE] in LaTeX');
@@ -228,7 +237,7 @@ print("hello")
       A(!/\[!NOTE\]/.test(d.text) && !/flowchart LR/.test(d.text), 'DOCX has no callout marker or diagram code');
       const txt = await mk.invoke('read-text', joinPath(outDir, 'smoke.txt'));
       A(/\(1\.1\)/.test(txt.split('Data')[0]), 'plain text keeps the equation number next to the equation');
-    });
+    }, 'pandoc');
     await check('EPUB opens once (no repeated title page)', async () => {
       const d = await open('smoke.epub');
       A(d.kind === 'markdown', 'markdown');
@@ -236,7 +245,7 @@ print("hello")
     });
     await check('ODT, RTF and LaTeX open through Pandoc', async () => {
       for (const f of ['smoke.odt', 'smoke.rtf', 'smoke.tex']) { const d = await open(f); A(d.kind === 'markdown' && d.convertedFrom && /Introduction/.test(d.text), f); }
-    });
+    }, 'pandoc');
     await check('PDF opens in the viewer with its properties', async () => {
       const d = await open('smoke.pdf');
       A(d.kind === 'pdf' && d.readOnly, 'pdf viewer doc');
@@ -251,7 +260,7 @@ print("hello")
       // ddjvu runs twice (a small first page, then the page at screen resolution); give a busy machine time
       for (let t = 0; t < 60 && !document.querySelector('#editorHost img'); t++) await sleep(250);
       A(document.querySelector('#editorHost img'), 'a DjVu page image is shown; ' + hostState());
-    });
+    }, 'djvu');
     await check('closing without saving keeps a recovery copy', async () => {
       const d = app.docs.create({ title: 'Recovery e2e', text: '# Keep me\n\nUnsaved words.' });
       d.setText(d.text + '\nMore.', 'test');
@@ -407,7 +416,7 @@ print("hello")
   boot().catch(e => {
     console.error('boot failed', e);
     booted = true;
-    if (!app.docs.list().length) try { app.docs.create({ title: 'Untitled' }); } catch {}
+    if (!app.docs.list().length) try { app.docs.create({ title: app.t('Untitled') }); } catch {}
     app.events.emit('ready'); resolveBoot();
   });
 })();

@@ -1,0 +1,38 @@
+/* Markooj — Insert → Date & time dialog (src/dates.js) */
+.mk-dt { display: grid; grid-template-columns: 252px 1fr; gap: 20px; align-items: start; }
+.mk-dt-cal { background: var(--surface, #fff); border: .5px solid var(--line-2, rgba(0,0,0,.12)); border-radius: 12px; padding: 10px 10px 8px; }
+.mk-dt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.mk-dt-head b { font: 600 13px var(--font); }
+.mk-dt-nav { width: 28px; height: 26px; border-radius: 7px; border: 0; background: none; color: var(--text-2); font: 17px/1 var(--font); transition: background .15s, color .15s; }
+.mk-dt-nav:hover, .mk-dt-nav:focus-visible { background: var(--hover); color: var(--text); outline: none; }
+.mk-dt-week, .mk-dt-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.mk-dt-week span { text-align: center; font-size: 10.5px; color: var(--text-3); padding: 2px 0 4px; }
+.mk-dt-d { height: 30px; border: 0; border-radius: 8px; background: none; color: var(--text); font: 12.5px var(--font); transition: background .12s, color .12s, transform .1s var(--ease); }
+.mk-dt-d:hover { background: var(--hover); }
+.mk-dt-d:active { transform: scale(.94); }
+.mk-dt-d.out { color: var(--text-3); }
+.mk-dt-d.today { box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent); font-weight: 600; }
+.mk-dt-d.on { background: var(--accent); color: #fff; box-shadow: none; }
+.mk-dt-d:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+.mk-dt-foot { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.mk-dt-foot .mk-btn { height: 26px; padding: 0 10px; font-size: 12px; }
+.mk-dt-hj { font-size: 11.5px; color: var(--text-2); }
+.mk-dt-side { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.mk-dt-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-2); }
+.mk-dt-lbl { width: 92px; flex: none; }
+.mk-dt-row select { height: 28px; border-radius: 8px; border: .5px solid var(--line-2); background: var(--surface); color: var(--text); padding: 0 8px; font: 12.5px var(--font); min-width: 0; flex: 1; }
+.mk-dt-list { display: flex; flex-direction: column; gap: 1px; max-height: 236px; overflow: auto; border: .5px solid var(--line-2); border-radius: 10px; padding: 3px; background: var(--surface); }
+.mk-dt-opt { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; cursor: pointer; transition: background .12s; }
+.mk-dt-opt:hover { background: var(--hover); }
+.mk-dt-opt.on { background: var(--accent-soft); }
+.mk-dt-opt input { accent-color: var(--accent); margin: 0; }
+.mk-dt-ex { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext; text-align: match-parent; }
+.mk-dt-opt small { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.mk-dt-custom { display: flex; flex-direction: column; gap: 4px; }
+.mk-dt-custom[hidden], .mk-dt-row[hidden], .mk-dt-note[hidden] { display: none; }
+.mk-dt-custom input { height: 30px; border-radius: 8px; border: .5px solid var(--line-2); background: var(--surface); color: var(--text); padding: 0 10px; font: 13px var(--mono); }
+.mk-dt-custom input:focus { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+.mk-dt-custom small, .mk-dt-note { font-size: 11px; color: var(--text-3); margin: 0; line-height: 1.4; }
+.mk-dt-preview { min-height: 34px; display: flex; align-items: center; padding: 6px 12px; border-radius: 9px; background: var(--accent-soft); color: var(--text); font: 15px var(--serif, Georgia, serif); unicode-bidi: plaintext; }
+.mk-dt-optrow .mk-btn { white-space: nowrap; }
+@media (max-width: 720px) { .mk-dt { grid-template-columns: 1fr; } }

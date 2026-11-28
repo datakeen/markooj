@@ -1,15 +1,25 @@
 name: Build installers
 run-name: "Build installers · ${{ github.ref_name }}"
 
-# Push a tag such as v1.1.0 to build Markooj for Windows, macOS (Apple chip and Intel) and Linux and publish
+# Push a tag such as v1.2.0 to build Markooj for Windows, macOS (Apple chip and Intel) and Linux and publish
 # them as a GitHub Release for that tag. "Run workflow" (on a branch) builds the same files and keeps them with
 # the run (Summary → Artifacts) without making a release; run it on a tag to (re)make that tag's release.
 #
 # Files (the website and README link to these exact names):
-#   Markooj-<ver>-win-x64-setup.exe        Markooj-<ver>-win-x64-portable.zip
+#   Markooj-<ver>-win-x64-setup.exe        Markooj-<ver>-win-x64-portable.zip  (full: every feature included, offline)
 #   Markooj-<ver>-mac-arm64.dmg            Markooj-<ver>-mac-x64.dmg
 #   Markooj-<ver>-linux-x86_64.AppImage    Markooj-<ver>-linux-amd64.deb     Markooj-<ver>-linux-x64.tar.gz
 #   Markooj-<ver>-third-party-sources.zip  Markooj-<ver>-SHA256SUMS.txt
+#
+# Optional features (since 1.2; main-features.js downloads them when someone wants them):
+#   markooj-feature-pandoc-<v>-<platform>.zip   win32-x64, darwin-arm64, darwin-x64, linux-x64
+#   markooj-feature-djvu-<v>-win32-x64.zip      DjVuLibre + pdf2djvu (macOS/Linux use Homebrew or apt)
+#   markooj-feature-python-<v>-any.zip          Pyodide (Python macros), every platform
+#   markooj-features.json                       the list: version, size, installed size and SHA-256 per platform
+# Each build job makes the features of its platform (scripts/make-features.js) and packs its list into the app as
+# build/features-manifest.json, so the app checks every download against the SHA-256 it shipped with. The zips are
+# deterministic (same input, same bytes). The release job merges the lists and uploads everything to the version's
+# release AND to the stable release `tools` (never "latest"), so a copy whose own release lacks a file still finds it.
 #
 # Nothing is code-signed: Windows SmartScreen and macOS Gatekeeper ask once before the first start.
 on:
@@ -29,12 +39,14 @@ env:
   # scripts/fetch-tools.js asks the GitHub API for Pandoc's release digests; the token avoids rate limits
   GITHUB_TOKEN: ${{ github.token }}
   NODE_VERSION: 22
+  # the release that carries the feature files of this build (a branch build points at v<version>)
+  FEATURES_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
 
 jobs:
   windows:
-    name: Windows (installer + portable zip)
+    name: Windows (installer + full portable zip + features)
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -55,8 +67,17 @@ jobs:
         shell: bash
         run: test -f data/thesaurus-en.json || node scripts/make-thesaurus.js
 
-      - name: Build installer and portable zip
-        run: npm run dist:win
+      - name: Build the Windows features (Pandoc, DjVu tools, Python macros) and pack their list into the app
+        shell: bash
+        run: |
+          TAG="${FEATURES_TAG:-v$(node -p "require('./package.json').version")}"
+          node scripts/make-features.js --platform=win32 --out=dist/features --tag="$TAG"
+          node scripts/make-features.js --python --out=dist/features --tag="$TAG"
+          node scripts/make-features.js --embed --nsh --out=dist/features
+          cp dist/features/markooj-features.json dist/features/markooj-features-win32.json
+
+      - name: Build the installer (slim) and the portable zip (full)
+        run: npx electron-builder --win nsis zip --x64 --publish never
 
       - name: Pack the third-party sources
         shell: pwsh
@@ -68,10 +89,11 @@ jobs:
         shell: bash
         run: |
           V=$(node -p "require('./package.json').version")
-          ls -la dist
+          ls -la dist dist/features
           for f in "Markooj-$V-win-x64-setup.exe" "Markooj-$V-win-x64-portable.zip" "Markooj-$V-third-party-sources.zip"; do
             test -f "dist/$f" || { echo "::error::Expected dist/$f was not built"; exit 1; }
           done
+          ls dist/features/markooj-feature-pandoc-*-win32-x64.zip dist/features/markooj-feature-djvu-*-win32-x64.zip dist/features/markooj-feature-python-*-any.zip
 
       - name: Keep the files with this run
         uses: actions/upload-artifact@v4
@@ -81,6 +103,8 @@ jobs:
             dist/Markooj-*-win-x64-setup.exe
             dist/Markooj-*-win-x64-portable.zip
             dist/Markooj-*-third-party-sources.zip
+            dist/features/markooj-feature-*.zip
+            dist/features/markooj-features-win32.json
           if-no-files-found: error
           retention-days: 14
 
@@ -111,21 +135,34 @@ jobs:
       - name: Make the thesaurus data if it is missing
         run: test -f data/thesaurus-en.json || node scripts/make-thesaurus.js
 
-      - name: Fetch Pandoc and build the disk image
-        run: npm run dist:mac:${{ matrix.arch }}
+      - name: Build the Pandoc and Python features and pack their list into the app
+        run: |
+          TAG="${FEATURES_TAG:-v$(node -p "require('./package.json').version")}"
+          node scripts/fetch-tools.js --platform=darwin --arch=${{ matrix.arch }} --only=pandoc
+          node scripts/make-features.js --platform=darwin --arch=${{ matrix.arch }} --out=dist/features --tag="$TAG"
+          node scripts/make-features.js --python --out=dist/features --tag="$TAG"
+          node scripts/make-features.js --embed --out=dist/features
+          cp dist/features/markooj-features.json dist/features/markooj-features-darwin-${{ matrix.arch }}.json
+
+      - name: Build the disk image (slim, features download when wanted)
+        run: npx electron-builder --mac dmg --${{ matrix.arch }} --publish never
 
       - name: Check the file names
         run: |
           V=$(node -p "require('./package.json').version")
-          ls -la dist
+          ls -la dist dist/features
           f="Markooj-$V-mac-${{ matrix.arch }}.dmg"
           test -f "dist/$f" || { echo "::error::Expected dist/$f was not built"; exit 1; }
+          ls dist/features/markooj-feature-pandoc-*-darwin-${{ matrix.arch }}.zip
 
       - name: Keep the files with this run
         uses: actions/upload-artifact@v4
         with:
           name: markooj-mac-${{ matrix.arch }}
-          path: dist/Markooj-*-mac-${{ matrix.arch }}.dmg
+          path: |
+            dist/Markooj-*-mac-${{ matrix.arch }}.dmg
+            dist/features/markooj-feature-*.zip
+            dist/features/markooj-features-darwin-${{ matrix.arch }}.json
           if-no-files-found: error
           retention-days: 14
 
@@ -149,16 +186,26 @@ jobs:
       - name: Make the thesaurus data if it is missing
         run: test -f data/thesaurus-en.json || node scripts/make-thesaurus.js
 
-      - name: Fetch Pandoc and build the packages
-        run: npm run dist:linux
+      - name: Build the Pandoc and Python features and pack their list into the app
+        run: |
+          TAG="${FEATURES_TAG:-v$(node -p "require('./package.json').version")}"
+          node scripts/fetch-tools.js --platform=linux --arch=x64 --only=pandoc
+          node scripts/make-features.js --platform=linux --arch=x64 --out=dist/features --tag="$TAG"
+          node scripts/make-features.js --python --out=dist/features --tag="$TAG"
+          node scripts/make-features.js --embed --out=dist/features
+          cp dist/features/markooj-features.json dist/features/markooj-features-linux-x64.json
+
+      - name: Build the packages (slim, features download when wanted)
+        run: npx electron-builder --linux AppImage deb tar.gz --x64 --publish never
 
       - name: Check the file names
         run: |
           V=$(node -p "require('./package.json').version")
-          ls -la dist
+          ls -la dist dist/features
           for f in "Markooj-$V-linux-x86_64.AppImage" "Markooj-$V-linux-amd64.deb" "Markooj-$V-linux-x64.tar.gz"; do
             test -f "dist/$f" || { echo "::error::Expected dist/$f was not built"; exit 1; }
           done
+          ls dist/features/markooj-feature-pandoc-*-linux-x64.zip
 
       - name: Keep the files with this run
         uses: actions/upload-artifact@v4
@@ -168,6 +215,8 @@ jobs:
             dist/Markooj-*-linux-x86_64.AppImage
             dist/Markooj-*-linux-amd64.deb
             dist/Markooj-*-linux-x64.tar.gz
+            dist/features/markooj-feature-*.zip
+            dist/features/markooj-features-linux-x64.json
           if-no-files-found: error
           retention-days: 14
 
@@ -176,7 +225,7 @@ jobs:
     needs: [windows, macos, linux]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: write
     env:
@@ -186,12 +235,25 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
       - name: Collect the files
         uses: actions/download-artifact@v4
         with:
           path: dist
           pattern: markooj-*
           merge-multiple: true
+
+      - name: Merge the feature lists
+        run: |
+          # the artifacts keep their folder: dist/features/…
+          ls -la dist dist/features
+          node scripts/make-features.js --merge-dir=dist/features --out=dist/features --tag="$TAG"
+          mv dist/features/markooj-feature-*.zip dist/features/markooj-features.json dist/
+          rm -f dist/features/markooj-features-*.json
 
       - name: Check the version and every file
         run: |
@@ -205,11 +267,20 @@ jobs:
             "Markooj-$V-win-x64-setup.exe" "Markooj-$V-win-x64-portable.zip" \
             "Markooj-$V-mac-arm64.dmg" "Markooj-$V-mac-x64.dmg" \
             "Markooj-$V-linux-x86_64.AppImage" "Markooj-$V-linux-amd64.deb" "Markooj-$V-linux-x64.tar.gz" \
-            "Markooj-$V-third-party-sources.zip"; do
+            "Markooj-$V-third-party-sources.zip" "markooj-features.json"; do
             if [ -f "dist/$f" ]; then echo "found   $f"; else echo "::error::Missing $f"; missing=1; fi
           done
+          for p in pandoc-*-win32-x64 pandoc-*-darwin-arm64 pandoc-*-darwin-x64 pandoc-*-linux-x64 djvu-*-win32-x64 python-*-any; do
+            if ls dist/markooj-feature-$p.zip >/dev/null 2>&1; then echo "found   markooj-feature-$p.zip"; else echo "::error::Missing feature markooj-feature-$p.zip"; missing=1; fi
+          done
           [ "$missing" = 0 ] || exit 1
-          (cd dist && sha256sum Markooj-* > "Markooj-$V-SHA256SUMS.txt" && cat "Markooj-$V-SHA256SUMS.txt")
+          # every feature zip matches the list
+          node -e "
+            const fs=require('fs'),c=require('crypto');const m=JSON.parse(fs.readFileSync('dist/markooj-features.json','utf8'));let bad=0;
+            for(const[id,f]of Object.entries(m.features))for(const[k,e]of Object.entries(f.files)){const b=fs.readFileSync('dist/'+e.file);const h=c.createHash('sha256').update(b).digest('hex');
+              if(h!==e.sha256||b.length!==e.size){console.log('::error::'+e.file+' does not match markooj-features.json');bad=1;}else console.log('checked',e.file);}
+            process.exit(bad);"
+          (cd dist && sha256sum Markooj-* markooj-feature* > "Markooj-$V-SHA256SUMS.txt" && cat "Markooj-$V-SHA256SUMS.txt")
           echo "VERSION=$V" >> "$GITHUB_ENV"
 
       - name: Write the release notes
@@ -226,14 +297,23 @@ jobs:
             echo "| System | File |"
             echo "|---|---|"
             echo "| Windows 10 and 11 (installer) | [Markooj-$VERSION-win-x64-setup.exe](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-win-x64-setup.exe) |"
-            echo "| Windows (portable, unzip and run) | [Markooj-$VERSION-win-x64-portable.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-win-x64-portable.zip) |"
+            echo "| Windows (portable, full and offline: unzip and run) | [Markooj-$VERSION-win-x64-portable.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-win-x64-portable.zip) |"
             echo "| macOS, Apple chip (M1 and later) | [Markooj-$VERSION-mac-arm64.dmg](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-mac-arm64.dmg) |"
             echo "| macOS, Intel | [Markooj-$VERSION-mac-x64.dmg](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-mac-x64.dmg) |"
             echo "| Linux (AppImage) | [Markooj-$VERSION-linux-x86_64.AppImage](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-linux-x86_64.AppImage) |"
             echo "| Debian, Ubuntu | [Markooj-$VERSION-linux-amd64.deb](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-linux-amd64.deb) |"
             echo "| Linux (tar.gz) | [Markooj-$VERSION-linux-x64.tar.gz](https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Markooj-$VERSION-linux-x64.tar.gz) |"
             echo
-            echo "The copies are not code-signed. Windows may show \"Windows protected your PC\": choose More info, then Run anyway. On macOS, open the app once from Finder with right-click → Open (or System Settings → Privacy & Security → Open Anyway). On macOS and Linux, Pandoc is included; for DjVu files install the DjVu tools: \`brew install djvulibre pdf2djvu\` or \`sudo apt install djvulibre-bin pdf2djvu\`."
+            echo "The copies are not code-signed. Windows may show \"Windows protected your PC\": choose More info, then Run anyway. On macOS, open the app once from Finder with right-click → Open (or System Settings → Privacy & Security → Open Anyway)."
+            echo
+            echo "### Optional features"
+            echo
+            echo "Markooj installs small. Pandoc (more file formats), the DjVu tools and Python macros download when you want them: in the Windows installer, on the Welcome screen, or any time from File → Options → Features. On a computer without internet, download the files below and choose **Install from file…**, or use the Windows portable zip, which includes everything. On macOS and Linux, install the DjVu tools with \`brew install djvulibre pdf2djvu\` or \`sudo apt install djvulibre-bin pdf2djvu\`."
+            echo
+            node -e "
+              const m=require('./dist/markooj-features.json');const mb=n=>Math.max(1,Math.round(n/1048576))+' MB';
+              console.log('| Feature | System | File | Download | On disk |');console.log('|---|---|---|---|---|');
+              for(const[id,f]of Object.entries(m.features))for(const[k,e]of Object.entries(f.files))console.log('| '+f.name+' '+f.version+' | '+k+' | ['+e.file+'](https://github.com/'+process.env.GITHUB_REPOSITORY+'/releases/download/'+process.env.TAG+'/'+e.file+') | '+mb(e.size)+' | '+mb(e.installedSize)+' |');"
             echo
             echo "Third-party source code (Pandoc, DjVuLibre, pdf2djvu): Markooj-$VERSION-third-party-sources.zip. Checksums: Markooj-$VERSION-SHA256SUMS.txt."
             if [ -s section.md ]; then
@@ -249,9 +329,28 @@ jobs:
           PRE=""
           case "$TAG" in *-*) PRE="--prerelease";; esac
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/Markooj-* --clobber
+            gh release upload "$TAG" dist/Markooj-* dist/markooj-feature-*.zip dist/markooj-features.json --clobber
             gh release edit "$TAG" --title "Markooj $VERSION" --notes-file notes.md --draft=false $PRE
           else
-            gh release create "$TAG" dist/Markooj-* --verify-tag --title "Markooj $VERSION" \
+            gh release create "$TAG" dist/Markooj-* dist/markooj-feature-*.zip dist/markooj-features.json --verify-tag --title "Markooj $VERSION" \
               --notes-file notes.md --generate-notes $PRE
           fi
+
+      - name: Put the features on the stable "tools" release too
+        # The app falls back to https://github.com/<repo>/releases/download/tools/<file> when its own release lacks a
+        # file. The zips are deterministic, so the same name always holds the same bytes; markooj-features.json there
+        # describes the newest release (a stable release only; pre-releases leave it alone).
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: |
+          if ! gh release view tools >/dev/null 2>&1; then
+            gh release create tools --title "Markooj features" --latest=false \
+              --notes "Optional Markooj features (Pandoc, DjVu tools, Python macros) for every Markooj version since 1.2. Markooj downloads them from here when its own release does not have them. Install them from File → Options → Features; to install by hand, download the zip for your system and choose Install from file… there."
+          fi
+          # a zip already there stays as it is: older Markooj copies checked its SHA-256 when they were built, so its
+          # bytes must never change (this release's own copy of every zip is on its own release above)
+          have=$(gh release view tools --json assets --jq '.assets[].name')
+          for f in dist/markooj-feature-*.zip; do
+            n=$(basename "$f")
+            if printf '%s\n' "$have" | grep -qxF "$n"; then echo "kept    $n (already on tools)"; else gh release upload tools "$f"; echo "added   $n"; fi
+          done
+          gh release upload tools dist/markooj-features.json --clobber

@@ -1,0 +1,23 @@
+/* Markooj — missing-picture card (src/pictures.js). Never printed or exported. */
+img.mk-pic-gone{display:none!important}
+.mk-pic-missing{display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:100%;box-sizing:border-box;margin:6px 0;padding:10px 12px;border:1px dashed var(--border-strong,rgba(128,128,128,.55));border-radius:10px;background:var(--surface-2,rgba(120,120,128,.07));color:var(--text,inherit);font:13px/1.45 var(--font,system-ui,sans-serif);text-align:start;user-select:none;cursor:default;white-space:normal;vertical-align:middle}
+td .mk-pic-missing,th .mk-pic-missing,li .mk-pic-missing{display:inline-flex;margin:2px 0}
+td .mk-pic-missing,th .mk-pic-missing{padding:6px 8px;gap:6px;font-size:12px;border-radius:8px}
+td .mk-pic-missing .mk-pic-ic,th .mk-pic-missing .mk-pic-ic{display:none}
+td .mk-pic-alt,th .mk-pic-alt{display:none}
+td .mk-pic-t,th .mk-pic-t{flex-basis:140px}
+.mk-pic-ic{flex:none;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:var(--accent-soft,rgba(10,102,255,.1));color:var(--accent,#0a66ff)}
+.mk-pic-ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.mk-pic-t{flex:1 1 220px;min-width:0}
+.mk-pic-t code{font:12px var(--mono,ui-monospace,Consolas,monospace);overflow-wrap:anywhere;background:none;padding:0;color:var(--text-2,inherit)}
+.mk-pic-alt{display:block;margin-top:2px;font-size:12px;color:var(--text-3,#6e6e73)}
+.mk-pic-acts{display:inline-flex;gap:6px;flex:none}
+.mk-pic-btn{font:12px var(--font,system-ui,sans-serif);padding:4px 10px;border-radius:6px;border:1px solid var(--border,rgba(128,128,128,.4));background:var(--surface,#fff);color:var(--text,inherit);cursor:pointer}
+.mk-pic-btn.primary{background:var(--accent,#0a66ff);border-color:var(--accent,#0a66ff);color:#fff}
+.mk-pic-btn:hover{filter:brightness(1.05)}
+.mk-pic-btn:focus-visible{outline:2px solid var(--accent,#0a66ff);outline-offset:2px}
+body.mode-read .mk-pic-missing{border-style:solid}
+.mk-pic-list .mk-pic-lead{margin:0 0 10px;color:var(--text-2,inherit);font-size:13px}
+.mk-pic-list .mk-pic-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--border,rgba(128,128,128,.25))}
+.mk-pic-list .mk-pic-row code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+@media print{.mk-pic-missing{display:none!important}}

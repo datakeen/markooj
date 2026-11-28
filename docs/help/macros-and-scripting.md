@@ -88,7 +88,7 @@ The **Print all command ids** button in the editor's API reference prints every 
 
 ### Python notes
 
-- Python 3 runs right inside Markooj (Pyodide). The standard library works: `re`, `math`, `statistics`, `datetime`, `json`, `collections` and the rest. Extra packages cannot be installed.
+- Python 3 runs right inside Markooj (Pyodide). Python macros are an optional feature (about 6 MB to download): install them from **File → Options → Features**, or just run a Python macro and Markooj offers to install it. The Windows portable zip already includes it. The standard library works: `re`, `math`, `statistics`, `datetime`, `json`, `collections` and the rest. Extra packages cannot be installed.
 - The first Python run of a session takes a few seconds while Python starts. File → Options → Developer can start it in the background when Markooj opens.
 - `ui.prompt` and `ui.confirm` wait for the answer where your system allows it; `await ui.prompt_async(...)` and `await ui.confirm_async(...)` always work.
 

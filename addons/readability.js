@@ -69,13 +69,14 @@ function stats(md) {
   return { sentences: sentences.length, words, syllables: syl, complex, ease: Math.round(ease), grade: Math.max(0, Math.round(grade * 10) / 10), avg: Math.round((wc / sc) * 10) / 10, long };
 }
 function label(ease) {
-  if (ease >= 90) return 'Very easy';
-  if (ease >= 80) return 'Easy';
-  if (ease >= 70) return 'Fairly easy';
-  if (ease >= 60) return 'Plain English';
-  if (ease >= 50) return 'Fairly difficult';
-  if (ease >= 30) return 'Difficult';
-  return 'Very difficult';
+  // interface text goes through app.t (docs/I18N.md), so the add-in follows Markooj's interface language
+  if (ease >= 90) return app.t('Very easy');
+  if (ease >= 80) return app.t('Easy');
+  if (ease >= 70) return app.t('Fairly easy');
+  if (ease >= 60) return app.t('Plain English');
+  if (ease >= 50) return app.t('Fairly difficult');
+  if (ease >= 30) return app.t('Difficult');
+  return app.t('Very difficult');
 }
 
 // ---- long-sentence highlighting (no DOM changes, so Word mode is safe) ----
@@ -133,8 +134,8 @@ app.status.addItem({
     const b = document.createElement('button');
     b.className = 'sb';
     b.style.cssText = 'border:0;background:none;font:inherit;color:inherit';
-    b.title = `Flesch reading ease ${lastStats.ease} (${label(lastStats.ease)}), grade ${lastStats.grade}. Click for the report.`;
-    b.textContent = `Reading ease ${lastStats.ease}`;
+    b.title = app.t('Flesch reading ease {ease} ({label}), grade {grade}. Click for the report.', { ease: lastStats.ease, label: label(lastStats.ease), grade: lastStats.grade });
+    b.textContent = app.t('Reading ease {ease}', { ease: lastStats.ease });
     b.addEventListener('click', () => app.commands.run('readability.report'));
     el.append(b);
   },
@@ -142,43 +143,44 @@ app.status.addItem({
 
 // ---- commands + ribbon ----
 app.commands.register('readability.report', {
-  label: 'Readability report',
+  label: app.tm('Readability report'),
   icon: 'spell',
   run: async () => {
     const d = app.docs.active();
-    if (!d || d.kind !== 'markdown') { app.ui.toast('Open a Markdown document first.'); return; }
+    if (!d || d.kind !== 'markdown') { app.ui.toast(app.t('Open a Markdown document first.')); return; }
     const s = stats(d.text);
     const esc = app.esc;
-    const longList = s.long.slice(0, 12).map(x => `<li>${esc(x.text.length > 180 ? x.text.slice(0, 180) + '…' : x.text)} <b>(${x.words} words)</b></li>`).join('');
+    const num = n => (app.i18n ? app.i18n.number(n) : n.toLocaleString('en-US'));
+    const longList = s.long.slice(0, 12).map(x => `<li>${esc(x.text.length > 180 ? x.text.slice(0, 180) + '…' : x.text)} <b>${app.th('({count} words)', { count: x.words })}</b></li>`).join('');
     const body = `<div class="mk-ra-grid">
-        <span>Reading ease (Flesch)</span><b>${s.ease} · ${label(s.ease)}</b>
-        <span>Grade level (Flesch–Kincaid)</span><b>${s.grade}</b>
-        <span>Words · sentences</span><b>${s.words.toLocaleString('en-US')} · ${s.sentences.toLocaleString('en-US')}</b>
-        <span>Average sentence</span><b>${s.avg} words</b>
-        <span>Words with 3+ syllables</span><b>${s.words ? Math.round((s.complex / s.words) * 100) : 0}%</b>
+        <span>${app.th('Reading ease (Flesch)')}</span><b>${esc(num(s.ease))} · ${esc(label(s.ease))}</b>
+        <span>${app.th('Grade level (Flesch–Kincaid)')}</span><b>${esc(num(s.grade))}</b>
+        <span>${app.th('Words · sentences')}</span><b>${esc(num(s.words))} · ${esc(num(s.sentences))}</b>
+        <span>${app.th('Average sentence')}</span><b>${app.th('{count} words', { count: s.avg })}</b>
+        <span>${app.th('Words with 3+ syllables')}</span><b>${esc(app.i18n ? app.i18n.percent(s.words ? s.complex / s.words : 0, { maximumFractionDigits: 0 }) : (s.words ? Math.round((s.complex / s.words) * 100) : 0) + '%')}</b>
       </div>
-      <div style="font-size:12.5px;color:var(--text-2)">Research writing usually scores 10–40. Shorter sentences and plainer words raise the score.</div>
-      ${s.long.length ? `<div style="margin-top:12px;font-weight:600">${s.long.length} sentence${s.long.length === 1 ? '' : 's'} longer than ${LONG_WORDS} words</div><ol class="mk-ra-list">${longList}</ol>` : '<div style="margin-top:12px">No sentences longer than 30 words.</div>'}`;
-    const v = await app.ui.dialog({ title: 'Readability', body, buttons: [{ label: highlightOn ? 'Hide long sentences' : 'Highlight long sentences', value: 'hl' }, { label: 'Done', value: 'ok', primary: true }] });
+      <div style="font-size:12.5px;color:var(--text-2)">${app.th('Research writing usually scores 10–40. Shorter sentences and plainer words raise the score.')}</div>
+      ${s.long.length ? `<div style="margin-top:12px;font-weight:600">${app.th('{count} sentences longer than {limit} words', { count: s.long.length, limit: LONG_WORDS })}</div><ol class="mk-ra-list">${longList}</ol>` : `<div style="margin-top:12px">${app.th('No sentences longer than {limit} words.', { limit: LONG_WORDS })}</div>`}`;
+    const v = await app.ui.dialog({ title: app.t('Readability'), body, buttons: [{ label: highlightOn ? app.t('Hide long sentences') : app.t('Highlight long sentences'), value: 'hl' }, { label: app.t('Done'), value: 'ok', primary: true }] });
     if (v === 'hl') app.commands.run('readability.highlight');
   },
 });
 app.commands.register('readability.highlight', {
-  label: 'Highlight long sentences',
+  label: app.tm('Highlight long sentences'),
   icon: 'hl',
   isActive: () => highlightOn,
   run: () => {
     highlightOn = !highlightOn;
     app.settings.set(settingKey, highlightOn);
     applyHighlights();
-    app.ui.toast(highlightOn ? `Long sentences (over ${LONG_WORDS} words) are highlighted.` : 'Long-sentence highlighting is off.');
+    app.ui.toast(highlightOn ? app.t('Long sentences (over {limit} words) are highlighted.', { limit: LONG_WORDS }) : app.t('Long-sentence highlighting is off.'));
   },
 });
 app.ribbon.addGroup('addins', {
-  id: 'readability', label: 'Readability', order: 60,
+  id: 'readability', label: app.tm('Readability'), order: 60,
   items: [
-    { type: 'big', command: 'readability.report', label: 'Readability', icon: 'spell' },
-    { type: 'big', command: 'readability.highlight', label: 'Long sentences', icon: 'hl' },
+    { type: 'big', command: 'readability.report', label: app.tm('Readability'), icon: 'spell' },
+    { type: 'big', command: 'readability.highlight', label: app.tm('Long sentences'), icon: 'hl' },
   ],
 });
 if (app.docs.active()) recompute();

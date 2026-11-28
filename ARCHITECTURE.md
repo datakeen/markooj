@@ -728,3 +728,429 @@ compareVersions, cards, highlights, highlightsFor(v), sample: {available, open},
 - Every release needs a `HIGHLIGHTS` entry for its version in src/welcome.js (a smoke test fails as the reminder).
 - New tour `citations` ("Citations from a BibTeX library", command `tour.citations`).
 - `scripts/make-store-images.js` writes `welcome.seenVersion` so What's new never covers the store screenshots.
+
+## Round 5 additions (1.2.0)
+
+PLAN-v5 items 60–82: optional Features and a smaller install, Split / Side by Side / New Window and the ruler, typing aids, writing
+quality, tables with Office, numbering in tables, pictures from other editors, in-app keyboards and aarab, the livelier website.
+
+### New files and owners
+
+| File | Owner | Purpose |
+|---|---|---|
+| `main-features.js` | **install** | Optional Features in main: catalog, download list (manifest), download (SHA-256, progress, cancel), streaming safe unzip, install/remove, tool lookup bases, Pyodide over markooj://, first-run.json |
+| `src/features.js`, `src/features.css` | **install** | `app.features`: File → Options → Features, progress card, Welcome step, first-run handling, commands, Help tab button |
+| `scripts/make-features.js` | **install** | Deterministic feature zips and `markooj-features.json` (`--platform/--arch, --python, --embed, --nsh, --merge-dir, --sizes`) |
+| `scripts/after-pack.js` | **install** | electron-builder `afterPack`: removes `dxcompiler.dll` / `dxil.dll` on Windows (`MARKOOJ_KEEP_DXC=1` keeps them) |
+| `build/installer.nsh` | **install** | NSIS include: language page, features page, silent options, writes first-run.json, removes features on full uninstall (UTF-8 with BOM) |
+| `build/portable-zip.js` | **install** | Puts portable.txt, `resources/vendor` and `resources/pyodide` into the Windows portable zip (the full offline copy); fails under `CI=true` when vendor/win32 is missing |
+| `main-windows.js` | **windows** | Second and later windows and the IPC that links documents between windows; `require('./main-windows')(ctx)` |
+| `src/windows.js` | **windows** | `app.windows`: linked documents, New Window, Open in New Window, Arrange All, Switch Windows, next/previous window |
+| `src/split-view.js`, `src/split-view.css` | **windows** | `app.split`: Split, View Side by Side, Synchronous Scrolling, View → Window group, Options section `window` |
+| `src/ruler.js`, `src/ruler.css` | **windows** | `app.ruler`: canvas rulers and guides |
+| `src/typing-aids.js`, `src/typing-aids.css` | **typing** | `app.typingAids`: auto-pairing, slash commands, Ctrl+A scoping, Paste as plain text, Options switches |
+| `src/dates.js`, `src/dates.css` | **typing** | `app.dates`: Date & time dialog, formats, Hijri dates, date/time commands |
+| `src/multicursor.js` | **typing** | `app.multicursor`: several cursors in Simple mode's textarea |
+| `src/keyboards.js`, `src/keyboards.css` | **rtl** | `app.keyboards`: Urdu Phonetic (CRULP v1.1), Arabic 101, Persian Standard (ISIRI 9147), Punjabi Shahmukhi; status chip, on-screen keyboard, View → Keyboard |
+| `src/aarab.js` | **rtl** | `app.aarab`: remove/add aarab, Hide Aarab view, aarab from the word list, Home → Aarab group |
+| `src/pictures.js`, `src/pictures.css` | **tables** | `app.pictures`: picture paths from other editors, missing-picture card, Find Missing Pictures, picture paths for exports |
+| `data/words-technical-en.txt`, `data/places-en.txt`, `data/words-rank-en.txt` | **writing** | Domain word lists and English word-frequency tiers |
+| `scripts/make-word-ranks.js` | **writing** | Builds `data/words-rank-en.txt` from wordnet-db (not loaded by the app) |
+| `test/fixtures/clipboard/*` | **tables** | Clipboard HTML from Word, Excel, Google Sheets, LibreOffice (smoke tests only, not packaged) |
+| `site/fx.js`, `site/demo.js`, `site/vendor/`, `site/404.html` | **website** | Website effects, the "Try it" preview, vendored KaTeX/Marked/Mermaid, the 404 page |
+| `licenses/keyman-keyboards-LICENSE.txt` | **rtl** | MIT (SIL Global) for the Urdu Phonetic layout check |
+
+Script order in `src/index.html`: `… equation-editor.js, commands.js, typing-aids.js, dates.js, multicursor.js, viewers.js, … lang.js,
+keyboards.js, aarab.js, tables.js, pictures.js, word-keys.js, keytips.js, writing/*, help.js, tours.js, welcome.js, features.js,
+addin-store.js, windows.js, split-view.js, ruler.js, review3-tests.js, integration.js, app.js`. windows.js must load before app.js (its
+`request-close` listener runs first). CSS: `… lang.css, keyboards.css, tables.css, pictures.css, writing.css, help.css, tours.css,
+welcome.css, features.css, addin-store.css, split-view.css, ruler.css, typing-aids.css, dates.css`.
+
+main.js requires, after main-langpacks and main-addins: `main-features` (`FEATURES.init({smoke, tool, findTool, onToolsChanged})`) and
+`main-windows` (`ctx = {START_URL, APP_ROOT, SMOKE, getMain, setMain, bgColor, showContextMenu, saveRecovery({docId, path, title, text})}`,
+returns `{windows(), promote(closed), count(), createExtra(o)}`). Both are in package.json `build.files`.
+
+### Optional Features and a smaller install (item 64; owner install)
+
+- **Ids:** `pandoc` (tool pandoc), `djvu` (ddjvu, djvutxt, djvused, djvm, c44, pdf2djvu; win32-x64 only), `python` (Pyodide; platform `any`).
+  Platform keys `win32-x64`, `darwin-arm64`, `darwin-x64`, `linux-x64`, `any`.
+- **Folders:** `<userData>/features/<id>/<version>/` (portable copy: `data/` next to Markooj.exe). Registry `installed.json` =
+  `{format:1, features:{id:{version, installedAt, source:'download'|'file', sha256, size, file}}}`. Temporary `.downloads/*.part`,
+  `<id>/.staging-*`, `.trash-*`, cleaned 4 s after start. Install unpacks into staging and renames into place; Remove unregisters first.
+- **Feature zip:** `markooj-feature-<id>-<version>-<platform>.zip`; program files at vendor-relative paths (`pandoc/`, `djvulibre/`, `pdf2djvu/`,
+  `pyodide/`), plus `licenses/`, `SOURCE.txt`, `feature.json` = `{format:1, id, name, version, platform, license, installedSize, files, executables}`;
+  the djvu zip also carries `MANIFEST.json`. Unzip refuses absolute paths, drive letters, `..`, backslashes, device names, links, encryption,
+  zip64, duplicate names, oversize or mismatched entries, and checks CRC32. Limits: zip ≤ 400 MB, unpacked ≤ 900 MB, ≤ 20000 entries.
+- **Download list `markooj-features.json`** (format 1): `{format:1, updated, markooj, tag, features:{<id>:{name, license, version,
+  files:{<platform>:{file, size, sha256, installedSize, version}}}}}`. Read from the packaged `build/features-manifest.json` first, then
+  `releases/download/v<version>/`, `releases/download/tools/`, `releases/latest/download/`. Asset URL `releases/download/<tag>/<file>`, then
+  `releases/download/tools/<file>` (never taken from the list). Hosts: github.com and GitHub's release-asset hosts only, over Node https.
+- **IPC:** `features-list({refresh})` → `{platform, root, portable, manifest:{source:'built-in'|'online'|'test', tag, updated}|null,
+  downloadPage, features:[{id, name, what, powers[], without, license, homepage, tools[], platform, available, elsewhere, download,
+  installedSize, exact, version, state:'installed'|'included'|'system'|'available'|'unavailable'|'installing', installed:{version,
+  installedAt, source, size, dir}|null, foundAt, update, job}]}`; `features-install(id, {refresh})` → `{id, version, dir, source}`;
+  `features-install-file({file?, id?})` (null when the picker is closed); `features-remove(id)` → `{id, removed, cleaned}`;
+  `features-cancel(id?)` → count; `features-first-run()` → `{found, path, key, valid, language, features[], chose, errors[]}`;
+  `features-folder()`. Events `features-progress {id, name, phase:'manifest'|'download'|'verify'|'unpack'|'done'|'error'|'cancelled',
+  received, total, percent}`, `features-changed {id, installed}`. Smoke only: `features-test-setup|reset|fixtures|first-run|lookup|resolve|exists|ls`.
+- **Error codes** (all with actions and details): FEATURE_OFFLINE, FEATURE_DOWNLOAD, FEATURE_NOT_PUBLISHED, FEATURE_CHECK_FAILED,
+  FEATURE_UNSAFE, FEATURE_UNKNOWN_FILE, FEATURE_WRONG_FILE, FEATURE_UNAVAILABLE, FEATURE_CANCELLED, FEATURE_NO_FILE, FEATURE_UNKNOWN, ENOSPC.
+  New `app.health.runAction` ids: `install-feature {feature}`, `feature-from-file {feature}`, `open-features`.
+- **main.js hooks:** `findTool` looks in feature folders first (`{path, bundled:false, feature:id}`), then vendor, Program Files, PATH, system
+  dirs. `manifestBases()` = djvu feature folder + vendorBases. `bundleExpected()` is true only when `<resources>/vendor/MANIFEST.json` exists
+  (portable full copy) or vendor/win32 in a dev checkout. `tools-health` adds `tools[id].feature`. `toolRemedy` says "Install X from File →
+  Options → Features (N MB to download)…" with `actions[0] = {id:'install-feature', label:'Install X', feature}` when the feature can be
+  downloaded. `export-formats` `reason` = "Install Pandoc from File → Options → Features to use this" (same for the DjVu tools).
+  markooj:// `/node_modules/pyodide/*` → `FEATURES.resolveAppFile(rel)`: the feature folder, else the app, else `<resources>/pyodide`, else a
+  stand-in `pyodide.mjs` whose `loadPyodide()` calls `app.features.ensure('python')` and then imports the real file.
+- **`app.features`:** `list({refresh}), get(id), last(), install(id, {quiet, file, refresh, throw}) → Promise<boolean>, installMany(ids,
+  {background}), installFromFile(id?), remove(id, {confirm}), cancel(id?), ensure(id, {goal}) → Promise<boolean>, open(), forTool(toolId,
+  platform) → {id, name, available, download, downloadText}, welcomeStep(sheet), firstRun({test}), applyFirstRun(r, {list, install}),
+  progress:{show, hide, update, element}, sizeText(bytes, {exact}), jobs(), _test`. `app.firstRun = {language, features, chose, handled?}`.
+  Events `features:changed`, `features:installed {id, version}`, `features:removed {id}`, `features:progress`.
+- **Commands:** `features.open`, `features.installPandoc`, `features.installDjvu`, `features.installPython`, `features.installFromFile`,
+  `features.cancel` (dimmed while nothing downloads). No key binding. Ribbon: Help tab group `help-features` (order 35). Options section
+  `features` (order 27). welcome.js `render('welcome')` calls `app.features.welcomeStep(sheet)` (skipped when the installer already asked).
+- **Settings:** `uiLanguage` (set from first-run.json only when empty), `features.firstRunKey`, `features.welcomeDone`.
+- **first-run.json:** `<resources>/first-run.json` (or `$MARKOOJ_FIRST_RUN`): `{"language":"en|zh-CN|ur|ur-Latn|pnb|ja|ar|sv|es|fr|pt-BR",
+  "features":["pandoc","djvu","python"],"from":"installer","version":"x.y.z"}`; BOM, any case, comma strings and the aliases
+  pyodide→python, djvulibre→djvu accepted. Only features in state `available` are queued; downloads start 2.5 s after the check.
+- **NSIS:** `build.nsis.include = build/installer.nsh`. Pages: language (first), features (after the folder page), both skipped with
+  `--updated`, which also never writes first-run.json (an update cannot start downloads nobody chose). Silent `/LANGUAGE=<code>` and `/FEATURES=a,b` (no /FEATURES = no features). Pandoc checked by default; language follows
+  GetUserDefaultUILanguage. Sizes `MK_SIZE_PANDOC|DJVU|PYTHON` from `build/features-sizes.nsh`. customUnInstall removes
+  `$APPDATA\${PRODUCT_NAME}\features` unless `/KEEP_APP_DATA` or `--updated`.
+- **Packaging:** no `extraResources` vendor on any platform (slim everywhere; the portable zip adds them). `files` adds `main-features.js`,
+  `build/features-manifest.json` and node_modules exclusions (pyodide, dictionary-fa, Mermaid's ESM-only dependencies, extra builds of
+  MathLive, pdf.js, pdf-lib, highlight.js, KaTeX sources and ttf/woff fonts, `*.ts`, README/CHANGELOG). `electronLanguages`: en-US, zh-CN, ur,
+  ar, ja, sv, es, fr, pt-BR, fa. `afterPack: scripts/after-pack.js`. `build/features-manifest.json` and `build/features-sizes.nsh` are
+  generated in CI and git-ignored.
+- **Environment:** `MARKOOJ_FEATURES_DIR`, `MARKOOJ_FIRST_RUN`, `MARKOOJ_FEATURES_UNVERIFIED=1` (dev only), `MARKOOJ_KEEP_DXC=1`.
+- **Release workflow:** each build job runs fetch-tools, make-features (its platform + python), `--embed` (and `--nsh` on Windows), then
+  electron-builder, and uploads its zips and `markooj-features-<platform>.json`. The release job merges the lists (the Python zip must have the
+  same sha256 from every job), checks every zip, writes SHA256SUMS including the feature zips, adds a features table to the notes, and uploads
+  to vN and to a stable `tools` release (created once with `--latest=false`).
+
+### Windows, Split, View Side by Side and the ruler (items 72, 79, 80; owner windows)
+
+- **Second windows:** `markooj://app/src/index.html?mkwin=1[&link=<key>][&mode=word|inline|simple|read]`, same webPreferences, navigation
+  lock-down, context menu, crash reload and `request-close`/`confirm-close` handshake as the first window. Smoke mode: invisible
+  (`setOpacity(0)` + `showInactive`), never focused. When the first window closes, `win` becomes another window (`mkWindows.promote`).
+  `confirm-close` closes the sender's window. `dlgWin(e)`: open-dialog, pick-file, save-dialog and addon-install open over the asking window.
+- **IPC:** `win-new {key?, path?, mode?}` → `{id}`; `win-list` → `[{id, title, focused, current, minimized, bounds, main}]`; `win-focus(id)`;
+  `win-cycle(±1)` → id; `win-arrange` → list; `win-doc-join {key?, path?, text, title, savedText, mtime}` → `{key, version, joined, peers,
+  text?, savedText?, mtime?, path?, title?}`; `win-doc-get(key)`; `win-doc-edit {key, base, text}` → `{version, text|null}` or `{missing:true}`
+  (base = current version: taken as is; else a three-way merge like core's merge3, 24 versions of history; overlapping edits: the incoming text
+  wins and the replaced text goes to File → Recover); `win-doc-saved {key, path, title, ext, savedText, mtime}`; `win-doc-leave(key)`; smoke
+  only `win-smoke-eval(id, js)`, `win-smoke-close(id?)`. Events `win-doc-update {key, version, text}`, `win-doc-peers {key, peers}`,
+  `win-doc-saved {…}`.
+- **`app.windows`:** `{isExtra, join(doc, key), links, linkOf(doc), sharedElsewhere(doc), sendNow(doc), list(), newWindow(),
+  openInNewWindow(path), switchWindows({anchor}), merge3}`. Every Markdown document joins on `doc:opened` (by path, else by key); edits are sent
+  only while `peers > 1`; incoming text is applied with `doc.setText(text, 'window-sync')`. Each window keeps its own `recoveryId`. Event
+  `windows:peers {doc, peers}`. Hooks: core `docs.close` and app.js `onRequestClose` skip the save prompt for documents where
+  `app.windows.sharedElsewhere(doc)` is true; welcome.js never shows Welcome in a second window.
+- **`app.split`:** `{open({kind:'split'|'side', docId, mode}), close(), sideBySide({docId, mode, ask}), setPaneMode(m), swap(), setRatio(r),
+  setSync(bool), alignNow(fromPane), readPos, reveal, focusPane(1|2), state, on, kind, mode, adapter, host, ratio, orientation()}`. DOM:
+  `.mk-split-div` (role=separator) and `section.mk-split-pane` (`.mk-split-bar`, `.mk-split-host`) after `#editorHost`; body classes
+  `mk-split`, `mk-split-stacked`, `mk-split-p2`, `mk-split-dragging`; `.mid-inner` becomes a grid (`--mk-sa`, `--mk-sb`). The second pane's
+  editor gets `Object.create(doc)` whose `setText` calls `doc.setText(text, 'split-<origin>')`; outside changes come back as `doc:changed
+  {doc: <stand-in>, origin: 'split-sync'|'split-merge'}` (same `id`). `app.editors.active()` returns the second pane's adapter while it has
+  the cursor. Events `split:changed {on, kind, mode}`, `split:layout {on, orientation, ratio}`, `split:focus {pane}`.
+- **`app.ruler`:** `{setOn(bool), on, shown, geom(), unit(), localeUnit(), parsePos(str, unit), fmt(px), list(doc), addGuide(axis 'h'|'v', pos,
+  page), setGuide, removeGuide, clearGuides, editGuide, guidesDialog, addGuideDialog({axis, pos, page}), renderOptions(el), redraw(),
+  screenOf, fromScreen, indents, PX, state}`. A guide is `{id, axis, pos, page}` (CSS px at 100% from the margin; right margin in RTL). DOM
+  `.mk-ruler-h`, `.mk-ruler-v` (canvas), `.mk-ruler-corner`, `.mk-guides`, `.mk-guide.h|.v` (role=slider). Body classes `mk-ruler-on`,
+  `mk-ruler-show`, `mk-guide-dragging`. CSS variables `--mk-r-bg|paper|margin|tick|text|accent|edge`, `--mk-guide`. Events
+  `ruler:changed (on)`, `ruler:shown (bool)`, `ruler:guides {doc, guides}`. Guides never enter the Markdown, print or exports.
+- **Commands:** `view.split` (Ctrl+Alt+S), `view.sideBySide {docId, mode, ask}`, `view.syncScroll`, `view.syncScrollBy {value:'text'|'position'}`,
+  `view.resetWindowPosition`, `view.splitOrientation {value:'side'|'stacked'}`, `view.swapPanes`, `view.closeSplit`, `view.otherPane`,
+  `view.splitPaneMode {value}`, `view.splitPaneWord|Inline|Simple|Read`, `view.newWindow`, `view.openInNewWindow {path}`, `view.arrangeAll`,
+  `view.switchWindows {anchor}`, `view.nextWindow` (Ctrl+F6), `view.prevWindow` (Ctrl+Shift+F6), `view.ruler`, `view.guides`,
+  `view.addGuide {axis, pos, page}`, `view.clearGuides` (→ count), `view.rulerUnits {value:'auto'|'cm'|'in'}`, `view.rulerUnitToggle`.
+- **Ribbon:** View → `window` group (order 35): New Window, Arrange All, Split, a column (View Side by Side, Synchronous Scrolling, Reset Window
+  Position), Switch Windows. View → Show gets a column with Ruler and Guides. KeyTips RU, GU, N, A, S, B, YS, T, W. F6 / Shift+F6 include
+  `.mk-split-pane`. Icons: sprite `svg#mkw-icons` (`mkw-newwin, mkw-arrange, mkw-split, mkw-side, mkw-sync, mkw-reset, mkw-switch, mkw-stack,
+  mkw-cols, mkw-swap, mkw-close, mkw-save, mkw-ruler, mkw-guides`); `app.windowIcons.add({id: svgBody})`.
+- **Settings:** `splitOrientation` ('side'|'stacked'), `splitRatio` (0.5, 0.15–0.85), `splitPaneMode`, `splitSync` (false), `sideBySideSync`
+  (true), `splitSyncBy` ('text'|'position'), `ruler` (false), `rulerUnit` ('auto'|'cm'|'in'; auto = inches for en-US, en-LR, en-MM, plain en),
+  `rulerGuidesPerFile` (false), `rulerGuides` ({lowercase path: guides}, newest 100 files). Options section `window` ("Window and ruler", order 18).
+
+### Typing aids (items 67, 68, 69, 71, 74; owner typing)
+
+- **`app.typingAids`:** `decide({text, s, e, key, markup, markupOn, smart, context, pairs, math, lastDollar})` → `null | {a, b, insert, s, e,
+  kind:'pair'|'wrap'|'over'|'delete'|'dollar'}` (pure; `key` is one character or 'Backspace'); `contextAt(text, s, {base})` →
+  `'text'|'code'|'math'|'yaml'|'html'|'url'|'attr'`; `handleKey(e, ctx)` (through `app.typing.onKey`), `options()`, `slashCommands()`,
+  `runSlash(name, ctx, tail)`, `hideSlashHint()`, `selectAll({target})`, `selectAllTarget(el)`, `insertPlain(text, editor?)`,
+  `clipboardText()`, `renderOptions(card, {settingSwitch, optRow})`. Changes apply through the textarea adapter (native undo), the Inline
+  adapter's new `editOpenBlock(a, b, text, s, e)` (one undo step), or `execCommand('insertText')` on contenteditable. editor-source.js
+  `typeChar`/`pairBackspace` hand over whenever `app.typingAids.decide` exists. Ctrl+A is a document capture keydown for non-field targets,
+  plus a `selectionchange` safety net that narrows a window-wide selection to the document.
+- **`app.dates`:** `format(date, pattern, {calendar:'gregorian'|'hijri', lang, dayName, adjust, noEra})` (tokens `yyyy yy MMMM MMM MM M dddd ddd
+  dd d HH H hh h mm ss a tt 'literal'`), `hijriParts(date, adjust)` → `{y, m, d, source:'umalqura'|'tabular'}`, `text('date'|'time'|'hijri',
+  date?)`, `current()`, `patterns`, `kindOf(pattern)`, `languages()`, `insert(text)`, `openDialog({date, settingsOnly})`, `renderOptions(box)`.
+  Event `dates:format`. Month and day names for en, ur, ar are in the file; others from Intl.
+- **`app.multicursor`:** `isActive(ta)`, `cursors(ta)` → `[{start, end, anchor, head}]`, `clear(ta, keep?)`, `type(ta, text)`, `paste(ta, text)`,
+  `selectNext(ta)`, `selectAll(ta)`, `addLine(ta, ±1)`, `addAt(ta, {a, h}, keep?)`, `caretRect(ta, offset)`, `redraw(ta)`. Extra cursors are
+  drawn in `.mk-mc-layer`; `.mk-src` gets `.mk-mc-on`. Document capture listeners for keydown (`textarea.mk-src-ta` only), copy, cut, paste,
+  mousedown, mouseup, input, focusout.
+- **Commands:** `edit.selectAll` (hint Ctrl+A; Home → Editing; KeyTip SL), `edit.pastePlain` (Ctrl+Shift+V, Ctrl+Alt+V from the Word map;
+  re-registered in typing-aids.js over the commands.js version; reads the clipboard through IPC `clipboard-read-text`), `insert.dateTime` (opens
+  the dialog; `{value}` still accepted), `insert.date` (Alt+Shift+D), `insert.time` (Alt+Shift+T), `insert.hijriDate`,
+  `edit.selectNextOccurrence` (Ctrl+D in Simple mode), `edit.selectAllOccurrences` (Alt+F3; Ctrl+Shift+L only while several cursors are on),
+  `edit.addCursorAbove` / `edit.addCursorBelow` (Ctrl+Alt+Up / Down), `edit.singleCursor` (Esc). Simple mode's Duplicate line moved from
+  Ctrl+D to Ctrl+Shift+D. Home → Editing is now Find, a column (Replace, Select all), Equation; icons `mk-selall`, `mk-replace`.
+- **IPC:** `clipboard-read-text` → string.
+- **Settings:** `autoPair`, `autoPairMarkup`, `autoPairMath`, `slashCommands` (all true), `dateFormat` ('MMMM d, yyyy'), `dateLang` ('en'),
+  `dateCalendar` ('gregorian'|'hijri'), `dateDayName` (false), `dateCustom`, `timeFormat` ('h:mm a'), `hijriFormat` ('d MMMM yyyy'),
+  `hijriLang` ('en'), `hijriAdjust` (0; -1, 0 or 1). The Options typing card calls `app.typingAids.renderOptions(card, {settingSwitch, optRow})`.
+
+### Writing quality (items 70, 73, 75, 76, 77; owner writing)
+
+- **Setting** `writingDomainWords` (true): File → Options → Writing, "Accept technical terms and place names"; changing it calls
+  `applyDictionary()` and checks open documents again. **Command** `writing.domainWords` (toggle, Review → Proofing "Technical terms", palette).
+- **Data:** `data/words-technical-en.txt`, `data/places-en.txt` (`#` comments; words separated by spaces or new lines; `word/s`, `word/es`
+  add a plural; case matters). `data/words-rank-en.txt`: `<tier 1–9> word word …` (lower case), built by `scripts/make-word-ranks.js`.
+- **`app.writing`:** `domainWords.{load() → Promise<count>, list(), added(), has(word)}` (only words the en-US dictionary lacks are added, through
+  `mk.spell.setPersonal`), `parseWordList(text)`, `wordFreq(lowerWord) → 0–9`, `spellReady(code='en-US')`, `warmSpelling(code)` (idle slices;
+  runs 1.2 s after `ready`), `qualityCorpus`. `suggest(word, lang)` for English: COMMON_TYPOS, swaps, `R.spellNear`, `R.spellMorph`, then
+  `R.spellRank`; Hunspell's `mk.spell.suggest` runs only when the best candidate costs > 0.6 or fewer than 3 candidates exist. `explain(f)`
+  prefers `f.explain`. `finish()` / `checkText()` run `R.vary()` after dedupe; Harper findings on domain words are dropped.
+- **Rules (src/writing/rules.js, page + worker):** new rule `confusable` (correctness, "Commonly confused words"; subs effectVerb, affectNoun,
+  thenThan, thanThen, yourYoure, youreYour, loseLoose, looseLose, principle, principal, complement, compliment, advise, advice; never safe; each
+  finding carries `explain`, `wrong`, `right`). New rule `adjCommas` (clarity, "Commas between describing words"; serial comma in US documents
+  only). Article rule sub `and` ("A, an or and", replacements `['and', 'a']`). Functions `R.confusables(text)`, `R.CONFUSABLE_WORD`,
+  `R.harperKeep(f, blockText, cfList?)`, `R.CF_WHY`, `R.CF_PAIR`, `R.isAdj`, `R.isQualityAdj`, `R.anMeansAnd`; varied messages `R.PHRASES`,
+  `R.say(key, vars)`, `R.vary(list)` (fields `vk`, `vv`, `vg`, `message0`, `variant`; Harper varies only AnA, ThenThan, RepeatedWords,
+  ItsContraction, PossessiveYour, CapitalizePersonalPronouns, ModalOf); spelling helpers `R.phoneKey`, `R.spellDistance`, `R.spellIndex`,
+  `R.spellIndexStart|Add|End`, `R.spellNear(idx, word, max=1.9, limit=30)`, `R.spellMorph(idx, word)`, `R.spellRank(word, cands, {freq, max,
+  withScore})`. Passive voice: one hint per paragraph, skips `PASSIVE_AS` participles + "as"/"to as" and when/if/once/… clauses.
+  `R.HARPER_OFF` adds ExpandMemoryShorthands, ExpandTimeShorthands, ExpandControl; KNOWN_ACR adds units and engineering software.
+- **Worker:** `mapHarper` drops a Harper finding on a confused word unless `R.confusables(block.text)` marks the same span.
+
+### Tables with Office, numbering in tables, pictures from other editors (items 62, 63, 78; owner tables)
+
+- **Preload:** `mk.homeDir`; DOMPurify `ALLOWED_URI_REGEXP` also allows `[a-z]:[\\/]`; `picturePaths(body)` (used by `render` and `xrefScan`,
+  drawing only, same line count: spaces → `<…>`, `file:///` prefix dropped, `C:\a\b.png` → `C:/a/b.png`, code skipped); inline rule
+  `wiki_embed` (`![[x.png]]`, `![[x.png|300]]` → `img.mk-wiki-embed[data-raw]`, toMarkdown rule `wikiEmbed`); `xrefScan` gives table-cell
+  inline tokens the line of their row.
+- **Core:** `app.assetUrl(doc, src)` accepts `file:///C:/…`, `file:///home/…`, `file://localhost/…` (never `file://host/…`) and `~/…`.
+- **`app.tables` additions:** op `paste {row, col, cells}`; `TB.tableBlocks(text)`; `TB.exportMarkdown(md, format)` (DOCX `<w:br/>`, ODT
+  `<text:line-break/>` for `<br>` in rows; caption after a labeled picture in a cell; registered with `app.exporter.addMarkdownTransform`);
+  `TB.office = {fromHtml(html, {merged}) → {tables:[{md, lines, grid, plain, rows, cols, merged, pictures}], md, onlyTables,
+  source:'word'|'excel'|'sheets'|'libreoffice'|'docs'|'markooj'|'web'}, fromTsv, parseTsv, looksLikeTsv, sourceOf, cellMarkdown(el,
+  classStyles), toOffice(rows, {header}) → {html, tsv}, copyTable({editor, write}) → {html, text}, insert(conv, editor), paste, copyEvent,
+  enabled(), busy, last}`. Document capture listeners for paste and copy run before the editors'. Markooj's clipboard HTML is wrapped in
+  `<div data-markooj-copy="simple|page|table">`.
+- **`app.xref` additions:** `cellEquationMarkdown(res, doc)` (one line `$$tex$$ {#eq:x}`, `|` → `\|`, `%` comments dropped), `tellCell()`,
+  `equationMarkdown(tex, {inCell:true})`; `decorateModel` counts picture indexes across a table row; `itemForElement` / `itemAtCaret` resolve a
+  picture in a cell; `rewriteItem` (fig) never splits a table row; labeled pictures in cells get `span.mkx-cellcap[data-mk-ui]`; `EXPORT_CSS`
+  adds the cell equation grid. `insert.equation` with the caret in a cell writes the one-line form.
+- **`app.pictures`:** `classify, absPath(doc, src), fileUrl(abs), localUrl(abs), relPath(docPath, abs), sameSrc, occurrences(text) →
+  [{form:'md'|'html'|'wiki', start, end, dest, destStart, destEnd, alt?, opt?}], replaceSrc, removeAt, exists(paths)` (file-info IPC, 4 s
+  cache), `nearby(doc, src), forget, paint(el, doc), missing(root), locate, relink(doc, item, file), remove, findMissing(), exportMarkdown(md,
+  doc)`. A postRender hook marks missing pictures (`img.mk-pic-gone` + `span.mk-pic-missing[data-mk-ui][contenteditable=false]` with
+  `button[data-pic-act=locate|remove|save]`); `data-mk-pic` keeps the original src. On the export stage it writes `data-mk-file-src`
+  (integration: the exporter turns it into `src` only after moving the stage into an inert document, so the window never tries to load
+  `file:///`; print keeps `markooj://local`). The exporter's stage also parses its HTML in an inert document first and shows `C:/…` and
+  `file:` pictures through `markooj://local` (original in `data-mk-src`, restored for HTML exports).
+- **Commands:** `table.copyOffice` ("Copy for Word/Excel"; Table Design → Convert, Table Layout → Data, right-click table menu),
+  `pictures.findMissing` (Insert → `pictures-find` group "Pictures", order 11). No new shortcuts. Status item `pictures-missing` (left, order 46).
+- **Settings:** `tablePasteOffice` (true), `tablePasteMerged` ('blank'|'repeat'), `tableCopyOffice` (true); Options section `tables` (order 28).
+- **Markdown:** Obsidian `![[file.png]]` / `![[file.png|300]]`; `$$…$$ {#eq:x}` and labeled pictures inside pipe-table cells are numbered.
+
+### Keyboards, mixed direction and aarab (items 60, 61, 82; owner rtl)
+
+- **`app.keyboards`:** `{layouts(), get(id), current(), lastRtl(), isRtl(), set(id, {quiet}), toggle(), charFor(code, layer 0|1|2, id) → string |
+  '' | null, insertText(text, target), openMenu(anchor), menuItems(), openOptions(), renderOptions(el), onScreen:{open, close, toggle, isOpen,
+  paint, flash(code), element}}`. Layout ids `en`, `ur`, `ar`, `fa`, `pnb`; data `{id, chip, name, native, title, hint, lang, script, dir,
+  keys:{KeyboardEvent.code: [normal, Shift, AltGr]}, about}`. Typing is a capture-phase keydown on document for editable targets in
+  `#editorHost` (and Inline mode's page before a block is open); elsewhere only with `keyboard.everywhere` or `[data-mk-kbd]`; never in
+  `.palette`, `[data-mk-keys="own"]`, `.mk-osk`; skipped with Ctrl/Alt (except AltGr), on IME/Process/Dead keys and when `e.key` is already
+  Arabic script. Right Alt counts as AltGr while a layout is on. Status item `keyboard` (right, order 4); View → `keyboard` group (order 22).
+- **`app.aarab`:** `{marks(), strip(text) → {text, n}, mapProse(md, fn), applyMark(marks, mark), addFromMap(text, Map), readingsOf({fields,
+  rows}), canon, addMark(ch), remove({whole}), fromWordList({whole, lexicon, lang, quiet}) → {text, added, ambiguous[], unknown, chosen, lang},
+  toggleView(on?), hidden(), applyView(), hideIn(page), showIn(page), updateGroup(), wantGroup(), renderOptions(el), chooseReading: null}`.
+  Remove takes U+064B–0652, U+0656, U+0657, U+0670 (never madda/hamza U+0653–0655; code left alone). Hook for language roadmap Part 4:
+  `app.aarab.chooseReading = async ({word, readings, lang}) => reading | null`. Hide Aarab rewrites text nodes of `.mk-read-page` and
+  `.mk-preview-page` only. Home → `aarab` group (order 35), shown for Arabic-script documents or a right-to-left keyboard (setting
+  `aarab.group` overrides). Icons `mk-aarab-x`, `mk-aarab-eye`, `mk-aarab-list`, `mk-kbd`, `mk-kbd-osk`, `mk-kbd-switch`.
+- **`app.lang.bidi`:** `{isolateInline(block), isolateRuns(page), atoms}`. `markDir` gives a block with math, code, `[data-mk-ui]`, `.mk-xref`
+  or `.mk-cite` an explicit `dir` from its first real letter; inline elements of the other direction get `data-mk-iso="ltr|rtl"` (UI only, never
+  in the Markdown); Read mode and the Simple preview wrap opposite-direction runs in `<bdi dir data-mk-iso>`. CSS `[data-mk-iso]{unicode-bidi:
+  isolate}`; `[data-mk-autodir][dir=auto]` gets `unicode-bidi:plaintext`. Options → Language calls `app.keyboards.renderOptions` and
+  `app.aarab.renderOptions`.
+- **Commands:** `keyboard.toggle` (Ctrl+Shift+K, global), `keyboard.menu {value}`, hidden `keyboard.set {value}`,
+  `keyboard.english|urdu|arabic|persian|punjabi`, `keyboard.onScreen`, `keyboard.options`; `aarab.zabar` (Ctrl+Alt+Shift+A), `aarab.zer` (I),
+  `aarab.pesh` (U), `aarab.shadd` (S), `aarab.jazm` (J), `aarab.tanweenZabar` (N), `aarab.tanweenZer`, `aarab.tanweenPesh`,
+  `aarab.khariZabar` (K), `aarab.remove` (R), `aarab.removeAll`, `aarab.toggleView` (H), `aarab.fromWordList` (W). KeyTips DA, DI, DU, DS,
+  DJ, DN, DE, DP, DK, DR, DH, DW; View KB, KT, KS. word-keys.js NOTES: Ctrl+Shift+K (Word: Small caps).
+- **Settings:** `keyboard.layout` ('en'), `keyboard.lastRtl` ('ur'), `keyboard.everywhere` (false), `keyboard.onScreen` (false), `aarab.group`
+  ('auto'|'always'|'never'), `aarab.hidden` (false). **Events:** `keyboard:changed {id, prev, layout}`, `keyboard:onscreen (bool)`.
+- **Language packs repo:** ROADMAP Part 3 done; CONTRIBUTING.md and docs/FORMAT.md explain the aarab column; aarab added to 55 Urdu and 3
+  Punjabi words (pack versions not bumped yet).
+
+### Website (items 65, 66; owner website)
+
+- `site/fx.js` (effects), `site/demo.js` ("Try it"), `site/vendor/` (KaTeX 0.19.1, Marked 16.4.2, Mermaid 12.3.0 with licenses and
+  `README.txt`), self-contained `site/404.html` (`<base href="/markooj/">`, switched to "/" outside /markooj/; noindex). Scripts load with
+  `defer`: main.js, fx.js, demo.js (independent IIFEs).
+- fx.js: `fx-fine` on `<html>` for `(hover: hover) and (pointer: fine)`; the lens clones `.lens-host h1` into `.lens-src` (aria-hidden,
+  `clip-path: circle()`, marks `.mk-h|.mk-l|.mk-r` of zero width, so the clone keeps the h1's exact structure); drifting symbols in `.fx-layer`;
+  chips `.chip-type` (`.tc-text`, `.tc-fmt`, `is-fmt`) and `.chip-file`; `.spot` cards use `::before` with `--mx`/`--my`.
+- main.js reveal: `.reveal` then `.in`, both removed about 950 ms after arrival; row stagger (index mod 3) × 90 ms.
+- demo.js: `#demo[data-mode=word|inline|simple|read]`, tabs `[role=tab][data-mode]`, actions `[data-act=bold|italic|heading|table|math|diagram|
+  reset|retry|diagram-retry]`, `#demo-canvas`, `#demo-toast` (role=status), `#demo-title`, `#demo-mode-name`, `#demo-words`. Marked + KaTeX load
+  within 500 px of the screen (or on pointerenter/focusin); Mermaid on the first diagram (`securityLevel:'strict'`). Raw HTML escaped, pictures
+  never fetched, only http, https, mailto and # links. No storage and no network calls besides the three vendor files.
+
+### Integration (round 5)
+
+- **Welcome:** `HIGHLIGHTS['1.2.0']` added (five highlights), so What's new is ready when package.json becomes 1.2.0.
+- **app.js:** `onRequestClose` leaves out documents where `app.windows.sharedElsewhere(d)` (alongside windows.js's own listener).
+- **exporter.js:** see pictures above (inert stage parsing; `data-mk-src` / `data-mk-file-src` resolved after the stage leaves the window).
+- **developer.js:** a Python macro that cannot start because Python is missing says "Install Python macros from File → Options → Features
+  (about 6 MB), then run the macro again" with an **Install Python macros** button that installs and reruns.
+- **scripts/fetch-tools.js:** the notices generator now writes the WordNet word-frequency line, the Keyboard layouts section and the Website
+  copies line, so `--notices` keeps them.
+- **main-features.js:** never goes online in smoke mode (tests bring their own list with `features-test-setup`), and remembers a failed online
+  list fetch for 60 s so an offline computer does not wait again on every Options visit (`refresh` still retries at once).
+- **Tests adjusted to the slim install:** `viewers: a DjVu file …` expects "Install DjVu tools" when Features can download them; `main: export
+  formats and tools` checks the bundle only when `tools-health.bundleExpected`; the developer Python tests and the Python replay skip when the
+  Python macros feature is neither installed nor included; the end-to-end checks take a third argument `needs` ('pandoc' | 'djvu') and report
+  `{ok: true, skipped}` when that tool is missing; `pictures: … DOCX` checks media only on the Pandoc path; `tables: Office paste …` has a
+  packaged stand-in for its (unpackaged) Excel fixture.
+- **Test robustness:** `ruler: drag …` measures the guide against the live page; `xref: page, hover card and dialogs` waits up to 4 s for the
+  dialog list and always closes its dialog; `aarab: Home → Aarab group …` waits for the Home KeyTips and always stops KeyTips; the mode
+  cross-fade test waits for `.mk-mode-ghost` to leave.
+- **Smoke prefixes added this round:** `features:`, `windows:`, `split:`, `ruler:`, `typing:`, `writing: quality:`, `kbd:`, `aarab:`,
+  `bidi:`, `tables: Office …`, `xref: … table cells`, `pictures:`.
+- **Options:** the Word-keys section `keyboard` is labeled **Keyboard shortcuts** (it was "Keyboard"), so it is not confused with the typing
+  layouts under **Language → Keyboard**. Section orders: window 18, writing 22, language 25, features 27, tables 28, recovery and keyboard 60.
+- **Feature zips are byte-identical across build jobs** (fixed date, sorted entries, license texts normalized to LF), so the release job can
+  merge the per-platform lists and require one SHA-256 per file name.
+- **Integration check (1.2.0):** no duplicate shortcut (`app.keys.conflicts()` and the KeyTips uniqueness test pass), no duplicate settings
+  keys, script and CSS order as listed above. Full dev smoke and a packaged slim build subset pass (numbers in the round-5 integrator report).
+
+## Interface translations (1.2.0)
+
+PLAN-v5 item 81: the interface in en (source), zh-CN, ur, ur-Latn, pnb, ja, ar, sv, es, fr, pt-BR; ur, pnb and ar mirror the whole
+interface. The full contract for developers and translators is **docs/I18N.md**; this section lists the moving parts.
+
+### New files and owners
+
+| File | Owner | Purpose |
+|---|---|---|
+| `src/i18n-core.js` | **i18n** | Pure engine (UMD: window `mkI18nCore`, Node `require`): `parseKey`, `stripContext`, `placeholders`, `tags`, `pluralCategory`, `pluralCategories`, `pickPlural`, `pseudo`, `looksPseudo`, `interpolate`, `escHtml`, `createTranslator({code, entries, en, plural, intl}) → {t, tn, th, has, raw, missing, formatNumber}` |
+| `src/i18n.js`, `src/i18n.css` | **i18n** | `app.t/tn/th/tm`, `app.i18n`, `<html lang dir>` and hook classes, data-i18n helper, live switching, status chip, menu, Options row, Welcome step, coverage scan; interface fonts |
+| `src/i18n-tests.js` | **i18n** | Smoke tests `i18n:` |
+| `main-i18n.js` | **i18n** | Main side: language choice, catalogs, `I18N.t/tn/language/dir/onChange/setLanguage`, IPC |
+| `locales/languages.json`, `locales/<code>/{shell,app,editors,language,system}.json`, `locales/<code>/GLOSSARY.md` | **i18n** (en), translators (others) | Catalogs; keys are the US English text |
+| `scripts/i18n-check.js` | **i18n** | Catalog checks and `--scan` of the code |
+| `docs/I18N.md` | **i18n** | The contract |
+
+Load order: `src/index.html` loads `i18n-core.js` and `i18n.js` in `<head>`, before the stylesheets and every other script;
+`i18n.css` is the last stylesheet; `i18n-tests.js` loads after `uxreview-tests.js`. `core.js` calls `window.mkI18n.attach(app)` right
+after `window.app` exists (English stand-ins for `app.t/tn/th/tm` if i18n.js is missing). `package.json` `build.files` adds `main-i18n.js`
+and `locales/**/*.json` (inside app.asar; main reads them with fs at `<appRoot>/locales`). main.js requires main-i18n after the settings
+helpers: `I18N = require('./main-i18n').init({appRoot, smokeDir, getSettings, saveSetting})`.
+
+### Keys, values, API (summary of docs/I18N.md)
+- Key = exact US English text; context marker `Text@@context` (lower-case words at the end; never shown); keys starting with `@` are notes
+  (`@notes`, `@same`). Values: string, or plural object `{zero, one, two, few, many, other}` (Intl.PluralRules of `plural` in
+  languages.json); the key of a plural is its English `other` form. Placeholders `{name}`; `{count}` gets digit grouping. Missing or empty →
+  English, silently (reported by the check script and `app.i18n.missing()`).
+- Window: `app.t(text, vars)`, `app.tn(text, count, vars)` (= `t` with `vars.count`), `app.th` (vars HTML-escaped), `app.tm(text)` (marker,
+  returns text). `app.i18n = {language, setting, source, setLanguage(code, {quiet}), languages({all}), info, nativeName, dir, isRtl, locale,
+  onChange, apply(el), number, percent, date, time, dateTime, list, compare, relative, plural, has, missing, pseudo, core, picker, menuItems,
+  openMenu, openOptions, renderOptions, welcomeStep, refresh, scanUntranslated, scanThreshold, state}`. `window.mkI18n` = `{t, tn, th, tm,
+  attach, api, state, core}` before core.js.
+- Static HTML: `data-i18n`, `data-i18n-html`, `data-i18n-title|aria-label|placeholder|alt|tip|tip-d|label`, `data-i18n-vars` (JSON).
+- Data tables register English with `app.tm(…)`; every renderer calls `app.t(label)` when drawing (unknown labels come back unchanged).
+- Main: `I18N.t`, `I18N.tn`, `I18N.language()`, `I18N.dir()`, `I18N.onChange(fn)`; macOS's Edit menu is built by `setAppMenu()` and
+  rebuilt on change.
+- Scanner aliases: a file that calls a short name (`const t = app.t`) declares `/* i18n-aliases: t, tn */`.
+
+### Language choice and switching
+- Setting `uiLanguage` (`''` = follow the system). Resolution in main: the setting; `MARKOOJ_UI_LANGUAGE` (developers); English in smoke runs;
+  first-run.json `language` (installer); the first supported entry of `app.getPreferredSystemLanguages()` (zh-Hans → zh-CN, pt-* → pt-BR,
+  ur-Latn → ur-Latn, ur-* → ur, pa-Arab / pa-PK / pnb → pnb; zh-Hant and Gurmukhi pa are not matched); else English.
+  `app.commandLine.appendSwitch('lang', 'en-US')` is unchanged (Chromium's own text and `navigator.language` stay US English).
+- No English flash: preload `mk.i18n.boot()` is `ipcRenderer.sendSync('i18n-boot')` → `{language, info, entries, en, setting, source,
+  languages, system, smoke}`; `mk.i18n.catalog(code)` (sendSync `i18n-catalog`) → `{language, info, entries, en}`.
+- IPC: `i18n-set(code)` → `{language, setting}` (saves the setting, switches main, sends `i18n-changed {language, setting}` to every other
+  window); `i18n-info` → `{language, setting, source, dir, system, languages}`; `i18n-t(text, vars)` → main's translation; `i18n-match(tags[])`;
+  smoke only `i18n-smoke-write(name, data)` → `<smokeDir>/<name>.json`.
+- Switching is **live**; documents are never touched and nothing reloads. Order: catalogs installed, `<html>` updated, `onChange` listeners,
+  event `i18n:changed {language, prev, dir, rtl}`, then `app.i18n.refresh()`: data-i18n nodes, palette closed, `app.shell.renderRibbon()`,
+  `renderTabs()`, `status:changed` + `updateStatus()`, the open File page reopened. Modules that keep other interface open redraw on
+  `i18n:changed`. A toast confirms the switch with **Undo**.
+- Where users switch: status item `ui-language` (right, order 3; `button.sb.mk-i18n-chip`, icon `#mk-ui-lang`, a new "A文" symbol in
+  index.html, while the globe `#lang` stays the document language; native name; menu with all languages, completeness, Match the system
+  language, Language options…); File → Options → Language, first card (`.opt-card.opt-lead[data-lead="ui-language"]`); command
+  `i18n.pick` "Change interface language" (palette; `{value}` switches directly), hidden `i18n.set {value}`, `i18n.togglePseudo`; the
+  Welcome sheet gets `section.mk-i18n-wel` as its first step on `welcome:opened` (mode welcome).
+- **Core/shell additions:** `app.options.addLead(sectionId, {id, order, render(el)})` and `app.options.leads(sectionId)`; the Options page
+  draws each lead as `div.opt-card.opt-lead[data-lead][data-lead-for]` between the section title and the section's own card.
+
+### Right to left and fonts
+- `<html>` gets `lang` (qps → en), `dir`, `data-ui-lang`, and the classes `mk-ui-rtl` (ur, pnb, ar), `mk-ui-lang-<code>`,
+  `mk-ui-font-<font>` (`system`, `cjk-sc`, `cjk-jp`, `naskh`, `naskh-nastaliq`). Mirroring CSS for the interface is the RTL block at the end of i18n.css (see "Right to left" below);
+  i18n.css only keeps `#editorHost` left to right (the page sets its own `dir`/`lang` per document and paragraph).
+- Fonts (`--font` per class): CJK system UI fonts; Arabic: system font, then Noto Naskh Arabic; Urdu and Punjabi: bundled Noto Naskh Arabic for
+  all interface text, Noto Nastaliq Urdu (`--mk-ui-heading-font`, line-height 2) only for `.bs-page > h2`, `.opt-sec-title`, the Welcome title
+  and `.mk-i18n-heading`.
+
+### Pseudo-locale, tests, checks
+- `qps` (`developer: true` in the list from main; shown only with setting `i18n.showPseudo` or while active): `[Šåṽé åš… ~~~]` for every
+  string through `t()`, catalog or not. `app.i18n.scanUntranslated(root)` → `[{text, kind:'text'|'attr:<name>', where, n}]`.
+- Smoke prefix `i18n:` (11 tests): lookup and fallback, placeholders, plurals (ar six forms, ja/zh other only, fr 0 → one), context markers,
+  setLanguage + dir + persistence + chip, no English flash, data-i18n, pickers, main t() and system-language matching, Urdu interface fonts,
+  the coverage scan (writes `i18n-untranslated.json`; fails above `app.i18n.scanThreshold`, 0 since the sweep). Screenshots `i18n-en`, `i18n-qps`,
+  `i18n-qps-options`, `i18n-rtl-ur`, `i18n-ur-fonts`, `i18n-options`, `i18n-menu`.
+- `node scripts/i18n-check.js [--lang a,b] [--scan] [--strict] [--write] [--json] [--verbose] [--locales dir]`; errors exit 1.
+- Settings added: `uiLanguage` (already written by first-run handling), `i18n.showPseudo` (false).
+
+### Catalogs and groups (after extraction and review)
+- `locales/en/` holds 3,899 entries (3,858 unique strings) in five groups: `app` 890, `editors` 875, `system` 778, `shell` 705,
+  `language` 651; plural objects 100, translator notes in `"@notes"`. 41 keys sit in both `app.json` and `language.json` (Cancel, OK, Close,
+  Save, Copy, `{count} words`, language names…): allowed, the check warns, and every language gives both copies the same value.
+- Every language in `locales/<code>/` is 100% (3858/3858, 0 errors, 0 plural gaps); `completeness` in `languages.json` is written by
+  `node scripts/i18n-check.js --write` and must be re-run when strings are added. Each language has a `GLOSSARY.md` with its decided terms.
+- pt-BR uses `"plural": "pt-PT"`: CLDR's pt-BR puts 0 under `one` ("0 palavra"); pt-PT keeps 1 → one and 0 → other with the same categories.
+- Wrapping rules: data tables register English with `app.tm` and every renderer calls `app.t(label)` when it draws; sentences are whole keys with
+  named placeholders; counts use `app.tn`; context markers `Text@@context` split meanings (`Insert@@verb`, `Inline@@editing mode`…).
+  Not translated on purpose: document content (bibliography words, cross-reference prefixes, inserted dates, template bodies), bug-report
+  text, brand/font/format names, key names, developer errors, grammar-rule texts from rules.js (English this round).
+- Main process: `I18N.t` in main.js and the `main-*.js` files; error-action labels and dialog filters are built per call so they follow the
+  current language. The app menu (`setAppMenu()`) is rebuilt on a switch.
+- `addons/` (bundled add-ins) are scanned by `--scan` and wrapped like modules.
+
+### Right to left (ui-rtl)
+- Interface CSS uses logical properties (`margin-inline-*`, `inset-inline-*`…). Physical left/right remain only for document content in
+  `#editorHost`, elements JS positions in pixels (seg thumbs, ribbon ink, popovers, tooltips, KeyTips, chevrons), and the ruler/guides.
+- The RTL block at the end of `src/i18n.css`: direction icons flip (`back`, `chevr`, `undo`, `redo`, `indent`, `outdent`, `ul`, `toc`,
+  `side`, `tabsleft`); user text (document names, outline, paths, previews, inputs) gets `unicode-bidi: plaintext`; `kbd`, code, equations,
+  LaTeX fields, template pictures, help content and the on-screen keyboard stay LTR. Split view keeps documents in reading order (first pane left).
+- Long labels: big ribbon buttons wrap to two lines then "…", group names stop at 180px, ribbon tabs shrink to min 2.5em (File never), the
+  title bar is a 3-column grid, the status bar is a size container (`mk-status`) that squeezes add-in and `.hide-narrow` items first.
+- shell.js (integrator): ribbon overflow chevrons and wheel scrolling read RTL `scrollLeft` (0 at the right edge, negative leftwards);
+  `placePop` aligns menus to the anchor's right edge in RTL unless `align: 'left'`; `makeSeg` arrow keys follow the visual direction and every
+  `.seg` re-places its thumb after `i18n:changed`.
+
+### Live switching
+- `app.i18n.setLanguage(code)` → main (`i18n-set`, persists `uiLanguage`, broadcasts `i18n-changed` to other windows) → `install()` →
+  `i18n:changed {language, prev, dir, rtl}` → modules redraw their persistent UI; open one-shot dialogs keep the old language until reopened.
+- Never touched by a switch: document text, dirty state, undo, split/side-by-side layout. Unsaved documents still named the previous
+  language's "Untitled" (no path) are renamed to the new language's word (shell.js).
+- Checked by the integrator: 13 switches (en ↔ ur, ja, ar, fr, pnb, zh-CN, ur-Latn, sv, es, pt-BR) with two unsaved documents and split
+  view open, then side by side: text and dirty state kept, `dir`/`lang` flip, ribbon labels and main's `i18n-t` follow, seg thumbs aligned.
+
+### Installer (Windows, NSIS)
+- `build/installer-*.nsh`: in `customInit`, a LangDLL screen lists the 11 languages (native names, Windows display language preselected);
+  skipped for `/S`, `--updated`, `/LANGUAGE=<code>` (case-insensitive, `_` or `-`) and the elevated copy (choice passed via UAC). The choice
+  sets NSIS's language (8 `installerLanguages`; ur, ur-Latn, pnb fall back to English pages, NSIS has no Urdu/Punjabi) and is written to
+  `first-run.json` `language`, which main-i18n reads on first start. The features page is translated in all 11 (`build/installer-strings.nsh`)
+  and mirrored with `nsDialogs::SetRTL` for ur, pnb, ar. Test: `node build/installer-lang-test.js` (Windows; `--static` elsewhere).
+
+### Packaging
+- `build.files` includes `main-i18n.js` and `locales/**/*.json` (glossaries stay out). Chromium locale paks kept: ar, en-US, es-419, es, fa,
+  fr, ja, pt-BR, sv, ur, zh-CN. The unpacked Windows app grew by about 4.9 MB (app.asar 66.4 → 71.3 MB), almost all of it catalogs.

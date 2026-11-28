@@ -104,7 +104,7 @@
 `);
 
   // ------------------------------------------------------------------ modal dialog (own, so the equation editor can be rich)
-  E.modal = ({ title, body, buttons = [{ label: 'Cancel', value: null }, { label: 'OK', value: true, primary: true }], width, hint, onOpen }) => new Promise(resolve => {
+  E.modal = ({ title, body, buttons = [{ label: app.t('Cancel'), value: null }, { label: app.t('OK'), value: true, primary: true }], width, hint, onOpen }) => new Promise(resolve => {
     const prevFocus = document.activeElement;
     const s0 = getSelection(); const prevRange = s0.rangeCount ? s0.getRangeAt(0).cloneRange() : null;
     const wrap = document.createElement('div'); wrap.className = 'mk-modal-wrap';
@@ -145,7 +145,7 @@
   const inputEl = (value = '', attrs = {}) => { const i = document.createElement(attrs.tag || 'input'); if (attrs.tag !== 'textarea') i.type = attrs.type || 'text'; Object.entries(attrs).forEach(([k, v]) => { if (k !== 'tag' && k !== 'type') i.setAttribute(k, v); }); i.value = value; return i; };
   E.sourceDialog = async ({ title, label, value, hint }) => {
     const ta = inputEl(value, { tag: 'textarea', rows: 12, spellcheck: 'false', autofocus: '' }); ta.style.minHeight = '220px';
-    const v = await E.modal({ title, width: 560, hint: hint || 'Ctrl+Enter to apply', body: field(label, ta), buttons: [{ label: 'Cancel', value: null }, { label: 'Apply', value: () => ta.value, primary: true }] });
+    const v = await E.modal({ title, width: 560, hint: hint || app.t('Ctrl+Enter to apply'), body: field(label, ta), buttons: [{ label: app.t('Cancel'), value: null }, { label: app.t('Apply'), value: () => ta.value, primary: true }] });
     return v;
   };
 
@@ -172,12 +172,20 @@
       res = await EQ.open(found ? { tex: found.tex, display: found.display, label: found.label, unnumbered: found.unnumbered, delim: found.delim, editing: true }
         : { tex: args.tex ?? (sel && sel.length < 300 && /[\\^_=]/.test(sel) ? sel : ''), display: args.display, label: args.label, numbered: args.numbered });
     } else {
-      const v = await app.ui.prompt(found ? 'Edit equation' : 'Insert equation', 'LaTeX', found ? found.tex : (args.tex || ''));
+      const v = await app.ui.prompt(found ? app.t('Edit equation') : app.t('Insert equation'), 'LaTeX', found ? found.tex : (args.tex || ''));
       res = v == null || !v.trim() ? null : { tex: v.trim(), display: found ? found.display : args.display ?? true, label: found?.label || '' };
     }
     if (!res || !String(res.tex || '').trim()) return;
     const md = eqMarkdown(res);
     e.focus?.();
+    // caret in a table cell: one line that fits the cell ($$ … $$ {#eq:x}); src/xref.js numbers it like any other
+    if (res.display && app.tables?.inTable?.() && app.xref?.cellEquationMarkdown) {
+      const one = app.xref.cellEquationMarkdown(res);
+      if (found) { e.setSelection(found.start, found.end); await e.replaceSelection(one); } else await e.insert(one);
+      app.xref.tellCell?.();
+      if (res.label) { try { await app.xref.refresh?.(); } catch {} }
+      return res;
+    }
     if (found) {
       e.setSelection(found.start, found.end);
       if (!!res.display === !!found.display) await e.replaceSelection(md);
@@ -211,17 +219,17 @@
     } catch { try { out.text = await navigator.clipboard.readText(); } catch {} }
     return out;
   }
-  reg('edit.cut', { label: 'Cut', icon: 'cut', hint: 'Ctrl+X', run: run(e => { e.focus?.(); document.execCommand('cut'); }) });
-  reg('edit.copy', { label: 'Copy', icon: 'copy', hint: 'Ctrl+C', isEnabled: () => !!app.editors.active(), run: run(e => { e.focus?.(); document.execCommand('copy'); }) });
+  reg('edit.cut', { label: app.tm('Cut'), icon: 'cut', hint: 'Ctrl+X', run: run(e => { e.focus?.(); document.execCommand('cut'); }) });
+  reg('edit.copy', { label: app.tm('Copy'), icon: 'copy', hint: 'Ctrl+C', isEnabled: () => !!app.editors.active(), run: run(e => { e.focus?.(); document.execCommand('copy'); }) });
   reg('edit.paste', {
-    label: 'Paste', icon: 'paste', hint: 'Ctrl+V', run: run(async e => {
+    label: app.tm('Paste'), icon: 'paste', hint: 'Ctrl+V', run: run(async e => {
       e.focus?.();
       try { if (document.execCommand('paste')) return; } catch {}
       const c = await readClipboard();
       if (c.files.length) { for (const f of c.files) { const r = await E.saveImage(f, app.docs.active()); await e.insert(E.imageMarkdown(r.path, r.name)); } return; }
       if (isWord() && c.html) { const dt = new DataTransfer(); dt.setData('text/html', c.html); dt.setData('text/plain', c.text); const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }); (e.page || document.activeElement).dispatchEvent(ev); return; }
       if (c.text) { if (isWord() && E.looksLikeMarkdown?.(c.text)) await e.insert(c.text); else insertPlain(e, c.text); return; }
-      app.ui.toast('Copy something first, or press Ctrl+V to paste. The clipboard looks empty.', { kind: 'info' });
+      app.ui.toast(app.t('Copy something first, or press Ctrl+V to paste. The clipboard looks empty.'), { kind: 'info' });
     }),
   });
   function insertPlain(e, text) {
@@ -229,27 +237,27 @@
     if (isWord()) { document.execCommand('insertText', false, text); return; }
     e.insert(text);
   }
-  reg('edit.pastePlain', { label: 'Paste as plain text', icon: 'doc', shortcut: 'Ctrl+Shift+V', run: run(async e => { const c = await readClipboard(); if (c.text) insertPlain(e, c.text); else app.ui.toast('Copy some text first, then paste it as plain text. The clipboard has no text right now.', { kind: 'info' }); }) });
+  reg('edit.pastePlain', { label: app.tm('Paste as plain text'), icon: 'doc', shortcut: 'Ctrl+Shift+V', run: run(async e => { const c = await readClipboard(); if (c.text) insertPlain(e, c.text); else app.ui.toast(app.t('Copy some text first, then paste it as plain text. The clipboard has no text right now.'), { kind: 'info' }); }) });
   reg('format.painter', {
-    label: 'Format painter', icon: 'brush', description: 'Copy the formatting of the selection, then select text to apply it. Esc cancels.',
-    run: run(e => { if (e.startPainter) e.startPainter(); else app.ui.toast('Switch to Word mode (Ctrl+1) to use Format Painter. In Simple mode, copy the ** or * marks.', { kind: 'info' }); }),
+    label: app.tm('Format painter'), icon: 'brush', description: app.tm('Copy the formatting of the selection, then select text to apply it. Esc cancels.'),
+    run: run(e => { if (e.startPainter) e.startPainter(); else app.ui.toast(app.t('Switch to Word mode (Ctrl+1) to use Format Painter. In Simple mode, copy the ** or * marks.'), { kind: 'info' }); }),
   });
-  if (!app.commands.get('edit.undo')) reg('edit.undo', { label: 'Undo', icon: 'undo', hint: 'Ctrl+Z', run: run(e => e.undo?.()) });
-  if (!app.commands.get('edit.redo')) reg('edit.redo', { label: 'Redo', icon: 'redo', hint: 'Ctrl+Y', run: run(e => e.redo?.()) });
+  if (!app.commands.get('edit.undo')) reg('edit.undo', { label: app.tm('Undo'), icon: 'undo', hint: 'Ctrl+Z', run: run(e => e.undo?.()) });
+  if (!app.commands.get('edit.redo')) reg('edit.redo', { label: app.tm('Redo'), icon: 'redo', hint: 'Ctrl+Y', run: run(e => e.redo?.()) });
 
   // ------------------------------------------------------------------ Font
-  reg('format.bold', { label: 'Bold', text: '<b>B</b>', shortcut: 'Ctrl+B', run: fmt('bold'), isActive: active('bold') });
-  reg('format.italic', { label: 'Italic', text: '<i>I</i>', shortcut: 'Ctrl+I', run: fmt('italic'), isActive: active('italic') });
-  reg('format.underline', { label: 'Underline', text: '<u>U</u>', shortcut: 'Ctrl+U', run: fmt('underline'), isActive: active('underline') });
-  reg('format.strike', { label: 'Strikethrough', text: '<s>S</s>', shortcut: 'Ctrl+Shift+X', run: fmt('strike'), isActive: active('strike') });
-  reg('format.sub', { label: 'Subscript', text: 'x<sub>2</sub>', altShortcuts: ['Ctrl+,'], description: 'Shortcut while typing: Ctrl+,', run: fmt('sub'), isActive: active('sub') });
-  reg('format.sup', { label: 'Superscript', text: 'x<sup>2</sup>', shortcut: 'Ctrl+.', run: fmt('sup'), isActive: active('sup') });
-  reg('format.code', { label: 'Inline code', icon: 'code', shortcut: 'Ctrl+`', run: fmt('code'), isActive: active('code') });
-  reg('format.clear', { label: 'Clear formatting', icon: 'mk-clear', shortcut: 'Ctrl+Space', run: fmt('clear') });
-  const HL = [['Yellow', '#ffd60a'], ['Green', '#a8e6a3'], ['Blue', '#a9d1ff'], ['Pink', '#ffb3c7'], ['Orange', '#ffc982'], ['Purple', '#d6c2ff']];
-  const TC = [['Red', '#e5383b'], ['Orange', '#e07a00'], ['Green', '#1f8a3b'], ['Blue', '#0a66ff'], ['Purple', '#7a4fe0'], ['Gray', '#6e6e73']];
+  reg('format.bold', { label: app.tm('Bold'), text: '<b>B</b>', shortcut: 'Ctrl+B', run: fmt('bold'), isActive: active('bold') });
+  reg('format.italic', { label: app.tm('Italic'), text: '<i>I</i>', shortcut: 'Ctrl+I', run: fmt('italic'), isActive: active('italic') });
+  reg('format.underline', { label: app.tm('Underline'), text: '<u>U</u>', shortcut: 'Ctrl+U', run: fmt('underline'), isActive: active('underline') });
+  reg('format.strike', { label: app.tm('Strikethrough'), text: '<s>S</s>', shortcut: 'Ctrl+Shift+X', run: fmt('strike'), isActive: active('strike') });
+  reg('format.sub', { label: app.tm('Subscript'), text: 'x<sub>2</sub>', altShortcuts: ['Ctrl+,'], description: app.tm('Shortcut while typing: Ctrl+,'), run: fmt('sub'), isActive: active('sub') });
+  reg('format.sup', { label: app.tm('Superscript'), text: 'x<sup>2</sup>', shortcut: 'Ctrl+.', run: fmt('sup'), isActive: active('sup') });
+  reg('format.code', { label: app.tm('Inline code'), icon: 'code', shortcut: 'Ctrl+`', run: fmt('code'), isActive: active('code') });
+  reg('format.clear', { label: app.tm('Clear formatting'), icon: 'mk-clear', shortcut: 'Ctrl+Space', run: fmt('clear') });
+  const HL = [[app.tm('Yellow'), '#ffd60a'], [app.tm('Green'), '#a8e6a3'], [app.tm('Blue'), '#a9d1ff'], [app.tm('Pink'), '#ffb3c7'], [app.tm('Orange'), '#ffc982'], [app.tm('Purple'), '#d6c2ff']];
+  const TC = [[app.tm('Red'), '#e5383b'], [app.tm('Orange'), '#e07a00'], [app.tm('Green'), '#1f8a3b'], [app.tm('Blue'), '#0a66ff'], [app.tm('Purple'), '#7a4fe0'], [app.tm('Gray'), '#6e6e73']];
   reg('format.highlight', {
-    label: 'Highlight', icon: 'hl', shortcut: 'Ctrl+Shift+H', isActive: active('highlight'),
+    label: app.tm('Highlight'), icon: 'hl', shortcut: 'Ctrl+Shift+H', isActive: active('highlight'),
     run: run((e, a) => {
       const c = a.value || app.settings.get('highlightColor', '#ffd60a');
       if (a.value) app.settings.set('highlightColor', a.value);
@@ -260,7 +268,7 @@
     }),
   });
   reg('format.color', {
-    label: 'Text color', icon: 'tc',
+    label: app.tm('Text color'), icon: 'tc',
     run: run((e, a) => {
       const c = a.value || app.settings.get('textColor', '#e5383b');
       if (a.value && a.value !== 'auto') app.settings.set('textColor', a.value);
@@ -272,38 +280,38 @@
   const FONTS = ['Charter', 'Georgia', 'Cambria', 'Times New Roman', 'Palatino Linotype', 'Garamond', 'Segoe UI', 'Calibri', 'Arial', 'Helvetica Neue', 'Verdana', 'Consolas'];
   const SIZES = [9, 10, 10.5, 11, 12, 13, 14, 16, 18, 20, 24];
   app.commands.register('format.fontFamily', {
-    label: 'Reading font', run: (a = {}) => { if (!a.value) return; app.settings.set('fontFamily', a.value); app.settings.set('fontFamilyExplicit', true); app.events.emit('layout:changed'); },
-    tooltip: 'Reading font for the page. Markdown keeps your text, not fonts, so this only changes how it looks here and in exports.',
+    label: app.tm('Reading font'), run: (a = {}) => { if (!a.value) return; app.settings.set('fontFamily', a.value); app.settings.set('fontFamilyExplicit', true); app.events.emit('layout:changed'); },
+    tooltip: app.tm('Reading font for the page. Markdown keeps your text, not fonts, so this only changes how it looks here and in exports.'),
   });
   app.commands.register('format.fontSize', {
-    label: 'Reading size', run: (a = {}) => { const v = parseFloat(a.value); if (!v) return; app.settings.set('fontSize', v); app.events.emit('layout:changed'); },
-    tooltip: 'Text size on the page (points). Markdown keeps text, not sizes.',
+    label: app.tm('Reading size'), run: (a = {}) => { const v = parseFloat(a.value); if (!v) return; app.settings.set('fontSize', v); app.events.emit('layout:changed'); },
+    tooltip: app.tm('Text size on the page (points). Markdown keeps text, not sizes.'),
   });
 
   // ------------------------------------------------------------------ Paragraph
-  reg('list.bullet', { label: 'Bullets', icon: 'ul', shortcut: 'Ctrl+Shift+8', run: fmt('ul'), isActive: active('list', 'ul') });
-  reg('list.number', { label: 'Numbering', icon: 'ol', shortcut: 'Ctrl+Shift+7', run: fmt('ol'), isActive: active('list', 'ol') });
-  reg('list.task', { label: 'Checklist', icon: 'task', shortcut: 'Ctrl+Shift+9', run: fmt('task'), isActive: active('list', 'task') });
-  reg('para.indent', { label: 'Increase indent', icon: 'indent', shortcut: 'Ctrl+]', run: fmt('indent') });
-  reg('para.outdent', { label: 'Decrease indent', icon: 'outdent', shortcut: 'Ctrl+[', run: fmt('outdent') });
-  const AL = { left: ['Align left', 'al', 'Ctrl+L'], center: ['Center', 'ac', 'Ctrl+E'], right: ['Align right', 'ar', 'Ctrl+R'], justify: ['Justify', 'aj', 'Ctrl+J'] };
-  reg('para.align', { label: 'Align', icon: 'al', run: run((e, a) => e.format('align' + (a.value || 'left')[0].toUpperCase() + (a.value || 'left').slice(1))) });
+  reg('list.bullet', { label: app.tm('Bullets'), icon: 'ul', shortcut: 'Ctrl+Shift+8', run: fmt('ul'), isActive: active('list', 'ul') });
+  reg('list.number', { label: app.tm('Numbering'), icon: 'ol', shortcut: 'Ctrl+Shift+7', run: fmt('ol'), isActive: active('list', 'ol') });
+  reg('list.task', { label: app.tm('Checklist'), icon: 'task', shortcut: 'Ctrl+Shift+9', run: fmt('task'), isActive: active('list', 'task') });
+  reg('para.indent', { label: app.tm('Increase indent'), icon: 'indent', shortcut: 'Ctrl+]', run: fmt('indent') });
+  reg('para.outdent', { label: app.tm('Decrease indent'), icon: 'outdent', shortcut: 'Ctrl+[', run: fmt('outdent') });
+  const AL = { left: [app.tm('Align left'), 'al', 'Ctrl+L'], center: [app.tm('Center'), 'ac', 'Ctrl+E'], right: [app.tm('Align right'), 'ar', 'Ctrl+R'], justify: [app.tm('Justify'), 'aj', 'Ctrl+J'] };
+  reg('para.align', { label: app.tm('Align'), icon: 'al', run: run((e, a) => e.format('align' + (a.value || 'left')[0].toUpperCase() + (a.value || 'left').slice(1))) });
   for (const [k, [label, ic, sc]] of Object.entries(AL)) reg('para.align' + k[0].toUpperCase() + k.slice(1), { label, icon: ic, shortcut: sc, run: () => app.commands.run('para.align', { value: k }), isActive: () => (states.align || 'left') === k });
-  reg('para.quote', { label: 'Quote', icon: 'quote', shortcut: 'Ctrl+Alt+Q', run: fmt('quote'), isActive: active('quote') });
-  reg('insert.codeBlock', { label: 'Code block', icon: 'code', shortcut: 'Ctrl+Alt+C', run: fmt('codeBlock'), isActive: active('codeBlock') });
+  reg('para.quote', { label: app.tm('Quote'), icon: 'quote', shortcut: 'Ctrl+Alt+Q', run: fmt('quote'), isActive: active('quote') });
+  reg('insert.codeBlock', { label: app.tm('Code block'), icon: 'code', shortcut: 'Ctrl+Alt+C', run: fmt('codeBlock'), isActive: active('codeBlock') });
 
   // ------------------------------------------------------------------ Styles
   const STYLES = [
-    { value: 'p', label: 'Normal', preview: 'font-size:13px', text: 'Aa Body' },
-    { value: 'title', label: 'Title', preview: 'font:700 16px var(--font)', text: 'Aa' },
-    { value: 'h1', label: 'Heading 1', preview: 'font:650 14px var(--font)', text: 'Aa' },
-    { value: 'h2', label: 'Heading 2', preview: 'font:600 12.5px var(--font)', text: 'Aa' },
-    { value: 'quote', label: 'Quote', preview: 'font:italic 13px var(--serif);color:var(--text-2)', text: '“Aa”' },
+    { value: 'p', label: app.tm('Normal'), preview: 'font-size:13px', text: app.tm('Aa Body') },
+    { value: 'title', label: app.tm('Title'), preview: 'font:700 16px var(--font)', text: 'Aa' },
+    { value: 'h1', label: app.tm('Heading 1'), preview: 'font:650 14px var(--font)', text: 'Aa' },
+    { value: 'h2', label: app.tm('Heading 2'), preview: 'font:600 12.5px var(--font)', text: 'Aa' },
+    { value: 'quote', label: app.tm('Quote'), preview: 'font:italic 13px var(--serif);color:var(--text-2)', text: app.tm('“Aa”') },
   ];
-  const MORE_STYLES = [['p', 'Normal'], ['title', 'Title'], ['h1', 'Heading 1'], ['h2', 'Heading 2'], ['h3', 'Heading 3'], ['h4', 'Heading 4'], ['h5', 'Heading 5'], ['h6', 'Heading 6'], ['quote', 'Quote'], ['code', 'Code block']];
+  const MORE_STYLES = [['p', app.tm('Normal')], ['title', app.tm('Title')], ['h1', app.tm('Heading 1')], ['h2', app.tm('Heading 2')], ['h3', app.tm('Heading 3')], ['h4', app.tm('Heading 4')], ['h5', app.tm('Heading 5')], ['h6', app.tm('Heading 6')], ['quote', app.tm('Quote')], ['code', app.tm('Code block')]];
   const currentStyle = () => (states.heading ? 'h' + states.heading : states.quote ? 'quote' : states.codeBlock ? 'code' : 'p');
   reg('format.style', {
-    label: 'Style', icon: 'doc',
+    label: app.tm('Style'), icon: 'doc',
     run: run(async (e, a) => {
       const v = a.value || 'p';
       if (v === 'title') return makeTitle(e);
@@ -314,8 +322,8 @@
     }),
     isActive: () => true, value: currentStyle,
   });
-  for (let n = 1; n <= 6; n++) reg('format.h' + n, { label: 'Heading ' + n, shortcut: 'Ctrl+Alt+' + n, run: () => app.commands.run('format.style', { value: 'h' + n }), isActive: () => states.heading === n });
-  reg('format.normal', { label: 'Normal text', shortcut: 'Ctrl+Alt+0', run: () => app.commands.run('format.style', { value: 'p' }), isActive: () => !states.heading && !states.quote });
+  for (let n = 1; n <= 6; n++) reg('format.h' + n, { label: MORE_STYLES[n + 1][1], shortcut: 'Ctrl+Alt+' + n, run: () => app.commands.run('format.style', { value: 'h' + n }), isActive: () => states.heading === n });
+  reg('format.normal', { label: app.tm('Normal text'), shortcut: 'Ctrl+Alt+0', run: () => app.commands.run('format.style', { value: 'p' }), isActive: () => !states.heading && !states.quote });
   async function makeTitle(e) {
     const d = app.docs.active(); if (!d) return;
     let text = '';
@@ -334,12 +342,12 @@
     }
     if (!text) return;
     setDocText(E.setFrontMatter(d.text, { title: text }), 'style');
-    app.ui.toast('Set as the document title (File → Info)');
+    app.ui.toast(app.t('Set as the document title (File → Info)'));
   }
 
   // ------------------------------------------------------------------ Insert
   function tableMd(rows, cols) {
-    const head = '| ' + Array.from({ length: cols }, (_, i) => 'Column ' + (i + 1)).join(' | ') + ' |';
+    const head = '| ' + Array.from({ length: cols }, (_, i) => app.t('Column {n}', { n: i + 1 }).replace(/\|/g, '/')).join(' | ') + ' |';
     const sep = '| ' + Array.from({ length: cols }, () => '---').join(' | ') + ' |';
     const body = Array.from({ length: Math.max(1, rows - 1) }, () => '| ' + Array.from({ length: cols }, () => '   ').join(' | ') + ' |');
     return [head, sep, ...body].join('\n');
@@ -349,23 +357,23 @@
     rows = Math.max(2, Math.min(100, rows | 0)); cols = Math.max(1, Math.min(20, cols | 0));
     if (e.insertTable && isWord()) return e.insertTable(rows, cols);
     await block(e, tableMd(rows, cols));
-    if (e.textarea) { const ta = e.textarea; const i = ta.value.lastIndexOf('| Column 1 |', ta.selectionStart); if (i >= 0) e.setSelection(i + 2, i + 10); }
+    if (e.textarea) { const ta = e.textarea; const c1 = app.t('Column {n}', { n: 1 }).replace(/\|/g, '/'); const i = ta.value.lastIndexOf('| ' + c1 + ' |', ta.selectionStart); if (i >= 0) e.setSelection(i + 2, i + 2 + c1.length); }
   }
   async function tableDialog() {
     const r = inputEl('3', { type: 'number', min: '2', max: '100' }), c = inputEl('3', { type: 'number', min: '1', max: '20', autofocus: '' });
-    const g = document.createElement('div'); g.className = 'mk-row2'; g.append(field('Columns', c), field('Rows (including the header)', r));
-    const v = await E.modal({ title: 'Insert table', body: g, buttons: [{ label: 'Cancel', value: null }, { label: 'Insert', primary: true, value: () => ({ rows: +r.value, cols: +c.value }) }] });
+    const g = document.createElement('div'); g.className = 'mk-row2'; g.append(field(app.t('Columns'), c), field(app.t('Rows (including the header)'), r));
+    const v = await E.modal({ title: app.t('Insert table'), body: g, buttons: [{ label: app.t('Cancel'), value: null }, { label: app.t('Insert@@verb'), primary: true, value: () => ({ rows: +r.value, cols: +c.value }) }] });
     if (v) insertTable(v.rows, v.cols);
   }
   function tablePicker(anchor) {
     const wrap = document.createElement('div');
     const grid = document.createElement('div'); grid.className = 'mk-grid'; grid.setAttribute('role', 'grid');
-    const label = document.createElement('div'); label.className = 'mk-grid-label'; label.textContent = 'Pick a size';
+    const label = document.createElement('div'); label.className = 'mk-grid-label'; label.textContent = app.t('Pick a size');
     let R = 2, C = 2;
     const cells = [];
-    const paint = () => { cells.forEach(b => b.classList.toggle('on', +b.dataset.r <= R && +b.dataset.c <= C)); label.textContent = `${C} × ${R} table`; };
+    const paint = () => { cells.forEach(b => b.classList.toggle('on', +b.dataset.r <= R && +b.dataset.c <= C)); label.textContent = app.t('{cols} × {rows} table', { cols: C, rows: R }); };
     for (let r = 1; r <= 8; r++) for (let c = 1; c <= 8; c++) {
-      const b = document.createElement('button'); b.type = 'button'; b.dataset.r = r; b.dataset.c = c; b.setAttribute('aria-label', `${c} columns by ${r} rows`);
+      const b = document.createElement('button'); b.type = 'button'; b.dataset.r = r; b.dataset.c = c; b.setAttribute('aria-label', app.t('{cols} columns by {rows} rows', { cols: c, rows: r }));
       b.addEventListener('mouseenter', () => { R = r; C = c; paint(); });
       b.addEventListener('focus', () => { R = r; C = c; paint(); });
       b.addEventListener('mousedown', e => e.preventDefault());
@@ -378,13 +386,13 @@
       cells.push(b); grid.appendChild(b);
     }
     wrap.append(grid, label); paint();
-    E.menu(anchor, [{ title: 'Insert table' }, { el: wrap }, '-', { label: 'Insert table…', run: tableDialog }], { noFocus: true });
+    E.menu(anchor, [{ title: app.t('Insert table') }, { el: wrap }, '-', { label: app.t('Insert table…'), run: tableDialog }], { noFocus: true });
     setTimeout(() => cells[9]?.focus({ preventScroll: true }), 40);
   }
   // src/tables.js (loaded later) replaces this with the Word-style picker, dialogs and the Table Design / Layout tabs
-  reg('insert.table', { label: 'Table', icon: 'table', run: (a = {}) => (app.tables?.insertPicker ? (a.rows && a.cols ? app.tables.insert(a.rows, a.cols) : app.tables.insertPicker(E.anchor())) : (a.rows && a.cols ? insertTable(a.rows, a.cols) : tablePicker(E.anchor()))) });
+  reg('insert.table', { label: app.tm('Table'), icon: 'table', run: (a = {}) => (app.tables?.insertPicker ? (a.rows && a.cols ? app.tables.insert(a.rows, a.cols) : app.tables.insertPicker(E.anchor())) : (a.rows && a.cols ? insertTable(a.rows, a.cols) : tablePicker(E.anchor()))) });
   reg('insert.image', {
-    label: 'Picture', icon: 'image',
+    label: app.tm('Picture'), icon: 'image',
     run: run(async (e, a) => {
       const files = a.files || await E.pickImages();
       for (const f of files) { const r = await E.saveImage(f, app.docs.active()); await e.insert(E.imageMarkdown(r.path, r.name)); }
@@ -398,18 +406,20 @@
     Class: 'classDiagram\n  class Sample {\n    +id: string\n    +size: float\n    +measure()\n  }',
     Mindmap: 'mindmap\n  root((Topic))\n    Idea A\n    Idea B\n      Detail',
   };
+  // the diagram kinds as the menu names them (the Mermaid source itself is code and stays as it is)
+  const MERMAID_NAMES = { Flowchart: app.tm('Flowchart'), Sequence: app.tm('Sequence'), Gantt: app.tm('Gantt'), Pie: app.tm('Pie'), Class: app.tm('Class'), Mindmap: app.tm('Mindmap') };
   reg('insert.diagram', {
-    label: 'Diagram', icon: 'flow',
+    label: app.tm('Diagram'), icon: 'flow',
     run: (a = {}) => {
       const go = (k) => { const e = ed(); if (e) block(e, '```mermaid\n' + (MERMAID[k] || a.source || MERMAID.Flowchart) + '\n```'); };
       if (a.value) return go(a.value);
-      E.menu(E.anchor(), [{ title: 'Mermaid diagram' }, ...Object.keys(MERMAID).map(k => ({ label: k, run: () => go(k) })), '-', { label: 'Write my own…', run: async () => { const v = await E.sourceDialog({ title: 'New diagram', label: 'Mermaid source', value: 'flowchart TD\n  A --> B' }); if (v) { const e = ed(); if (e) block(e, '```mermaid\n' + v.trim() + '\n```'); } } }]);
+      E.menu(E.anchor(), [{ title: app.t('Mermaid diagram') }, ...Object.keys(MERMAID).map(k => ({ label: app.t(MERMAID_NAMES[k] || k), run: () => go(k) })), '-', { label: app.t('Write my own…'), run: async () => { const v = await E.sourceDialog({ title: app.t('New diagram'), label: app.t('Mermaid source'), value: 'flowchart TD\n  A --> B' }); if (v) { const e = ed(); if (e) block(e, '```mermaid\n' + v.trim() + '\n```'); } } }]);
     },
   });
-  reg('insert.equation', { label: 'Equation', icon: 'sigma', altShortcuts: ['Alt+='], description: 'Build an equation visually or in LaTeX, then insert it inline or on its own line, with an optional number. With the caret in an equation, edits it. Shortcut while typing: Alt+=', run: (a) => insertEquation(a || {}) });
-  const LANGS = [['', 'Plain text'], ['python', 'Python'], ['r', 'R'], ['julia', 'Julia'], ['matlab', 'MATLAB'], ['javascript', 'JavaScript'], ['bash', 'Shell'], ['latex', 'LaTeX'], ['json', 'JSON'], ['yaml', 'YAML'], ['sql', 'SQL'], ['cpp', 'C++']];
+  reg('insert.equation', { label: app.tm('Equation'), icon: 'sigma', altShortcuts: ['Alt+='], description: app.tm('Build an equation visually or in LaTeX, then insert it inline or on its own line, with an optional number. With the caret in an equation, edits it. Shortcut while typing: Alt+='), run: (a) => insertEquation(a || {}) });
+  const LANGS = [['', app.tm('Plain text')], ['python', 'Python'], ['r', 'R'], ['julia', 'Julia'], ['matlab', 'MATLAB'], ['javascript', 'JavaScript'], ['bash', app.tm('Shell@@command line')], ['latex', 'LaTeX'], ['json', 'JSON'], ['yaml', 'YAML'], ['sql', 'SQL'], ['cpp', 'C++']];
   reg('insert.code', {
-    label: 'Code', icon: 'code',
+    label: app.tm('Code'), icon: 'code',
     run: (a = {}) => {
       const e = ed(); if (!e) return;
       const sel = e.getSelection?.().text || '';
@@ -420,32 +430,32 @@
         else block(x, '```' + lang + '\n' + (sel || ' ') + '\n```');
       };
       if (a.value != null) return go(a.value);
-      E.menu(E.anchor(), [{ title: 'Code block' }, ...LANGS.map(([v, l]) => ({ label: l, run: () => go(v) })), '-', { label: 'Inline code', hint: 'Ctrl+`', run: () => ed()?.format('code') }]);
+      E.menu(E.anchor(), [{ title: app.t('Code block') }, ...LANGS.map(([v, l]) => ({ label: app.t(l), run: () => go(v) })), '-', { label: app.t('Inline code'), hint: 'Ctrl+`', run: () => ed()?.format('code') }]);
     },
   });
-  const CALLOUTS = [['NOTE', 'Note'], ['TIP', 'Tip'], ['WARNING', 'Warning'], ['IMPORTANT', 'Important'], ['CAUTION', 'Caution']];
+  const CALLOUTS = [['NOTE', app.tm('Note')], ['TIP', app.tm('Tip')], ['WARNING', app.tm('Warning')], ['IMPORTANT', app.tm('Important')], ['CAUTION', app.tm('Caution')]];
   reg('insert.callout', {
-    label: 'Callout', icon: 'info',
+    label: app.tm('Callout'), icon: 'info',
     run: (a = {}) => {
-      const go = (k) => { const e = ed(); if (!e) return; const sel = (e.getSelection?.().text || '').trim(); block(e, `> [!${k}]\n` + (sel || 'Write your note here.').split('\n').map(l => '> ' + l).join('\n')); };
+      const go = (k) => { const e = ed(); if (!e) return; const sel = (e.getSelection?.().text || '').trim(); block(e, `> [!${k}]\n` + (sel || app.t('Write your note here.')).split('\n').map(l => '> ' + l).join('\n')); };
       if (a.value) return go(String(a.value).toUpperCase());
-      E.menu(E.anchor(), [{ title: 'Callout box' }, ...CALLOUTS.map(([k, l]) => ({ label: l, run: () => go(k) }))]);
+      E.menu(E.anchor(), [{ title: app.t('Callout box') }, ...CALLOUTS.map(([k, l]) => ({ label: app.t(l), run: () => go(k) }))]);
     },
   });
   reg('insert.link', {
-    label: 'Link', icon: 'link', altShortcuts: ['Ctrl+K'], description: 'Add or edit a link. Shortcut while typing: Ctrl+K',
+    label: app.tm('Link'), icon: 'link', altShortcuts: ['Ctrl+K'], description: app.tm('Add or edit a link. Shortcut while typing: Ctrl+K'),
     run: run(async (e, a) => {
       let text = e.getSelection?.().text || '', href = a.href || '';
       let existing = null;
       if (isWord() && e.page) { const n = getSelection().anchorNode; const el = n && (n.nodeType === 1 ? n : n.parentElement).closest('a[href]'); if (el && e.page.contains(el)) { existing = el; text = el.textContent; href = el.getAttribute('href'); } }
       else if (!isWord()) { const m = /^\[([^\]]*)\]\(([^)]*)\)$/.exec(text); if (m) { text = m[1]; href = m[2]; existing = true; } }
       if (!href && /^(https?:\/\/|www\.|mailto:)\S+$/.test(text.trim())) href = text.trim();
-      const t = inputEl(text), h = inputEl(href, { placeholder: 'https://… or a file name', autofocus: '' });
-      const body = document.createElement('div'); body.style.cssText = 'display:flex;flex-direction:column;gap:12px'; body.append(field('Text to show', t), field('Address', h));
-      const buttons = [{ label: 'Cancel', value: null }];
-      if (existing) buttons.unshift({ label: 'Remove link', danger: true, value: () => ({ remove: true }) });
-      buttons.push({ label: existing ? 'Update' : 'Insert', primary: true, value: () => ({ text: t.value, href: h.value.trim() }) });
-      const v = await E.modal({ title: existing ? 'Edit link' : 'Insert link', body, buttons, onOpen: () => (href ? t : h).focus() });
+      const t = inputEl(text), h = inputEl(href, { placeholder: app.t('https://… or a file name'), autofocus: '' });
+      const body = document.createElement('div'); body.style.cssText = 'display:flex;flex-direction:column;gap:12px'; body.append(field(app.t('Text to show'), t), field(app.t('Address'), h));
+      const buttons = [{ label: app.t('Cancel'), value: null }];
+      if (existing) buttons.unshift({ label: app.t('Remove link'), danger: true, value: () => ({ remove: true }) });
+      buttons.push({ label: existing ? app.t('Update') : app.t('Insert@@verb'), primary: true, value: () => ({ text: t.value, href: h.value.trim() }) });
+      const v = await E.modal({ title: existing ? app.t('Edit link') : app.t('Insert link'), body, buttons, onOpen: () => (href ? t : h).focus() });
       if (!v) return e.focus?.();
       if (existing && existing.nodeType === 1) { const r = document.createRange(); r.selectNode(existing); getSelection().removeAllRanges(); getSelection().addRange(r); }
       if (v.remove) { const label = text; return isWord() ? e.replaceSelection(label.replace(/([*_`[\]\\])/g, '\\$1')) : e.replaceSelection(label); }
@@ -455,41 +465,41 @@
       await e.replaceSelection(`[${label}](${/\s/.test(url) ? '<' + url + '>' : url})`);
     }),
   });
-  reg('insert.hr', { label: 'Divider', icon: 'hr', run: run(e => block(e, '---')) });
-  reg('insert.pageBreak', { label: 'Page break', icon: 'page', shortcut: 'Ctrl+Enter', run: run(e => block(e, '<div class="page-break"></div>')) });
+  reg('insert.hr', { label: app.tm('Divider'), icon: 'hr', run: run(e => block(e, '---')) });
+  reg('insert.pageBreak', { label: app.tm('Page break'), icon: 'page', shortcut: 'Ctrl+Enter', run: run(e => block(e, '<div class="page-break"></div>')) });
   reg('insert.footnote', {
-    label: 'Footnote', icon: 'foot',
+    label: app.tm('Footnote'), icon: 'foot',
     run: run(async e => {
       if (app.commands.get('ref.footnote')) return app.commands.run('ref.footnote');
       const d = app.docs.active(); if (!d) return; e.flush?.();
       const used = [...d.text.matchAll(/\[\^(\d+)\]/g)].map(m => +m[1]); const n = (used.length ? Math.max(...used) : 0) + 1;
-      const note = await app.ui.prompt('Insert footnote', 'Footnote text', ''); if (note == null) return;
+      const note = await app.ui.prompt(app.t('Insert footnote'), app.t('Footnote text'), ''); if (note == null) return;
       await e.insert(`[^${n}]`); e.flush?.();
       setDocText(d.text.replace(/\s*$/, '') + `\n\n[^${n}]: ${note}\n`, 'footnote');
     }),
   });
   reg('insert.citation', {
-    label: 'Citation', icon: 'cite',
+    label: app.tm('Citation'), icon: 'cite',
     run: run(async e => {
       if (app.commands.get('ref.cite')) return app.commands.run('ref.cite');
-      const k = await app.ui.prompt('Insert citation', 'Citation key from your .bib library, for example shields1936', ''); if (!k) return;
+      const k = await app.ui.prompt(app.t('Insert citation'), app.t('Citation key from your .bib library, for example shields1936'), ''); if (!k) return;
       await e.insert('[' + k.split(/[;,\s]+/).filter(Boolean).map(x => '@' + x.replace(/^@/, '')).join('; ') + ']');
     }),
   });
   const SYMBOLS = '© ® ™ ° ± × ÷ · • … – — ‰ § ¶ † ‡ ≈ ≠ ≤ ≥ ∞ √ ∑ ∏ ∫ ∂ ∆ ∇ µ Ω α β γ δ ε θ λ π σ τ φ ω → ← ↑ ↓ ↔ ⇒ ⇔ € £ ¥ ¢ ½ ¼ ¾ ² ³ ¹ ‘ ’ “ ” « » ✓ ✗ ★ ☐ ☑'.split(' ');
   reg('insert.symbol', {
-    label: 'Symbol', icon: 'mk-omega',
+    label: app.tm('Symbol'), icon: 'mk-omega',
     run: (a = {}) => {
       if (a.value) { const e = ed(); if (e) insertPlain(e, a.value); return; }
       const g = document.createElement('div'); g.className = 'mk-symgrid';
-      const btns = SYMBOLS.map(s => { const b = document.createElement('button'); b.type = 'button'; b.textContent = s; b.title = 'Insert ' + s; b.addEventListener('mousedown', ev => ev.preventDefault()); b.addEventListener('click', () => { E.closeMenu(); const e = ed(); if (e) { e.focus?.(); insertPlain(e, s); } }); g.appendChild(b); return b; });
+      const btns = SYMBOLS.map(s => { const b = document.createElement('button'); b.type = 'button'; b.textContent = s; b.title = app.t('Insert {symbol}', { symbol: s }); b.addEventListener('mousedown', ev => ev.preventDefault()); b.addEventListener('click', () => { E.closeMenu(); const e = ed(); if (e) { e.focus?.(); insertPlain(e, s); } }); g.appendChild(b); return b; });
       g.addEventListener('keydown', ev => { const i = btns.indexOf(document.activeElement); const mv = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 10, ArrowUp: -10 }[ev.key]; if (mv && i >= 0) { ev.preventDefault(); ev.stopPropagation(); btns[Math.max(0, Math.min(btns.length - 1, i + mv))].focus(); } });
-      E.menu(E.anchor(), [{ title: 'Symbol' }, { el: g }, '-', { label: 'Equation…', hint: 'Alt+=', run: () => app.commands.run('insert.equation') }], { noFocus: true });
+      E.menu(E.anchor(), [{ title: app.t('Symbol') }, { el: g }, '-', { label: app.t('Equation…'), hint: 'Alt+=', run: () => app.commands.run('insert.equation') }], { noFocus: true });
       setTimeout(() => btns[0]?.focus({ preventScroll: true }), 40);
     },
   });
   reg('insert.dateTime', {
-    label: 'Date & time', icon: 'mk-clock', shortcut: 'Alt+Shift+D',
+    label: app.tm('Date & time'), icon: 'mk-clock', shortcut: 'Alt+Shift+D',
     run: (a = {}) => {
       const d = new Date(); const pad = n => String(n).padStart(2, '0');
       const fmts = [
@@ -502,7 +512,7 @@
       ];
       const go = s => { const e = ed(); if (e) { e.focus?.(); insertPlain(e, s); } };
       if (a.value) return go(a.value === 'iso' ? fmts[0] : a.value);
-      E.menu(E.anchor(), [{ title: 'Date & time' }, ...fmts.map(f => ({ label: f, run: () => go(f) }))]);
+      E.menu(E.anchor(), [{ title: app.t('Date & time') }, ...fmts.map(f => ({ label: f, run: () => go(f) }))]);
     },
   });
 
@@ -510,10 +520,10 @@
   const SIZES_PX = { A4: { w: 794, h: 1123, css: 'A4' }, Letter: { w: 816, h: 1056, css: 'letter' }, A5: { w: 559, h: 794, css: 'A5' } };
   const MARGINS = { normal: [96, 96], narrow: [48, 48], wide: [96, 192] };
   const THEMES = {
-    classic: { label: 'Classic serif', family: '"Charter","Iowan Old Style","Cambria","Georgia",serif', size: 15.5, line: 1.62, head: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif' },
-    modern: { label: 'Modern sans', family: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",Inter,system-ui,sans-serif', size: 15, line: 1.6, head: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif' },
-    academic: { label: 'Academic', family: '"Times New Roman","Cambria","Georgia",serif', size: 16, line: 1.75, head: '"Times New Roman","Cambria","Georgia",serif' },
-    compact: { label: 'Compact', family: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif', size: 13.5, line: 1.45, para: 6, head: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif' },
+    classic: { label: app.tm('Classic serif'), family: '"Charter","Iowan Old Style","Cambria","Georgia",serif', size: 15.5, line: 1.62, head: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif' },
+    modern: { label: app.tm('Modern sans'), family: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",Inter,system-ui,sans-serif', size: 15, line: 1.6, head: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif' },
+    academic: { label: app.tm('Academic'), family: '"Times New Roman","Cambria","Georgia",serif', size: 16, line: 1.75, head: '"Times New Roman","Cambria","Georgia",serif' },
+    compact: { label: app.tm('Compact'), family: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif', size: 13.5, line: 1.45, para: 6, head: '-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif' },
   };
   const LINE = ['1.0', '1.15', '1.5', '2.0'];
   const PARA = ['0', '6', '8', '12', '18'];
@@ -583,15 +593,15 @@
     return (a = {}) => {
       if (a.value != null) return layout.set(key, a.value);
       const cur = String(layout.get()[key]);
-      E.menu(E.anchor(), [{ title: items.title }, ...items.list.map(([v, l, h]) => ({ label: l, hint: h, checked: String(v) === cur, run: () => layout.set(key, v) }))]);
+      E.menu(E.anchor(), [{ title: app.t(items.title) }, ...items.list.map(([v, l, h]) => ({ label: app.t(l), hint: h ? app.t(h) : h, checked: String(v) === cur, run: () => layout.set(key, v) }))]);
     };
   }
-  reg('layout.margins', { label: 'Margins', icon: 'page', run: layoutMenu('margins', { title: 'Margins', list: [['normal', 'Normal', '1 in all around'], ['narrow', 'Narrow', '0.5 in'], ['wide', 'Wide', '2 in left and right']] }) });
-  reg('layout.size', { label: 'Size', icon: 'doc', run: layoutMenu('size', { title: 'Page size', list: [['A4', 'A4', '210 × 297 mm'], ['Letter', 'Letter', '8.5 × 11 in'], ['A5', 'A5', '148 × 210 mm']] }) });
-  reg('layout.columns', { label: 'Columns', icon: 'side', run: layoutMenu('columns', { title: 'Columns', list: [[1, 'One'], [2, 'Two']] }), isActive: () => layout.get().columns === 2 });
-  reg('layout.lineSpacing', { label: 'Line spacing', icon: 'mk-lines', run: (a = {}) => layout.set('lineSpacing', a.value === 'default' ? null : a.value), value: () => layout.get().lineSpacing || 'default' });
-  reg('layout.paraSpacing', { label: 'Paragraph spacing', icon: 'mk-space', run: (a = {}) => layout.set('paraSpacing', a.value === 'default' ? null : a.value), value: () => layout.get().paraSpacing || 'default' });
-  reg('layout.theme', { label: 'Theme', icon: 'sparkle', run: layoutMenu('theme', { title: 'Document theme', list: Object.entries(THEMES).map(([k, t]) => [k, t.label]) }) });
+  reg('layout.margins', { label: app.tm('Margins'), icon: 'page', run: layoutMenu('margins', { title: app.tm('Margins'), list: [['normal', app.tm('Normal@@margins'), app.tm('1 in all around')], ['narrow', app.tm('Narrow'), app.tm('0.5 in')], ['wide', app.tm('Wide'), app.tm('2 in left and right')]] }) });
+  reg('layout.size', { label: app.tm('Size'), icon: 'doc', run: layoutMenu('size', { title: app.tm('Page size'), list: [['A4', 'A4', '210 × 297 mm'], ['Letter', app.tm('Letter@@paper size'), app.tm('8.5 × 11 in')], ['A5', 'A5', '148 × 210 mm']] }) });
+  reg('layout.columns', { label: app.tm('Columns'), icon: 'side', run: layoutMenu('columns', { title: app.tm('Columns'), list: [[1, app.tm('One@@columns')], [2, app.tm('Two@@columns')]] }), isActive: () => layout.get().columns === 2 });
+  reg('layout.lineSpacing', { label: app.tm('Line spacing'), icon: 'mk-lines', run: (a = {}) => layout.set('lineSpacing', a.value === 'default' ? null : a.value), value: () => layout.get().lineSpacing || 'default' });
+  reg('layout.paraSpacing', { label: app.tm('Paragraph spacing'), icon: 'mk-space', run: (a = {}) => layout.set('paraSpacing', a.value === 'default' ? null : a.value), value: () => layout.get().paraSpacing || 'default' });
+  reg('layout.theme', { label: app.tm('Theme'), icon: 'sparkle', run: layoutMenu('theme', { title: app.tm('Document theme'), list: Object.entries(THEMES).map(([k, t]) => [k, t.label]) }) });
 
   // ------------------------------------------------------------------ ribbon: custom pieces (mock markup: .ib, .swatch, .gallery/.sty)
   const customEls = new Set();
@@ -603,11 +613,11 @@
     }
   }
   app.events.on('ribbon:changed', () => setTimeout(refreshCustom, 0));
-  const tip = (c, fallback) => { const cmd = app.commands.get(c); const k = cmd?.shortcut || (cmd?.altShortcuts || [])[0]; return (cmd?.label || fallback || c) + (k ? ` (${k})` : ''); };
+  const tip = (c, fallback) => { const cmd = app.commands.get(c); const k = cmd?.shortcut || (cmd?.altShortcuts || [])[0]; const l = app.t(cmd?.label || fallback || c); return k ? app.t('{label} ({key})', { label: l, key: k }) : l; };
   function ibtn(cmd, html, args, cls = '') {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'ib ' + cls; b.innerHTML = html; b.dataset.cmd = cmd;
     // a ScreenTip (title, description and shortcut) like every other ribbon control, not a plain system tooltip
-    b.dataset.tipCmd = cmd; b.setAttribute('aria-label', app.commands.get(cmd)?.label || cmd);
+    b.dataset.tipCmd = cmd; b.setAttribute('aria-label', app.t(app.commands.get(cmd)?.label || cmd));
     b.addEventListener('mousedown', e => e.preventDefault());
     b.addEventListener('click', () => app.commands.run(cmd, args));
     return b;
@@ -618,13 +628,13 @@
     const setC = () => main.style.setProperty('--c', app.settings.get(settingKey, def));
     setC(); app.events.on('settings:changed', ({ key }) => { if (key === settingKey) setC(); });
     const dd = document.createElement('button'); dd.type = 'button'; dd.className = 'dd'; dd.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
-    const ddLabel = (app.commands.get(cmd)?.label || cmd) + ' colors';
-    dd.dataset.tip = ddLabel; dd.dataset.tipD = 'Pick a color'; dd.setAttribute('aria-label', ddLabel); dd.setAttribute('aria-haspopup', 'menu');
+    const ddLabel = app.t('{name} colors', { name: app.t(app.commands.get(cmd)?.label || cmd) });
+    dd.dataset.tip = ddLabel; dd.dataset.tipD = app.t('Pick a color'); dd.setAttribute('aria-label', ddLabel); dd.setAttribute('aria-haspopup', 'menu');
     dd.addEventListener('mousedown', e => e.preventDefault());
     dd.addEventListener('click', () => {
       const g = document.createElement('div'); g.className = 'mk-swatches';
-      colors.forEach(([n, c]) => { const s = document.createElement('button'); s.type = 'button'; s.style.background = c; s.title = n; s.setAttribute('aria-label', n); s.addEventListener('mousedown', e => e.preventDefault()); s.addEventListener('click', () => { E.closeMenu(); app.commands.run(cmd, { value: c }); }); g.appendChild(s); });
-      E.menu(wrap, [{ title: app.commands.get(cmd)?.label || '' }, { el: g }, '-', extra]);
+      colors.forEach(([n, c]) => { const s = document.createElement('button'); s.type = 'button'; s.style.background = c; s.title = app.t(n); s.setAttribute('aria-label', app.t(n)); s.addEventListener('mousedown', e => e.preventDefault()); s.addEventListener('click', () => { E.closeMenu(); app.commands.run(cmd, { value: c }); }); g.appendChild(s); });
+      E.menu(wrap, [{ title: app.t(app.commands.get(cmd)?.label || '') }, { el: g }, '-', { ...extra, label: app.t(extra.label) }]);
       setTimeout(() => g.firstChild?.focus({ preventScroll: true }), 40);
     });
     wrap.append(main, dd); return wrap;
@@ -636,8 +646,8 @@
         ibtn('format.bold', '<b>B</b>'), ibtn('format.italic', '<i>I</i>'), ibtn('format.underline', '<u>U</u>'), ibtn('format.strike', '<s>S</s>'),
         Object.assign(document.createElement('span'), { className: 'sep' }),
         ibtn('format.sub', '<span style="font:600 12px var(--serif)">x<sub>2</sub></span>'), ibtn('format.sup', '<span style="font:600 12px var(--serif)">x<sup>2</sup></span>'),
-        splitSwatch('format.highlight', 'hl', HL, 'highlightColor', '#ffd60a', { label: 'No highlight', run: () => app.commands.run('format.highlight', { value: 'none' }) }),
-        splitSwatch('format.color', 'tc', TC, 'textColor', '#e5383b', { label: 'Automatic', run: () => app.commands.run('format.color', { value: 'auto' }) }),
+        splitSwatch('format.highlight', 'hl', HL, 'highlightColor', '#ffd60a', { label: app.tm('No highlight'), run: () => app.commands.run('format.highlight', { value: 'none' }) }),
+        splitSwatch('format.color', 'tc', TC, 'textColor', '#e5383b', { label: app.tm('Automatic'), run: () => app.commands.run('format.color', { value: 'auto' }) }),
         ibtn('format.clear', icon('mk-clear')),
       );
       el.appendChild(row); row.__mkBorn = Date.now(); customEls.add(row); setTimeout(refreshCustom, 0);
@@ -645,20 +655,21 @@
   };
   const gallery = {
     type: 'custom', render(el) {
-      const g = document.createElement('div'); g.className = 'gallery mk-gallery'; g.setAttribute('role', 'listbox'); g.setAttribute('aria-label', 'Styles');
+      const g = document.createElement('div'); g.className = 'gallery mk-gallery'; g.setAttribute('role', 'listbox'); g.setAttribute('aria-label', app.t('Styles'));
       for (const s of STYLES) {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'sty'; b.dataset.v = s.value; b.setAttribute('role', 'option');
         const key = { h1: 'Ctrl+Alt+1', h2: 'Ctrl+Alt+2', p: 'Ctrl+Alt+0' }[s.value] || '';
-        b.dataset.tip = s.label; b.dataset.tipD = `Apply the ${s.label} style to the paragraph.`; if (key) b.dataset.key = key; b.setAttribute('aria-label', s.label);
-        b.innerHTML = `<span class="p" style="${s.preview}">${esc(s.text)}</span><span class="n">${esc(s.label)}</span>`;
+        const name = app.t(s.label);
+        b.dataset.tip = name; b.dataset.tipD = app.t('Apply the {style} style to the paragraph.', { style: name }); if (key) b.dataset.key = key; b.setAttribute('aria-label', name);
+        b.innerHTML = `<span class="p" style="${s.preview}">${esc(app.t(s.text))}</span><span class="n">${esc(name)}</span>`;
         b.addEventListener('mousedown', e => e.preventDefault());
         b.addEventListener('click', () => app.commands.run('format.style', { value: s.value }));
         g.appendChild(b);
       }
-      const more = document.createElement('button'); more.type = 'button'; more.className = 'more'; more.dataset.tip = 'More styles'; more.dataset.tipD = 'Headings 3 to 6, code and other paragraph styles.'; more.setAttribute('aria-label', 'More styles');
+      const more = document.createElement('button'); more.type = 'button'; more.className = 'more'; more.dataset.tip = app.t('More styles'); more.dataset.tipD = app.t('Headings 3 to 6, code and other paragraph styles.'); more.setAttribute('aria-label', app.t('More styles'));
       more.innerHTML = '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
       more.addEventListener('mousedown', e => e.preventDefault());
-      more.addEventListener('click', () => E.menu(more, [{ title: 'Styles' }, ...MORE_STYLES.map(([v, l]) => ({ label: l, checked: currentStyle() === v, hint: /^h[1-6]$/.test(v) ? 'Ctrl+Alt+' + v[1] : v === 'p' ? 'Ctrl+Alt+0' : '', run: () => app.commands.run('format.style', { value: v }) }))]));
+      more.addEventListener('click', () => E.menu(more, [{ title: app.t('Styles') }, ...MORE_STYLES.map(([v, l]) => ({ label: app.t(l), checked: currentStyle() === v, hint: /^h[1-6]$/.test(v) ? 'Ctrl+Alt+' + v[1] : v === 'p' ? 'Ctrl+Alt+0' : '', run: () => app.commands.run('format.style', { value: v }) }))]));
       g.appendChild(more);
       el.appendChild(g); g.__mkBorn = Date.now(); customEls.add(g); setTimeout(refreshCustom, 0);
     },
@@ -668,37 +679,37 @@
   const big = (command, label, icon) => ({ type: 'big', command, label, icon });
   const small = (command, label, icon) => ({ type: 'small', command, label, icon });
   const R = app.ribbon;
-  R.addGroup('home', { id: 'clipboard', label: 'Clipboard', order: 10, items: [
-    big('edit.paste', 'Paste', 'paste'),
-    { type: 'col', items: [small('edit.cut', 'Cut', 'cut'), small('edit.copy', 'Copy', 'copy')] },
-    { type: 'col', items: [small('format.painter', 'Format painter', 'brush'), small('edit.pastePlain', 'Paste as plain text', 'doc')] },
+  R.addGroup('home', { id: 'clipboard', label: app.tm('Clipboard'), order: 10, items: [
+    big('edit.paste', app.tm('Paste'), 'paste'),
+    { type: 'col', items: [small('edit.cut', app.tm('Cut'), 'cut'), small('edit.copy', app.tm('Copy'), 'copy')] },
+    { type: 'col', items: [small('format.painter', app.tm('Format painter'), 'brush'), small('edit.pastePlain', app.tm('Paste as plain text'), 'doc')] },
   ] });
-  R.addGroup('home', { id: 'font', label: 'Font', order: 20, items: [{ type: 'col', items: [
+  R.addGroup('home', { id: 'font', label: app.tm('Font'), order: 20, items: [{ type: 'col', items: [
     { type: 'row', items: [
-      { type: 'select', command: 'format.fontFamily', label: 'Reading font (Markdown keeps text, not fonts)', width: 132, options: FONTS.map(f => ({ value: f, label: f })), value: () => app.settings.get('fontFamily', 'Charter') },
-      { type: 'select', command: 'format.fontSize', label: 'Reading size in points (Markdown keeps text, not sizes)', width: 52, options: SIZES.map(s => ({ value: String(s), label: String(s) })), value: () => String(app.settings.get('fontSize', 12)) },
+      { type: 'select', command: 'format.fontFamily', label: app.tm('Reading font (Markdown keeps text, not fonts)'), width: 132, options: FONTS.map(f => ({ value: f, label: f })), value: () => app.settings.get('fontFamily', 'Charter') },
+      { type: 'select', command: 'format.fontSize', label: app.tm('Reading size in points (Markdown keeps text, not sizes)'), width: 52, options: SIZES.map(s => ({ value: String(s), label: String(s) })), value: () => String(app.settings.get('fontSize', 12)) },
     ] },
     fontRow,
   ] }] });
-  R.addGroup('home', { id: 'paragraph', label: 'Paragraph', order: 30, items: [{ type: 'col', items: [
-    { type: 'row', items: [small('list.bullet', 'Bullets', 'ul'), small('list.number', 'Numbering', 'ol'), small('list.task', 'Checklist', 'task'), { type: 'sep' }, small('para.outdent', 'Decrease indent', 'outdent'), small('para.indent', 'Increase indent', 'indent')] },
-    { type: 'row', items: [small('para.alignLeft', 'Align left', 'al'), small('para.alignCenter', 'Center', 'ac'), small('para.alignRight', 'Align right', 'ar'), small('para.alignJustify', 'Justify', 'aj'), { type: 'sep' }, small('para.quote', 'Quote', 'quote'), small('insert.codeBlock', 'Code block', 'code')] },
+  R.addGroup('home', { id: 'paragraph', label: app.tm('Paragraph'), order: 30, items: [{ type: 'col', items: [
+    { type: 'row', items: [small('list.bullet', app.tm('Bullets'), 'ul'), small('list.number', app.tm('Numbering'), 'ol'), small('list.task', app.tm('Checklist'), 'task'), { type: 'sep' }, small('para.outdent', app.tm('Decrease indent'), 'outdent'), small('para.indent', app.tm('Increase indent'), 'indent')] },
+    { type: 'row', items: [small('para.alignLeft', app.tm('Align left'), 'al'), small('para.alignCenter', app.tm('Center'), 'ac'), small('para.alignRight', app.tm('Align right'), 'ar'), small('para.alignJustify', app.tm('Justify'), 'aj'), { type: 'sep' }, small('para.quote', app.tm('Quote'), 'quote'), small('insert.codeBlock', app.tm('Code block'), 'code')] },
   ] }] });
-  R.addGroup('home', { id: 'styles', label: 'Styles', order: 40, items: [gallery] });
-  R.addGroup('home', { id: 'editing', label: 'Editing', order: 50, items: [big('edit.find', 'Find', 'search'), big('insert.equation', 'Equation', 'sigma')] });
+  R.addGroup('home', { id: 'styles', label: app.tm('Styles'), order: 40, items: [gallery] });
+  R.addGroup('home', { id: 'editing', label: app.tm('Editing'), order: 50, items: [big('edit.find', app.tm('Find'), 'search'), { type: 'col', items: [small('edit.replace', app.tm('Replace'), 'mk-replace'), small('edit.selectAll', app.tm('Select all'), 'mk-selall')] }, big('insert.equation', app.tm('Equation'), 'sigma')] });
 
-  R.addGroup('insert', { id: 'illustrations', label: 'Illustrations', order: 10, items: [big('insert.table', 'Table', 'table'), big('insert.image', 'Picture', 'image'), big('insert.diagram', 'Diagram', 'flow')] });
-  R.addGroup('insert', { id: 'blocks', label: 'Blocks', order: 20, items: [big('insert.equation', 'Equation', 'sigma'), big('insert.code', 'Code', 'code'), big('insert.callout', 'Callout', 'info')] });
-  R.addGroup('insert', { id: 'links', label: 'Links & pages', order: 30, items: [big('insert.link', 'Link', 'link'), big('insert.hr', 'Divider', 'hr'), big('insert.pageBreak', 'Page break', 'page')] });
-  R.addGroup('insert', { id: 'notes', label: 'Notes & sources', order: 40, items: [big('insert.footnote', 'Footnote', 'foot'), big('insert.citation', 'Citation', 'cite')] });
-  R.addGroup('insert', { id: 'text', label: 'Text', order: 50, items: [big('insert.symbol', 'Symbol', 'mk-omega'), big('insert.dateTime', 'Date & time', 'mk-clock')] });
+  R.addGroup('insert', { id: 'illustrations', label: app.tm('Illustrations'), order: 10, items: [big('insert.table', app.tm('Table'), 'table'), big('insert.image', app.tm('Picture'), 'image'), big('insert.diagram', app.tm('Diagram'), 'flow')] });
+  R.addGroup('insert', { id: 'blocks', label: app.tm('Blocks'), order: 20, items: [big('insert.equation', app.tm('Equation'), 'sigma'), big('insert.code', app.tm('Code'), 'code'), big('insert.callout', app.tm('Callout'), 'info')] });
+  R.addGroup('insert', { id: 'links', label: app.tm('Links & pages'), order: 30, items: [big('insert.link', app.tm('Link'), 'link'), big('insert.hr', app.tm('Divider'), 'hr'), big('insert.pageBreak', app.tm('Page break'), 'page')] });
+  R.addGroup('insert', { id: 'notes', label: app.tm('Notes & sources'), order: 40, items: [big('insert.footnote', app.tm('Footnote'), 'foot'), big('insert.citation', app.tm('Citation'), 'cite')] });
+  R.addGroup('insert', { id: 'text', label: app.tm('Text'), order: 50, items: [big('insert.symbol', app.tm('Symbol'), 'mk-omega'), big('insert.dateTime', app.tm('Date & time'), 'mk-clock')] });
 
-  R.addGroup('layout', { id: 'pagesetup', label: 'Page setup', order: 10, items: [big('layout.margins', 'Margins', 'page'), big('layout.size', 'Size', 'doc'), big('layout.columns', 'Columns', 'side')] });
-  R.addGroup('layout', { id: 'spacing', label: 'Spacing', order: 20, items: [{ type: 'col', items: [
-    { type: 'row', items: [{ type: 'select', command: 'layout.lineSpacing', label: 'Line spacing', width: 172, options: [{ value: 'default', label: 'Line spacing: auto' }, ...LINE.map(v => ({ value: v, label: 'Line spacing ' + v }))], value: () => layout.get().lineSpacing || 'default' }] },
-    { type: 'row', items: [{ type: 'select', command: 'layout.paraSpacing', label: 'Space after paragraphs', width: 172, options: [{ value: 'default', label: 'Paragraph space: auto' }, ...PARA.map(v => ({ value: v, label: `Paragraph space ${v} pt` }))], value: () => layout.get().paraSpacing || 'default' }] },
+  R.addGroup('layout', { id: 'pagesetup', label: app.tm('Page setup'), order: 10, items: [big('layout.margins', app.tm('Margins'), 'page'), big('layout.size', app.tm('Size'), 'doc'), big('layout.columns', app.tm('Columns'), 'side')] });
+  R.addGroup('layout', { id: 'spacing', label: app.tm('Spacing'), order: 20, items: [{ type: 'col', items: [
+    { type: 'row', items: [{ type: 'select', command: 'layout.lineSpacing', label: app.tm('Line spacing'), width: 172, options: [{ value: 'default', label: app.tm('Line spacing: auto') }, ...LINE.map(v => ({ value: v, get label() { return app.t('Line spacing {value}', { value: v }); } }))], value: () => layout.get().lineSpacing || 'default' }] },
+    { type: 'row', items: [{ type: 'select', command: 'layout.paraSpacing', label: app.tm('Space after paragraphs'), width: 172, options: [{ value: 'default', label: app.tm('Paragraph space: auto') }, ...PARA.map(v => ({ value: v, get label() { return app.t('Paragraph space {value} pt', { value: v }); } }))], value: () => layout.get().paraSpacing || 'default' }] },
   ] }] });
-  R.addGroup('layout', { id: 'theme', label: 'Document theme', order: 30, items: [big('layout.theme', 'Theme', 'sparkle')] });
+  R.addGroup('layout', { id: 'theme', label: app.tm('Document theme'), order: 30, items: [big('layout.theme', app.tm('Theme'), 'sparkle')] });
 
   app.events.on('doc:active', () => app.events.emit('layout:changed', { doc: app.docs.active() }));
 

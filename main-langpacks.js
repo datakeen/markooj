@@ -46,6 +46,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const https = require('https');
+const I18N = require('./main-i18n'); // interface translations: messages and action labels in the interface language
 
 const RELEASE_BASE = 'https://github.com/datakeen/markooj-language-packs/releases/download/packs/';
 const PACK_FORMAT = 2; // the newest pack zip format this Markooj reads (1 and 2)
@@ -62,47 +63,48 @@ let cachedIndex = null;
 
 // Messages lead with what to do (main.js errorForIpc sends actions and details to the window; see mk.errorInfo).
 function plain(msg, actions, details) { const e = new Error(msg); e.plain = true; if (actions && actions.length) e.actions = actions; if (details) e.details = String(details).slice(0, 4000); return e; }
-const RETRY = { id: 'retry', label: 'Try again' };
-const REPORT = { id: 'report', label: 'Report this', url: 'https://github.com/datakeen/markooj-language-packs/issues' };
+// action labels are made when the message is made (the interface language can change while Markooj runs)
+const retryAct = () => ({ id: 'retry', label: I18N.t('Try again') });
+const reportAct = () => ({ id: 'report', label: I18N.t('Report this'), url: 'https://github.com/datakeen/markooj-language-packs/issues' });
 // a pack that fails a check: what to do, that nothing changed, then the reason (kept for the details and the tests)
 function badPack(why) {
   const reason = String(why).replace(/\.$/, '');
-  return plain('Try another copy of this language pack, or ask its author for a fixed one. This pack did not pass Markooj’s checks, so nothing was installed and Markooj is unchanged.', [{ id: 'copy-details', label: 'Copy details', text: reason }, REPORT], reason);
+  return plain(I18N.t('Try another copy of this language pack, or ask its author for a fixed one. This pack did not pass Markooj’s checks, so nothing was installed and Markooj is unchanged.'), [{ id: 'copy-details', label: I18N.t('Copy details'), text: reason }, reportAct()], reason);
 }
 // English and every English variety map onto the built-in en-US / en-GB languages
 const isBuiltinCode = code => /^en(?:[-_]|$)/i.test(String(code || ''));
 
 /** GET over https with a timeout, following GitHub's redirects only to GitHub hosts. Node's https is used on purpose:
  *  the window's session blocks web requests unless "Load pictures from the web" is on, and this is a separate, explicit action. */
-function httpsGet(url, { timeout = 15000, max = MAX_ZIP, redirects = 5, notFound = 'Choose another pack from the list in File → Options → Language. This one is not on GitHub yet.' } = {}) {
+function httpsGet(url, { timeout = 15000, max = MAX_ZIP, redirects = 5, notFound = I18N.t('Choose another pack from the list in File → Options → Language. This one is not on GitHub yet.') } = {}) {
   return new Promise((resolve, reject) => {
     let u;
-    try { u = new URL(url); } catch { return reject(plain('Choose the pack again from the list in File → Options → Language. This download address is not valid.')); }
-    if (u.protocol !== 'https:' || !ALLOWED_HOSTS.has(u.hostname)) return reject(plain(`Choose the pack from the list in File → Options → Language, or install it from a file. Language packs only download from GitHub (this address is on ${u.hostname}).`));
+    try { u = new URL(url); } catch { return reject(plain(I18N.t('Choose the pack again from the list in File → Options → Language. This download address is not valid.'))); }
+    if (u.protocol !== 'https:' || !ALLOWED_HOSTS.has(u.hostname)) return reject(plain(I18N.t('Choose the pack from the list in File → Options → Language, or install it from a file. Language packs only download from GitHub (this address is on {host}).', { host: u.hostname })));
     const req = https.get(u, { headers: { 'User-Agent': 'Markooj language packs', Accept: 'application/octet-stream, application/json' }, timeout }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
-        if (redirects <= 0) return reject(plain('Try again in a few minutes. GitHub did not send the download this time.', [RETRY], 'too many redirects'));
+        if (redirects <= 0) return reject(plain(I18N.t('Try again in a few minutes. GitHub did not send the download this time.'), [retryAct()], 'too many redirects'));
         return resolve(httpsGet(new URL(res.headers.location, u).href, { timeout, max, redirects: redirects - 1, notFound }));
       }
       if (res.statusCode === 404) { res.resume(); return reject(plain(notFound)); }
-      if (res.statusCode !== 200) { res.resume(); return reject(plain('Try again in a few minutes. GitHub is not answering normally right now.', [RETRY], `HTTP ${res.statusCode} for ${u.href}`)); }
+      if (res.statusCode !== 200) { res.resume(); return reject(plain(I18N.t('Try again in a few minutes. GitHub is not answering normally right now.'), [retryAct()], `HTTP ${res.statusCode} for ${u.href}`)); }
       const len = Number(res.headers['content-length'] || 0);
-      if (len > max) { res.destroy(); return reject(plain('Try another pack, or report this pack. The download is larger than a language pack can be, so Markooj stopped it.', [REPORT])); }
+      if (len > max) { res.destroy(); return reject(plain(I18N.t('Try another pack, or report this pack. The download is larger than a language pack can be, so Markooj stopped it.'), [reportAct()])); }
       const chunks = []; let got = 0;
-      res.on('data', c => { got += c.length; if (got > max) { res.destroy(); reject(plain('Try another pack, or report this pack. The download is larger than a language pack can be, so Markooj stopped it.', [REPORT])); } else chunks.push(c); });
+      res.on('data', c => { got += c.length; if (got > max) { res.destroy(); reject(plain(I18N.t('Try another pack, or report this pack. The download is larger than a language pack can be, so Markooj stopped it.'), [reportAct()])); } else chunks.push(c); });
       res.on('end', () => resolve(Buffer.concat(chunks)));
       res.on('error', e => reject(offline(e)));
     });
-    req.on('timeout', () => { req.destroy(); reject(plain('Check your internet connection, then try again. GitHub did not answer in time.', [RETRY])); });
+    req.on('timeout', () => { req.destroy(); reject(plain(I18N.t('Check your internet connection, then try again. GitHub did not answer in time.'), [retryAct()])); });
     req.on('error', e => reject(offline(e)));
   });
 }
 function offline(e) {
   if (e && e.plain) return e;
   const c = e && e.code;
-  if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ECONNRESET|ETIMEDOUT/.test(String(c))) return plain('Check your internet connection and try again, or install a language pack from a file. You seem to be offline: Markooj can’t reach GitHub.', [RETRY], String(c));
-  return plain('Check your internet connection, then try again. The download stopped before it finished.', [RETRY], String((e && (e.code || e.message)) || e));
+  if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ECONNRESET|ETIMEDOUT/.test(String(c))) return plain(I18N.t('Check your internet connection and try again, or install a language pack from a file. You seem to be offline: Markooj can’t reach GitHub.'), [retryAct()], String(c));
+  return plain(I18N.t('Check your internet connection, then try again. The download stopped before it finished.'), [retryAct()], String((e && (e.code || e.message)) || e));
 }
 
 const count = v => (v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.floor(Number(v)) : null);
@@ -152,8 +154,8 @@ function normalizeIndex(o) {
 }
 async function fetchIndex() {
   // a 404 here means the list itself is not published yet, not that one pack is missing
-  const buf = await httpsGet(INDEX_URL, { timeout: 12000, max: 2 * 1024 * 1024, notFound: 'Install a language pack from a file for now. No language packs are published on GitHub yet.' });
-  let o; try { o = JSON.parse(buf.toString('utf8')); } catch { throw plain('Try again in a few minutes. The language pack list from GitHub could not be read.', [RETRY]); }
+  const buf = await httpsGet(INDEX_URL, { timeout: 12000, max: 2 * 1024 * 1024, notFound: I18N.t('Install a language pack from a file for now. No language packs are published on GitHub yet.') });
+  let o; try { o = JSON.parse(buf.toString('utf8')); } catch { throw plain(I18N.t('Try again in a few minutes. The language pack list from GitHub could not be read.'), [retryAct()]); }
   cachedIndex = { ...normalizeIndex(o), source: 'github', fetchedAt: Date.now() };
   return cachedIndex;
 }
@@ -265,14 +267,14 @@ function namedFiles(m) {
 
 /** Check and unpack a pack zip. Nothing is written unless every check passes. */
 async function installZip(buf, { expectSha, origin } = {}) {
-  if (!Buffer.isBuffer(buf) || !buf.length) throw plain('Download the language pack again: this file is empty.');
-  if (buf.length > MAX_ZIP) throw plain('Choose the language pack .zip file. This file is too large to be a language pack.');
+  if (!Buffer.isBuffer(buf) || !buf.length) throw plain(I18N.t('Download the language pack again: this file is empty.'));
+  if (buf.length > MAX_ZIP) throw plain(I18N.t('Choose the language pack .zip file. This file is too large to be a language pack.'));
   const sum = sha256(buf);
   if (expectSha && sum !== String(expectSha).toLowerCase()) {
-    throw plain('Download the language pack again. This copy did not pass Markooj’s safety check: it may be damaged or changed. Nothing was installed, so Markooj is unchanged.', [RETRY], `SHA-256 does not match${origin ? ' ' + origin : ''}: ${sum}, expected ${expectSha}`);
+    throw plain(I18N.t('Download the language pack again. This copy did not pass Markooj’s safety check: it may be damaged or changed. Nothing was installed, so Markooj is unchanged.'), [retryAct()], `SHA-256 does not match${origin ? ' ' + origin : ''}: ${sum}, expected ${expectSha}`);
   }
   const JSZip = require('jszip');
-  let zip; try { zip = await JSZip.loadAsync(buf); } catch { throw plain('Choose a Markooj language pack .zip file. This file is not a Markooj language pack (not a zip file).'); }
+  let zip; try { zip = await JSZip.loadAsync(buf); } catch { throw plain(I18N.t('Choose a Markooj language pack .zip file. This file is not a Markooj language pack (not a zip file).')); }
   const root = packsDir();
   const probe = path.join(root, '__probe__');
   // 1. every name must stay inside the target folder (zip-slip)
@@ -284,17 +286,17 @@ async function installZip(buf, { expectSha, origin } = {}) {
   }
   // 2. the manifest
   const mf = zip.file('manifest.json');
-  if (!mf) throw plain('Choose a Markooj language pack .zip file. This zip has no manifest.json, so it is not a Markooj language pack.');
+  if (!mf) throw plain(I18N.t('Choose a Markooj language pack .zip file. This zip has no manifest.json, so it is not a Markooj language pack.'));
   let manifest; try { manifest = JSON.parse(await mf.async('string')); } catch { throw badPack('The language pack manifest could not be read'); }
   if (!manifest || !CODE_RE.test(String(manifest.code || ''))) throw badPack('The language pack manifest does not say which language it is for');
   // English (US and UK) is built into Markooj: a pack can never replace it
-  if (isBuiltinCode(manifest.code)) throw plain(`Pick English in File → Options → Language: it is built into Markooj, so a language pack cannot replace it (this pack says “${manifest.code}”). Nothing was installed.`);
+  if (isBuiltinCode(manifest.code)) throw plain(I18N.t('Pick English in File → Options → Language: it is built into Markooj, so a language pack cannot replace it (this pack says “{code}”). Nothing was installed.', { code: manifest.code }));
   const format = manifest.format == null ? 1 : Number(manifest.format);
   if (!Number.isInteger(format) || format < 1) throw badPack('The language pack manifest has an unknown format');
-  if (format > PACK_FORMAT) throw plain(`Update Markooj, then install this language pack again: it needs a newer Markooj (pack format ${format}). Nothing was installed.`, [{ id: 'open-url', label: 'Get the newest Markooj', url: 'https://datakeen.github.io/markooj/#download' }]);
+  if (format > PACK_FORMAT) throw plain(I18N.t('Update Markooj, then install this language pack again: it needs a newer Markooj (pack format {format}). Nothing was installed.', { format }), [{ id: 'open-url', label: I18N.t('Get the newest Markooj'), url: 'https://datakeen.github.io/markooj/#download' }]);
   if (!manifest.files || typeof manifest.files !== 'object' || Array.isArray(manifest.files)) throw badPack('The language pack manifest lists no files');
   const mode = spellingModeOf(manifest.spelling);
-  if (manifest.spelling && typeof manifest.spelling === 'object' && manifest.spelling.mode != null && manifest.spelling.mode !== 'off' && !mode) throw plain(`Update Markooj, or try another copy of this pack: it asks for a spelling mode this Markooj does not know (${String(manifest.spelling.mode).slice(0, 20)}). Nothing was installed.`);
+  if (manifest.spelling && typeof manifest.spelling === 'object' && manifest.spelling.mode != null && manifest.spelling.mode !== 'off' && !mode) throw plain(I18N.t('Update Markooj, or try another copy of this pack: it asks for a spelling mode this Markooj does not know ({mode}). Nothing was installed.', { mode: String(manifest.spelling.mode).slice(0, 20) }));
   const named = namedFiles(manifest);
   for (const [k, v] of Object.entries(named)) {
     if (v == null) continue;
@@ -313,7 +315,7 @@ async function installZip(buf, { expectSha, origin } = {}) {
     const data = await f.async('nodebuffer');
     total += data.length; if (total > MAX_UNPACKED) throw badPack('The language pack unpacks to more than a language pack can be');
     const w = typeof want === 'string' ? want : want.sha256;
-    if (sha256(data) !== String(w).toLowerCase()) throw plain('Download the language pack again. A file in this copy is damaged or was changed. Nothing was installed, so Markooj is unchanged.', [RETRY], `${name}: SHA-256 does not match`);
+    if (sha256(data) !== String(w).toLowerCase()) throw plain(I18N.t('Download the language pack again. A file in this copy is damaged or was changed. Nothing was installed, so Markooj is unchanged.'), [retryAct()], `${name}: SHA-256 does not match`);
     out.push([name, data]);
   }
   for (const name of Object.keys(manifest.files)) if (!out.find(([n]) => n === name)) throw badPack(`The language pack is missing ${name}`);
@@ -392,39 +394,39 @@ ipcMain.handle('langpack-index', async () => fetchIndex());
 ipcMain.handle('langpack-install', async (_e, o = {}) => {
   if (o.url) {
     const url = String(o.url);
-    if (!url.startsWith(RELEASE_BASE)) throw plain('Choose the pack from the list in File → Options → Language, or install it from a file. Language packs only install from the Markooj releases on GitHub.');
+    if (!url.startsWith(RELEASE_BASE)) throw plain(I18N.t('Choose the pack from the list in File → Options → Language, or install it from a file. Language packs only install from the Markooj releases on GitHub.'));
     const idx = cachedIndex || await fetchIndex();
     const entry = idx.packs.find(p => p.url === url || RELEASE_BASE + p.file === url);
-    if (!entry) throw plain('Refresh the list in File → Options → Language and choose the pack again. That language pack is not in the list on GitHub any more.', [RETRY]);
+    if (!entry) throw plain(I18N.t('Refresh the list in File → Options → Language and choose the pack again. That language pack is not in the list on GitHub any more.'), [retryAct()]);
     const buf = await httpsGet(url);
     return installZip(buf, { expectSha: entry.sha256, origin: 'the list on GitHub' });
   }
   if (o.file) {
     const file = path.resolve(String(o.file));
-    if (!/\.zip$/i.test(file)) throw plain('Choose a language pack .zip file.');
-    let st; try { st = fs.statSync(file); } catch { throw plain('Choose the file again: it may have been moved or deleted.'); }
-    if (st.size > MAX_ZIP) throw plain('Choose the language pack .zip file. This file is too large to be a language pack.');
+    if (!/\.zip$/i.test(file)) throw plain(I18N.t('Choose a language pack .zip file.'));
+    let st; try { st = fs.statSync(file); } catch { throw plain(I18N.t('Choose the file again: it may have been moved or deleted.')); }
+    if (st.size > MAX_ZIP) throw plain(I18N.t('Choose the language pack .zip file. This file is too large to be a language pack.'));
     const expect = o.sha256 || siblingIndexSha(file);
     return installZip(fs.readFileSync(file), { expectSha: expect, origin: o.sha256 ? 'the expected value' : 'index.json' });
   }
   if (o.data) return installZip(Buffer.from(String(o.data), 'base64'), { expectSha: o.sha256 || null, origin: 'the expected value' });
-  throw plain('Choose a language pack from the list or from a file.');
+  throw plain(I18N.t('Choose a language pack from the list or from a file.'));
 });
 ipcMain.handle('langpack-list', () => listInstalled());
 ipcMain.handle('langpack-remove', (_e, code) => {
   const c = String(code || '');
-  if (!CODE_RE.test(c)) throw plain('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.');
+  if (!CODE_RE.test(c)) throw plain(I18N.t('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.'));
   const dir = path.join(packsDir(), c);
-  if (path.dirname(dir) !== packsDir()) throw plain('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.');
+  if (path.dirname(dir) !== packsDir()) throw plain(I18N.t('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.'));
   fs.rmSync(dir, { recursive: true, force: true });
   return true;
 });
 function installedPack(code) {
   const c = String(code || '');
-  if (!CODE_RE.test(c) || isBuiltinCode(c)) throw plain('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.');
+  if (!CODE_RE.test(c) || isBuiltinCode(c)) throw plain(I18N.t('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.'));
   const dir = path.join(packsDir(), c);
-  if (path.dirname(dir) !== packsDir()) throw plain('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.');
-  let m; try { m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')); } catch { throw plain('Install the language pack first, from File → Options → Language. It is not installed.'); }
+  if (path.dirname(dir) !== packsDir()) throw plain(I18N.t('Choose a language pack from the list in File → Options → Language. Markooj does not know this one.'));
+  let m; try { m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8')); } catch { throw plain(I18N.t('Install the language pack first, from File → Options → Language. It is not installed.')); }
   const read = rel => { if (!rel || typeof rel !== 'string') return null; const p = safeEntry(rel, dir); return p && fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
   return { dir, m, read };
 }

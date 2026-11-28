@@ -1,3 +1,4 @@
+/* i18n-aliases: t */
 // Markooj — Writing Assistant UI: the side pane (Writing Assistant and Thesaurus), F7 Editor, goals,
 // Review tab groups, status-bar score, File → Options → Writing, the document context menu with
 // synonyms, double-click synonyms and word completion ("Suggest words as I type", off by default).
@@ -39,8 +40,8 @@
     const mid = document.querySelector('.mid-inner') || document.getElementById('editorHost')?.parentElement;
     if (!mid) return null;
     pane = document.createElement('aside');
-    pane.className = 'mkw-pane'; pane.id = 'mkwPane'; pane.setAttribute('aria-label', 'Writing Assistant'); pane.hidden = true;
-    pane.innerHTML = `<div class="mkw-p-head"><b class="mkw-p-title"></b><button type="button" class="mkw-p-x" data-tip="Close" data-tip-d="Close this pane. Esc goes back to the document." aria-label="Close">${icon('x')}</button></div><div class="mkw-p-body"></div>`;
+    pane.className = 'mkw-pane'; pane.id = 'mkwPane'; pane.setAttribute('aria-label', app.t('Writing Assistant')); pane.hidden = true;
+    pane.innerHTML = `<div class="mkw-p-head"><b class="mkw-p-title"></b><button type="button" class="mkw-p-x" data-tip="${esc(app.t('Close'))}" data-tip-d="${esc(app.t('Close this pane. Esc goes back to the document.'))}" aria-label="${esc(app.t('Close'))}">${icon('x')}</button></div><div class="mkw-p-body"></div>`;
     pane.querySelector('.mkw-p-x').addEventListener('click', () => closePane());
     pane.addEventListener('keydown', e => { if (e.key === 'Escape' && !W.cardOpen()) { e.preventDefault(); e.stopPropagation(); try { app.editors.active()?.focus?.(); } catch {} } });
     mid.appendChild(pane);
@@ -50,8 +51,7 @@
     if (!ensurePane()) return;
     view = v; pane.hidden = false; pane.dataset.view = v;
     document.body.classList.add('mkw-pane-open');
-    pane.querySelector('.mkw-p-title').textContent = v === 'thesaurus' ? 'Thesaurus' : 'Writing Assistant';
-    pane.setAttribute('aria-label', v === 'thesaurus' ? 'Thesaurus' : 'Writing Assistant');
+    paneTitle();
     if (v === 'assistant') renderAssistant(true); else renderThesaurus();
     app.events.emit('writing:pane', { view: v, open: true });
     app.events.emit('ribbon:changed');
@@ -62,6 +62,16 @@
     app.events.emit('writing:pane', { open: false }); app.events.emit('ribbon:changed');
     try { app.editors.active()?.focus?.(); } catch {}
   }
+  function paneTitle() {
+    if (!pane) return;
+    const t = view === 'thesaurus' ? app.t('Thesaurus') : app.t('Writing Assistant');
+    pane.querySelector('.mkw-p-title').textContent = t; pane.setAttribute('aria-label', t);
+    const x = pane.querySelector('.mkw-p-x'); if (x) { x.dataset.tip = app.t('Close'); x.dataset.tipD = app.t('Close this pane. Esc goes back to the document.'); x.setAttribute('aria-label', app.t('Close')); }
+  }
+  // a new interface language: the open pane and the status-bar score are drawn again
+  app.events.on('i18n:changed', () => {
+    try { if (pane && !pane.hidden) { paneTitle(); if (view === 'assistant') renderAssistant(); else if (view === 'thesaurus') renderThesaurus(); } paintStatus(); } catch (e) { console.warn('writing i18n', e); }
+  });
   W.pane = { open: openPane, close: closePane, get view() { return pane && !pane.hidden ? view : null; }, get el() { return pane; } };
 
   // ---- score ring
@@ -70,50 +80,59 @@
     const col = score >= 85 ? 'var(--mkw-green)' : score >= 65 ? 'var(--mkw-blue)' : score >= 45 ? 'var(--mkw-orange)' : 'var(--mkw-red)';
     return `<svg class="mkw-ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${stroke}"/><circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${col}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})" style="transition:stroke-dashoffset .6s var(--ease,ease)"/><text x="50%" y="50%" dy=".35em" text-anchor="middle" class="mkw-ring-n">${score}</text></svg>`;
   }
-  const verdict = s => (s >= 90 ? 'Excellent' : s >= 75 ? 'Good' : s >= 55 ? 'Getting there' : 'Needs work');
-  const GOAL_LABEL = { audience: { general: 'General', knowledgeable: 'Knowledgeable', expert: 'Expert' }, formality: { informal: 'Informal', neutral: 'Neutral', formal: 'Formal' }, domain: { general: 'General', academic: 'Academic', business: 'Business' } };
+  const verdict = s => (s >= 90 ? app.t('Excellent') : s >= 75 ? app.t('Good') : s >= 55 ? app.t('Getting there') : app.t('Needs work'));
+  const GOAL_LABEL = { audience: { general: app.tm('General'), knowledgeable: app.tm('Knowledgeable'), expert: app.tm('Expert') }, formality: { informal: app.tm('Informal'), neutral: app.tm('Neutral'), formal: app.tm('Formal') }, domain: { general: app.tm('General'), academic: app.tm('Academic'), business: app.tm('Business') } };
+  // category names (rules.js keeps them in English; the pane shows them in the interface language)
+  const CAT_NAME = { correctness: app.tm('Correctness'), clarity: app.tm('Clarity'), engagement: app.tm('Engagement'), delivery: app.tm('Delivery') };
+  const catName = k => app.t(CAT_NAME[k] || R.CAT_LABEL[k] || k);
+  // parts of speech of the thesaurus (WordNet)
+  const POS_NAME = { noun: app.tm('noun'), verb: app.tm('verb'), adjective: app.tm('adjective'), adverb: app.tm('adverb') };
 
   function renderAssistant(focusList) {
     if (!pane || pane.hidden || view !== 'assistant') return;
     const body = pane.querySelector('.mkw-p-body');
     const doc = app.docs.active();
-    if (!doc || doc.kind !== 'markdown') { body.innerHTML = '<p class="mkw-empty">Open a Markdown document to see writing suggestions.</p>'; return; }
+    if (!doc || doc.kind !== 'markdown') { body.innerHTML = `<p class="mkw-empty">${app.th('Open a Markdown document to see writing suggestions.')}</p>`; return; }
     const st = W.state(doc); const g = S.goals();
     const list = st.findings || [];
     const c = st.counts || { correctness: 0, clarity: 0, engagement: 0, delivery: 0 };
     const shown = filter === 'all' ? list : list.filter(f => f.cat === filter);
     const lang = W.languageFor(doc);
-    const status = !S.on() && !S.spell() ? 'Checking is off.' : st.status === 'checking' ? 'Checking…' : W.engine.harper === 'loading' ? 'Starting the grammar checker…' : lang.unsupported ? `Add a language pack in File → Options → Language to check “${lang.code}”. Markooj has no spelling or grammar checks for it yet.` : '';
+    const langName = app.t(lang.name);
+    const status = !S.on() && !S.spell() ? app.t('Checking is off.') : st.status === 'checking' ? app.t('Checking…') : W.engine.harper === 'loading' ? app.t('Starting the grammar checker…') : lang.unsupported ? app.t('Add the {language} language pack in File → Options → Language to check spelling and grammar. Until then Markooj does not check {language} text.', { language: langName }) : '';
     const safe = W.safeCount(doc);
     const scrollTop = body.querySelector('.mkw-list')?.scrollTop || 0;
     body.innerHTML = `
-      <div class="mkw-score">${ring(st.text == null ? 100 : st.score)}<div><div class="mkw-s-v">${st.text == null ? 'Checking…' : verdict(st.score)}</div><div class="mkw-s-n">${list.length ? `${list.length} suggestion${list.length === 1 ? '' : 's'}` : st.text == null ? '' : 'No suggestions'} · ${esc(lang.name)}</div><div class="mkw-s-st" aria-live="polite">${esc(status)}</div></div></div>
-      <button type="button" class="mkw-goals" data-tip="Goals" data-tip-d="Tell Markooj who you write for. Goals change which suggestions you see.">${icon('mkw-goal')}<span>Goals: ${esc(GOAL_LABEL.audience[g.audience])} · ${esc(GOAL_LABEL.formality[g.formality])} · ${esc(GOAL_LABEL.domain[g.domain])}</span></button>
-      <div class="mkw-tabs" role="tablist" aria-label="Categories">${['all', ...R.CATS].map(k => `<button type="button" role="tab" class="mkw-tab${filter === k ? ' on' : ''}" data-k="${k}" aria-selected="${filter === k}"${k !== 'all' ? ` data-tip="${R.CAT_LABEL[k]}" data-tip-d="${esc(catDesc[k])}"` : ''}>${k === 'all' ? '' : `<span class="mkw-dot" style="background:${W.CAT_COLOR[k]}"></span>`}<span>${k === 'all' ? 'All' : R.CAT_LABEL[k]}</span><em>${k === 'all' ? list.length : c[k] || 0}</em></button>`).join('')}</div>
-      ${safe ? `<button type="button" class="mkw-acceptall" data-tip="Accept all safe fixes" data-tip-d="Apply the ${safe} fixes that cannot change your meaning (repeated words, a/an, spelling style, wordy phrases). One Ctrl+Z takes them all back.">${icon('mkw-accept')}<span>Accept ${safe} safe fix${safe === 1 ? '' : 'es'}</span></button>` : ''}
-      <div class="mkw-list" role="listbox" tabindex="0" aria-label="Suggestions">${shown.length ? '' : `<div class="mkw-empty">${st.text == null ? 'Checking your document…' : filter === 'all' ? 'Nothing to fix. Nice writing!' : 'Nothing in this category.'}</div>`}</div>
-      <div class="mkw-p-foot">Underlines: <span style="color:var(--mkw-red)">■</span> correctness <span style="color:var(--mkw-blue)">■</span> clarity <span style="color:var(--mkw-green)">■</span> engagement <span style="color:var(--mkw-purple)">■</span> delivery. ↑↓ move, Enter accepts, Delete dismisses.</div>`;
+      <div class="mkw-score">${ring(st.text == null ? 100 : st.score)}<div><div class="mkw-s-v">${st.text == null ? app.th('Checking…') : esc(verdict(st.score))}</div><div class="mkw-s-n">${list.length ? app.th('{count} suggestions', { count: list.length }) : st.text == null ? '' : app.th('No suggestions')} · ${esc(langName)}</div><div class="mkw-s-st" aria-live="polite">${esc(status)}</div></div></div>
+      <button type="button" class="mkw-goals" data-tip="${esc(app.t('Goals'))}" data-tip-d="${esc(app.t('Tell Markooj who you write for. Goals change which suggestions you see.'))}">${icon('mkw-goal')}<span>${app.th('Goals: {audience} · {formality} · {domain}', { audience: app.t(GOAL_LABEL.audience[g.audience]), formality: app.t(GOAL_LABEL.formality[g.formality]), domain: app.t(GOAL_LABEL.domain[g.domain]) })}</span></button>
+      <div class="mkw-tabs" role="tablist" aria-label="${esc(app.t('Categories'))}">${['all', ...R.CATS].map(k => `<button type="button" role="tab" class="mkw-tab${filter === k ? ' on' : ''}" data-k="${k}" aria-selected="${filter === k}"${k !== 'all' ? ` data-tip="${esc(catName(k))}" data-tip-d="${esc(app.t(catDesc[k]))}"` : ''}>${k === 'all' ? '' : `<span class="mkw-dot" style="background:${W.CAT_COLOR[k]}"></span>`}<span>${k === 'all' ? app.th('All') : esc(catName(k))}</span><em>${k === 'all' ? list.length : c[k] || 0}</em></button>`).join('')}</div>
+      ${safe ? `<button type="button" class="mkw-acceptall" data-tip="${esc(app.t('Accept all safe fixes'))}" data-tip-d="${esc(app.tn('Apply the {count} fixes that cannot change your meaning (repeated words, a/an, spelling style, wordy phrases). One Ctrl+Z takes them all back.', safe))}">${icon('mkw-accept')}<span>${app.th('Accept {count} safe fixes', { count: safe })}</span></button>` : ''}
+      <div class="mkw-list" role="listbox" tabindex="0" aria-label="${esc(app.t('Suggestions'))}">${shown.length ? '' : `<div class="mkw-empty">${st.text == null ? app.th('Checking your document…') : filter === 'all' ? app.th('Nothing to fix. Nice writing!') : app.th('Nothing in this category.')}</div>`}</div>
+      <div class="mkw-p-foot">${app.th('Underlines:')} <span style="color:var(--mkw-red)">■</span> ${app.th('correctness')} <span style="color:var(--mkw-blue)">■</span> ${app.th('clarity')} <span style="color:var(--mkw-green)">■</span> ${app.th('engagement')} <span style="color:var(--mkw-purple)">■</span> ${app.th('delivery')}. ${app.th('↑↓ move, Enter accepts, Delete dismisses.')}</div>`;
     const lb = body.querySelector('.mkw-list');
     const max = 300;
     for (const f of shown.slice(0, max)) {
       const it = document.createElement('div');
       it.className = 'mkw-item' + (f.id === selId ? ' sel' : ''); it.setAttribute('role', 'option'); it.dataset.id = f.id; it.setAttribute('aria-selected', String(f.id === selId));
       const fixes = f.rule === 'spelling' ? [] : f.replacements || [];
-      const snippet = f.wide ? `<span class="mkw-i-txt">${esc(f.text.slice(0, 70))}${f.text.length > 70 ? '…' : ''}</span>` : `<span class="mkw-i-txt"><span class="mkw-del">${esc(f.text.slice(0, 40))}</span>${fixes.length ? ` → <b>${esc(fixes[0] === '' ? 'remove' : fixes[0])}</b>` : ''}</span>`;
+      // struck through only when something replaces it (or it is a misspelling): a passive-voice hint has no fix, and a
+      // struck "were checked" would read as "delete these words"
+      const strike = fixes.length || f.rule === 'spelling';
+      const snippet = f.wide ? `<span class="mkw-i-txt">${esc(f.text.slice(0, 70))}${f.text.length > 70 ? '…' : ''}</span>` : `<span class="mkw-i-txt"><span class="${strike ? 'mkw-del' : 'mkw-plain'}">${esc(f.text.slice(0, 40))}</span>${fixes.length ? ` → <b>${esc(fixes[0] === '' ? app.t('remove') : fixes[0])}</b>` : ''}</span>`;
       it.innerHTML = `<div class="mkw-i-row"><span class="mkw-dot" style="background:${W.CAT_COLOR[f.cat]}"></span><span class="mkw-i-title">${esc(f.title || '')}</span></div>${snippet}`;
       if (f.id === selId) { const box = document.createElement('div'); box.className = 'mkw-i-card'; W.renderCard(f, box, { doc, onDone: () => { selId = nextId(f.id); } }); it.appendChild(box); }
       lb.appendChild(it);
     }
-    if (shown.length > max) lb.insertAdjacentHTML('beforeend', `<div class="mkw-empty">${shown.length - max} more. Fix some of these to see the rest.</div>`);
+    if (shown.length > max) lb.insertAdjacentHTML('beforeend', `<div class="mkw-empty">${app.th('{count} more. Fix some of these to see the rest.', { count: shown.length - max })}</div>`);
     lb.scrollTop = scrollTop;
     body.querySelector('.mkw-goals').addEventListener('click', () => goalsDialog());
     body.querySelectorAll('.mkw-tab').forEach(b => b.addEventListener('click', () => { filter = b.dataset.k; renderAssistant(); }));
-    body.querySelector('.mkw-acceptall')?.addEventListener('click', e => { app.ui.ripple?.(e.currentTarget); const n = W.acceptAllSafe(doc); toast(n ? `Accepted ${n} fix${n === 1 ? '' : 'es'}. Press Ctrl+Z to undo.` : 'No safe fixes left.'); });
+    body.querySelector('.mkw-acceptall')?.addEventListener('click', e => { app.ui.ripple?.(e.currentTarget); const n = W.acceptAllSafe(doc); toast(n ? app.tn('Accepted {count} fixes. Press Ctrl+Z to undo.', n) : app.t('No safe fixes left.')); });
     lb.addEventListener('click', e => { const it = e.target.closest('.mkw-item'); if (!it || e.target.closest('.mkw-i-card')) return; select(it.dataset.id, true); });
     lb.addEventListener('keydown', onListKey);
     if (focusList) setTimeout(() => lb.focus({ preventScroll: true }), 30);
   }
-  const catDesc = { correctness: 'Spelling, grammar, punctuation and wrong prepositions.', clarity: 'Long sentences, wordy phrases, passive voice, undefined abbreviations and consistency.', engagement: 'Plain or overused words and repeated sentence starts.', delivery: 'Tone for your goals: contractions, informal words, hedging.' };
+  const catDesc = { correctness: app.tm('Spelling, grammar, punctuation and wrong prepositions.'), clarity: app.tm('Long sentences, wordy phrases, passive voice, undefined abbreviations and consistency.'), engagement: app.tm('Plain or overused words and repeated sentence starts.'), delivery: app.tm('Tone for your goals: contractions, informal words, hedging.') };
   function shownList() { const doc = app.docs.active(); const list = doc ? W.state(doc).findings : []; return filter === 'all' ? list : list.filter(f => f.cat === filter); }
   function nextId(id) { const l = shownList(); const i = l.findIndex(f => f.id === id); return (l[i + 1] || l[i - 1] || {}).id || null; }
   function select(id, toggle) {
@@ -153,13 +172,14 @@
   async function goalsDialog() {
     const g = S.goals();
     const body = document.createElement('div'); body.className = 'mkw-goalsdlg';
-    const row = (key, title, desc, opts) => `<div class="mkw-g-row"><div><b>${title}</b><small>${desc}</small></div><div class="mkw-seg" role="radiogroup" aria-label="${title}">${opts.map(([v, l, d]) => `<button type="button" role="radio" data-k="${key}" data-v="${v}" aria-checked="${g[key] === v}" class="${g[key] === v ? 'on' : ''}" data-tip="${l}" data-tip-d="${esc(d)}">${l}</button>`).join('')}</div></div>`;
-    body.innerHTML = row('audience', 'Audience', 'Who will read this?', [['general', 'General', 'Anyone. Markooj flags long sentences and abbreviations sooner.'], ['knowledgeable', 'Knowledgeable', 'Readers who know the topic.'], ['expert', 'Expert', 'Specialists. Longer sentences are fine.']])
-      + row('formality', 'Formality', 'How formal should it sound?', [['informal', 'Informal', 'Contractions and casual words are fine.'], ['neutral', 'Neutral', 'Everyday writing.'], ['formal', 'Formal', 'No contractions or casual words; fewer hedges.']])
-      + row('domain', 'Domain', 'What kind of writing is it?', [['general', 'General', 'Most writing.'], ['academic', 'Academic', 'Papers and theses: passive voice is fine; contractions, “I think” and undefined abbreviations are flagged.'], ['business', 'Business', 'Reports and email: clear, direct and formal.']])
-      + '<p class="mkw-g-note">Goals apply to every document. They change which suggestions you see, never your text.</p>';
+    const t = app.t;
+    const row = (key, title, desc, opts) => `<div class="mkw-g-row"><div><b>${esc(title)}</b><small>${esc(desc)}</small></div><div class="mkw-seg" role="radiogroup" aria-label="${esc(title)}">${opts.map(([v, l, d]) => `<button type="button" role="radio" data-k="${key}" data-v="${v}" aria-checked="${g[key] === v}" class="${g[key] === v ? 'on' : ''}" data-tip="${esc(l)}" data-tip-d="${esc(d)}">${esc(l)}</button>`).join('')}</div></div>`;
+    body.innerHTML = row('audience', t('Audience'), t('Who will read this?'), [['general', t('General'), t('Anyone. Markooj flags long sentences and abbreviations sooner.')], ['knowledgeable', t('Knowledgeable'), t('Readers who know the topic.')], ['expert', t('Expert'), t('Specialists. Longer sentences are fine.')]])
+      + row('formality', t('Formality'), t('How formal should it sound?'), [['informal', t('Informal'), t('Contractions and casual words are fine.')], ['neutral', t('Neutral'), t('Everyday writing.')], ['formal', t('Formal'), t('No contractions or casual words; fewer hedges.')]])
+      + row('domain', t('Domain'), t('What kind of writing is it?'), [['general', t('General'), t('Most writing.')], ['academic', t('Academic'), t('Papers and theses: passive voice is fine; contractions, “I think” and undefined abbreviations are flagged.')], ['business', t('Business'), t('Reports and email: clear, direct and formal.')]])
+      + `<p class="mkw-g-note">${app.th('Goals apply to every document. They change which suggestions you see, never your text.')}</p>`;
     body.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; g[b.dataset.k] = b.dataset.v; body.querySelectorAll(`[data-k="${b.dataset.k}"]`).forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); }); app.ui.ripple?.(b); });
-    const v = await app.ui.dialog({ title: 'Writing goals', body, buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Reset', value: 'reset' }, { label: 'OK', value: 'ok', primary: true }] });
+    const v = await app.ui.dialog({ title: app.t('Writing goals'), body, buttons: [{ label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Reset'), value: 'reset' }, { label: app.t('OK'), value: 'ok', primary: true }] });
     if (v === 'ok') app.settings.set('writingGoals', g);
     else if (v === 'reset') app.settings.set('writingGoals', { ...R.DEFAULT_GOALS });
   }
@@ -255,15 +275,18 @@
   async function renderThesaurus() {
     if (!pane || pane.hidden || view !== 'thesaurus') return;
     const body = pane.querySelector('.mkw-p-body');
-    body.innerHTML = `<label class="mkw-th-search">${icon('search')}<input type="search" placeholder="Look up a word" aria-label="Look up a word" spellcheck="false" value="${esc(thesWord)}"></label><div class="mkw-th-res" aria-live="polite"><div class="mkw-empty">Loading…</div></div><div class="mkw-p-foot">Click a word to put it in place of “<span class="mkw-th-target">${esc(thesTarget?.word || '—')}</span>”. Double-click to look it up. Word meanings from WordNet (Princeton University).</div>`;
+    const lookUp = esc(app.t('Look up a word'));
+    // the target word sits in its own span (changed after a replacement); \u0001 marks its place in the sentence
+    const foot = app.th('Click a word to put it in place of “{word}”. Double-click to look it up. Word meanings from WordNet (Princeton University).', { word: '\u0001' }).replace('\u0001', `<span class="mkw-th-target" translate="no">${esc(thesTarget?.word || '—')}</span>`);
+    body.innerHTML = `<label class="mkw-th-search">${icon('search')}<input type="search" placeholder="${lookUp}" aria-label="${lookUp}" spellcheck="false" value="${esc(thesWord)}"></label><div class="mkw-th-res" aria-live="polite"><div class="mkw-empty">${app.th('Loading…')}</div></div><div class="mkw-p-foot">${foot}</div>`;
     const inp = body.querySelector('input'); const res = body.querySelector('.mkw-th-res');
     const draw = async () => {
       const w = inp.value.trim(); thesWord = w;
-      if (!w) { res.innerHTML = '<div class="mkw-empty">Type a word, or select one in your document and press Shift+F7.</div>'; return; }
+      if (!w) { res.innerHTML = `<div class="mkw-empty">${app.th('Type a word, or select one in your document and press Shift+F7.')}</div>`; return; }
       const r = await W.synonyms(w);
-      if (!r) { res.innerHTML = '<div class="mkw-empty">Press Enter to try again. The thesaurus didn’t load this time; spelling and grammar checks still work.</div>'; return; }
-      if (!r.groups.length) { res.innerHTML = `<div class="mkw-empty">No synonyms for “${esc(w)}”. Check the spelling, or try the base form of the word.</div>`; return; }
-      res.innerHTML = (r.lemma !== w.toLowerCase() ? `<div class="mkw-th-lemma">Showing “${esc(r.lemma)}”</div>` : '') + r.groups.map(g => `<section><h4>${esc(g.pos)}</h4>${g.meanings.map(m => `<div class="mkw-th-m">${m.gloss ? `<div class="mkw-th-g">${esc(m.gloss)}</div>` : ''}<div class="mkw-chips">${m.words.map(x => `<button type="button" class="mkw-chip" data-w="${esc(x)}">${esc(x)}</button>`).join('')}</div>${m.antonyms.length ? `<div class="mkw-th-a">Antonyms: ${m.antonyms.map(x => `<button type="button" class="mkw-chip anto" data-w="${esc(x)}">${esc(x)}</button>`).join(' ')}</div>` : ''}</div>`).join('')}</section>`).join('');
+      if (!r) { res.innerHTML = `<div class="mkw-empty">${app.th('Press Enter to try again. The thesaurus didn’t load this time; spelling and grammar checks still work.')}</div>`; return; }
+      if (!r.groups.length) { res.innerHTML = `<div class="mkw-empty">${app.th('No synonyms for “{word}”. Check the spelling, or try the base form of the word.', { word: w })}</div>`; return; }
+      res.innerHTML = (r.lemma !== w.toLowerCase() ? `<div class="mkw-th-lemma">${app.th('Showing “{word}”', { word: r.lemma })}</div>` : '') + r.groups.map(g => `<section><h4>${esc(POS_NAME[g.pos] ? app.t(POS_NAME[g.pos]) : g.pos)}</h4>${g.meanings.map(m => `<div class="mkw-th-m">${m.gloss ? `<div class="mkw-th-g" lang="en" translate="no">${esc(m.gloss)}</div>` : ''}<div translate="no" class="mkw-chips">${m.words.map(x => `<button type="button" translate="no" class="mkw-chip" data-w="${esc(x)}">${esc(x)}</button>`).join('')}</div>${m.antonyms.length ? `<div class="mkw-th-a">${app.th('Antonyms:')} ${m.antonyms.map(x => `<button type="button" translate="no" class="mkw-chip anto" data-w="${esc(x)}">${esc(x)}</button>`).join(' ')}</div>` : ''}</div>`).join('')}</section>`).join('');
     };
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); draw(); } });
     inp.addEventListener('input', app.debounce(draw, 250));
@@ -271,7 +294,7 @@
       const b = e.target.closest('.mkw-chip'); if (!b) return;
       if (e.detail > 1) return;
       app.ui.ripple?.(b);
-      if (thesTarget && await W.replaceTarget(thesTarget, b.dataset.w)) { toast(`Replaced with “${R.matchCase(thesTarget.word, b.dataset.w)}”.`); thesTarget = null; body.querySelector('.mkw-th-target').textContent = '—'; }
+      if (thesTarget && await W.replaceTarget(thesTarget, b.dataset.w)) { toast(app.t('Replaced with “{word}”.', { word: R.matchCase(thesTarget.word, b.dataset.w) })); thesTarget = null; body.querySelector('.mkw-th-target').textContent = '—'; }
       else { inp.value = b.dataset.w; draw(); }
     });
     res.addEventListener('dblclick', e => { const b = e.target.closest('.mkw-chip'); if (!b) return; inp.value = b.dataset.w; draw(); });
@@ -282,13 +305,13 @@
   // =================================================================== F7: step through spelling and grammar like Word's Editor
   async function editorReview() {
     const doc = app.docs.active();
-    if (!doc || doc.kind !== 'markdown') { toast('Open a Markdown document to check it.', { kind: 'info' }); return; }
+    if (!doc || doc.kind !== 'markdown') { toast(app.t('Open a Markdown document to check it.'), { kind: 'info' }); return; }
     try { app.editors.active()?.flush?.(); } catch {}
-    toast('Checking spelling and grammar…');
+    toast(app.t('Checking spelling and grammar…'));
     await W.check(doc);
     const st = W.state(doc);
     const ids = st.findings.filter(f => !f.wide || f.cat !== 'engagement').map(f => f.id);
-    if (!ids.length) { toast('Spelling and grammar check complete. Markooj found nothing to fix.', { kind: 'info' }); return; }
+    if (!ids.length) { toast(app.t('Spelling and grammar check complete. Markooj found nothing to fix.'), { kind: 'info' }); return; }
     let changed = 0, k = 0;
     for (const id of ids) {
       k++;
@@ -300,21 +323,21 @@
       const ls = doc.text.lastIndexOf('\n', f.start - 1) + 1, le = (x => (x < 0 ? doc.text.length : x))(doc.text.indexOf('\n', f.end));
       const cs = Math.max(ls, f.start - 80), ce = Math.min(le, f.end + 80);
       const body = document.createElement('div'); body.className = 'mkw-f7';
-      body.innerHTML = `<div class="mkw-f7-top"><span class="mkw-dot" style="background:${W.CAT_COLOR[f.cat]}"></span><b>${esc(f.title || '')}</b><span class="mkw-f7-n">${k} of ${ids.length}</span></div>
+      body.innerHTML = `<div class="mkw-f7-top"><span class="mkw-dot" style="background:${W.CAT_COLOR[f.cat]}"></span><b>${esc(f.title || '')}</b><span class="mkw-f7-n">${app.th('{index} of {total}', { index: k, total: ids.length })}</span></div>
         <p class="mkw-f7-ctx">${cs > ls ? '…' : ''}${esc(doc.text.slice(cs, f.start))}<mark class="mkw-f7-hit c-${f.cat}">${esc(f.text)}</mark>${esc(doc.text.slice(f.end, ce))}${ce < le ? '…' : ''}</p>
         <p class="mkw-f7-msg">${esc(f.message || '')}</p>
-        ${f.wide ? '' : `<label class="mkw-f7-lab" for="mkw-f7-to">Change to</label><input id="mkw-f7-to" class="txt" value="${esc(fixes[0] ?? f.text)}" spellcheck="false">
-        ${fixes.length > 1 ? `<div class="mkw-chips" role="listbox" aria-label="Suggestions">${fixes.map(x => `<button type="button" class="mkw-chip" data-s="${esc(x)}">${esc(x === '' ? '(remove)' : x)}</button>`).join('')}</div>` : fixes.length ? '' : '<p class="mkw-c-none">No suggestions.</p>'}`}
-        <details class="mkw-f7-why"><summary>Why?</summary><p>${esc(ex.text)}</p>${ex.wrong ? `<div class="mkw-ex wrong"><span>✕</span>${esc(ex.wrong)}</div>` : ''}${ex.right ? `<div class="mkw-ex right"><span>✓</span>${esc(ex.right)}</div>` : ''}</details>`;
+        ${f.wide ? '' : `<label class="mkw-f7-lab" for="mkw-f7-to">${app.th('Change to')}</label><input id="mkw-f7-to" class="txt" value="${esc(fixes[0] ?? f.text)}" spellcheck="false">
+        ${fixes.length > 1 ? `<div translate="no" class="mkw-chips" role="listbox" aria-label="${esc(app.t('Suggestions'))}">${fixes.map(x => `<button type="button" translate="no" class="mkw-chip" data-s="${esc(x)}">${esc(x === '' ? app.t('(remove)') : x)}</button>`).join('')}</div>` : fixes.length ? '' : `<p class="mkw-c-none">${app.th('No suggestions.')}</p>`}`}
+        <details class="mkw-f7-why"><summary>${app.th('Why?')}</summary><p>${esc(ex.text)}</p>${ex.wrong ? `<div class="mkw-ex wrong"><span>✕</span>${esc(ex.wrong)}</div>` : ''}${ex.right ? `<div class="mkw-ex right"><span>✓</span>${esc(ex.right)}</div>` : ''}</details>`;
       const input = body.querySelector('input');
       body.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => { input.value = b.dataset.s; input.focus(); }));
       const spelling = f.rule === 'spelling';
-      const buttons = [{ label: 'Close', value: 'close' }];
-      if (spelling) buttons.push({ label: 'Add to Dictionary', value: 'add' });
-      buttons.push({ label: spelling ? 'Ignore All' : 'Ignore Rule', value: 'ignoreAll' }, { label: 'Ignore', value: 'ignore' });
-      if (!f.wide) buttons.push({ label: 'Change', value: 'change', primary: true });
+      const buttons = [{ label: app.t('Close'), value: 'close' }];
+      if (spelling) buttons.push({ label: app.t('Add to Dictionary'), value: 'add' });
+      buttons.push({ label: spelling ? app.t('Ignore All') : app.t('Ignore Rule'), value: 'ignoreAll' }, { label: app.t('Ignore'), value: 'ignore' });
+      if (!f.wide) buttons.push({ label: app.t('Change'), value: 'change', primary: true });
       else buttons[buttons.length - 1].primary = true;
-      const v = await app.ui.dialog({ title: 'Spelling and Grammar', body, cancelValue: 'close', buttons });
+      const v = await app.ui.dialog({ title: app.t('Spelling and Grammar'), body, cancelValue: 'close', buttons });
       if (v === 'change') { const rep = input ? input.value : null; if (rep != null && rep !== f.text && await W.accept(f, rep, doc)) changed++; }
       else if (v === 'ignoreAll') { if (spelling) W.ignoreWord(f.text); else W.ignoreRule(f); }
       else if (v === 'add') W.addToDictionary(f.text);
@@ -322,13 +345,13 @@
       else { W.setActive(null); return; }
     }
     W.setActive(null);
-    toast(`Spelling and grammar check complete${changed ? ` (${changed} change${changed === 1 ? '' : 's'})` : ''}.`, { kind: 'info' });
+    toast(changed ? app.tn('Spelling and grammar check complete ({count} changes).', changed) : app.t('Spelling and grammar check complete.'), { kind: 'info' });
   }
   W.editorReview = editorReview;
   /** Alt+F7: go to the next issue after the caret and open its card. */
   function nextIssue(dir = 1) {
     const doc = app.docs.active(); if (!doc) return;
-    const list = W.state(doc).findings.filter(f => !f.wide); if (!list.length) { toast('No issues found.'); return; }
+    const list = W.state(doc).findings.filter(f => !f.wide); if (!list.length) { toast(app.t('No issues found.')); return; }
     let at = 0; try { const s = app.editors.active()?.getSelection?.(); if (s && s.start != null) at = dir > 0 ? s.end : s.start; } catch {}
     const cur = W.state(doc).cursor;
     let f;
@@ -341,42 +364,44 @@
 
   // =================================================================== commands
   const mdOnly = () => app.docs.active()?.kind === 'markdown';
-  cmd('review.spelling', { label: 'Spelling and Grammar', icon: 'spell', shortcut: 'F7', description: 'Go through spelling and grammar suggestions one by one: change, ignore, add to the dictionary, or see why.', category: 'Review', run: () => editorReview() });
-  cmd('review.spellingAsYouType', { label: 'Check spelling as you type', icon: 'spell', category: 'Review', description: 'Show or hide red lines under words the dictionary does not know.', isActive: () => S.spell(), run() { const on = !S.spell(); app.settings.set('spellcheck', on); toast(on ? 'Spelling is checked as you type.' : 'Spelling is no longer checked as you type. Press F7 to check the whole document.'); } });
-  cmd('review.writingAssistant', { label: 'Writing Assistant', icon: 'mkw-assist', category: 'Review', description: 'Open the pane with every suggestion by category, your writing score and goals.', isActive: () => W.pane.view === 'assistant', run: () => (W.pane.view === 'assistant' ? closePane() : openPane('assistant')) });
-  cmd('review.thesaurus', { label: 'Thesaurus', icon: 'mkw-book', shortcut: 'Shift+F7', category: 'Review', description: 'See synonyms and antonyms of the selected word, grouped by meaning. Click one to use it.', isActive: () => W.pane.view === 'thesaurus', run: () => (W.pane.view === 'thesaurus' && !selectedWordTarget() ? closePane() : openThesaurus()) });
-  cmd('writing.toggle', { label: 'Check writing as you type', icon: 'mkw-assist', category: 'Review', description: 'Show or hide the colored lines for grammar, clarity, engagement and delivery.', isActive: () => S.on(), run() { const on = !S.on(); app.settings.set('writingAssistant', on); toast(on ? 'Writing is checked as you type.' : 'Writing suggestions are hidden. Spelling still follows its own switch.'); } });
-  cmd('writing.goals', { label: 'Goals', icon: 'mkw-goal', category: 'Review', description: 'Set audience, formality and domain (general, academic or business). Goals change which suggestions you see.', run: () => goalsDialog() });
-  cmd('writing.acceptAll', { label: 'Accept all safe fixes', icon: 'mkw-accept', category: 'Review', description: 'Apply every fix that cannot change your meaning, in one step. Ctrl+Z takes them all back.', isEnabled: () => mdOnly() && W.safeCount() > 0, run() { const n = W.acceptAllSafe(); toast(n ? `Accepted ${n} fix${n === 1 ? '' : 'es'}. Press Ctrl+Z to undo.` : 'No safe fixes left.'); } });
-  cmd('writing.nextIssue', { label: 'Next writing issue', icon: 'mkw-assist', shortcut: 'Alt+F7', category: 'Review', description: 'Go to the next underlined word and open its suggestion card.', isEnabled: mdOnly, run: () => nextIssue(1) });
-  cmd('writing.prevIssue', { label: 'Previous writing issue', icon: 'mkw-assist', shortcut: 'Alt+Shift+F7', category: 'Review', description: 'Go to the previous underlined word and open its suggestion card.', isEnabled: mdOnly, run: () => nextIssue(-1) });
+  cmd('review.spelling', { label: app.tm('Spelling and Grammar'), icon: 'spell', shortcut: 'F7', description: app.tm('Go through spelling and grammar suggestions one by one: change, ignore, add to the dictionary, or see why.'), category: 'Review', run: () => editorReview() });
+  cmd('review.spellingAsYouType', { label: app.tm('Check spelling as you type'), icon: 'spell', category: 'Review', description: app.tm('Show or hide red lines under words the dictionary does not know.'), isActive: () => S.spell(), run() { const on = !S.spell(); app.settings.set('spellcheck', on); toast(on ? app.t('Spelling is checked as you type.') : app.t('Spelling is no longer checked as you type. Press F7 to check the whole document.')); } });
+  cmd('review.writingAssistant', { label: app.tm('Writing Assistant'), icon: 'mkw-assist', category: 'Review', description: app.tm('Open the pane with every suggestion by category, your writing score and goals.'), isActive: () => W.pane.view === 'assistant', run: () => (W.pane.view === 'assistant' ? closePane() : openPane('assistant')) });
+  cmd('review.thesaurus', { label: app.tm('Thesaurus'), icon: 'mkw-book', shortcut: 'Shift+F7', category: 'Review', description: app.tm('See synonyms and antonyms of the selected word, grouped by meaning. Click one to use it.'), isActive: () => W.pane.view === 'thesaurus', run: () => (W.pane.view === 'thesaurus' && !selectedWordTarget() ? closePane() : openThesaurus()) });
+  cmd('writing.toggle', { label: app.tm('Check writing as you type'), icon: 'mkw-assist', category: 'Review', description: app.tm('Show or hide the colored lines for grammar, clarity, engagement and delivery.'), isActive: () => S.on(), run() { const on = !S.on(); app.settings.set('writingAssistant', on); toast(on ? app.t('Writing is checked as you type.') : app.t('Writing suggestions are hidden. Spelling still follows its own switch.')); } });
+  cmd('writing.goals', { label: app.tm('Goals'), icon: 'mkw-goal', category: 'Review', description: app.tm('Set audience, formality and domain (general, academic or business). Goals change which suggestions you see.'), run: () => goalsDialog() });
+  cmd('writing.acceptAll', { label: app.tm('Accept all safe fixes'), icon: 'mkw-accept', category: 'Review', description: app.tm('Apply every fix that cannot change your meaning, in one step. Ctrl+Z takes them all back.'), isEnabled: () => mdOnly() && W.safeCount() > 0, run() { const n = W.acceptAllSafe(); toast(n ? app.tn('Accepted {count} fixes. Press Ctrl+Z to undo.', n) : app.t('No safe fixes left.')); } });
+  cmd('writing.nextIssue', { label: app.tm('Next writing issue'), icon: 'mkw-assist', shortcut: 'Alt+F7', category: 'Review', description: app.tm('Go to the next underlined word and open its suggestion card.'), isEnabled: mdOnly, run: () => nextIssue(1) });
+  cmd('writing.prevIssue', { label: app.tm('Previous writing issue'), icon: 'mkw-assist', shortcut: 'Alt+Shift+F7', category: 'Review', description: app.tm('Go to the previous underlined word and open its suggestion card.'), isEnabled: mdOnly, run: () => nextIssue(-1) });
   cmd('writing.setLanguage', {
-    label: 'Proofing language', icon: 'mkw-globe', category: 'Review', description: 'The language Markooj checks this document in. Saved as lang in the front matter.',
+    label: app.tm('Proofing language'), icon: 'mkw-globe', category: 'Review', description: app.tm('The language Markooj checks this document in. Saved as lang in the front matter.'),
     isEnabled: mdOnly,
     run(a) {
       const code = a && typeof a === 'object' ? a.value : a; const doc = app.docs.active(); if (!code || !doc) return;
       if (app.shell?.setFrontMatter) app.shell.setFrontMatter(doc, { lang: code });
       else if (mk.frontMatter) { const fm = mk.frontMatter.parse(doc.text); doc.setText(mk.frontMatter.write(doc.text, { ...(fm.meta || {}), lang: code }), 'meta'); }
-      toast(`Proofing language: ${W.languageFor({ meta: { lang: code } }).name}.`);
+      toast(app.t('Proofing language: {language}.', { language: app.t(W.languageFor({ meta: { lang: code } }).name) }));
     },
   });
-  cmd('writing.dictionary', { label: 'Edit my dictionary', icon: 'mkw-abc', category: 'Review', description: 'See and change the words you added to your dictionary.', run: () => dictionaryDialog() });
-  cmd('writing.synonyms', { label: 'Synonyms', icon: 'mkw-book', category: 'Review', description: 'Show synonyms for the word at the cursor.', isEnabled: mdOnly, run: () => { const t = selectedWordTarget(); if (t) synonymsPopup(t); else openThesaurus(); } });
-  cmd('writing.autocomplete', { label: 'Suggest words as I type', icon: 'mkw-complete', category: 'Review', description: 'Show the rest of a word in gray as you type. Tab or Right arrow accepts it; Esc hides it.', isActive: () => S.autocomplete(), run() { app.settings.set('writingAutocomplete', !S.autocomplete()); } });
+  cmd('writing.dictionary', { label: app.tm('Edit my dictionary'), icon: 'mkw-abc', category: 'Review', description: app.tm('See and change the words you added to your dictionary.'), run: () => dictionaryDialog() });
+  cmd('writing.synonyms', { label: app.tm('Synonyms'), icon: 'mkw-book', category: 'Review', description: app.tm('Show synonyms for the word at the cursor.'), isEnabled: mdOnly, run: () => { const t = selectedWordTarget(); if (t) synonymsPopup(t); else openThesaurus(); } });
+  cmd('writing.domainWords', { label: app.tm('Accept technical terms and place names'), icon: 'mkw-abc', category: 'Review', description: app.tm('Spelling accepts hydraulics, hydropower and fluid mechanics terms, engineering software and units, and the names of US, world and Pakistani places.'), isActive: () => S.domainWords(), run() { const on = !S.domainWords(); app.settings.set('writingDomainWords', on); toast(on ? app.t('Technical terms and place names are accepted again.') : app.t('Technical terms and place names are checked like other words now. Turn them back on here or in File → Options → Writing.')); } });
+  cmd('writing.autocomplete', { label: app.tm('Suggest words as I type'), icon: 'mkw-complete', category: 'Review', description: app.tm('Show the rest of a word in gray as you type. Tab or Right arrow accepts it; Esc hides it.'), isActive: () => S.autocomplete(), run() { app.settings.set('writingAutocomplete', !S.autocomplete()); } });
   const TIPS = {
-    'review.spelling': ['Spelling and Grammar', 'Go through spelling and grammar suggestions one by one, like Word’s Editor: Change, Ignore, Ignore All, Add to Dictionary, and Why?'],
-    'review.spellingAsYouType': ['Check spelling as you type', 'Show or hide red lines under words the dictionary does not know. Right-click a red word for suggestions.'],
-    'review.writingAssistant': ['Writing Assistant', 'Open the pane with your writing score, goals and every suggestion by category. Underlines: red correctness, blue clarity, green engagement, purple delivery.'],
-    'review.thesaurus': ['Thesaurus', 'See synonyms and antonyms of the selected word, grouped by meaning. Click one to put it in place.'],
-    'writing.toggle': ['Check writing as you type', 'Show or hide the colored lines for grammar, clarity, engagement and delivery. Markooj never changes your text by itself.'],
-    'writing.goals': ['Goals', 'Audience, formality and domain (general, academic or business). Goals change which suggestions you see.'],
-    'writing.acceptAll': ['Accept all safe fixes', 'Apply every fix that cannot change your meaning in one step. One Ctrl+Z takes them all back.'],
-    'writing.nextIssue': ['Next writing issue', 'Go to the next underlined word and open its card.'],
-    'writing.prevIssue': ['Previous writing issue', 'Go to the previous underlined word and open its card.'],
-    'writing.setLanguage': ['Proofing language', 'The language Markooj checks this document in: English (US), English (UK) or an installed language pack. Saved as lang in the front matter.'],
-    'writing.dictionary': ['Edit my dictionary', 'See, add or remove the words you taught Markooj.'],
-    'writing.synonyms': ['Synonyms', 'Show synonyms for the word at the cursor. Right-click or double-click a word does the same.'],
-    'writing.autocomplete': ['Suggest words as I type', 'Show the rest of a word in gray while you type. Tab or Right arrow accepts it; Esc hides it. Off by default.'],
+    'review.spelling': [app.tm('Spelling and Grammar'), app.tm('Go through spelling and grammar suggestions one by one, like Word’s Editor: Change, Ignore, Ignore All, Add to Dictionary, and Why?')],
+    'review.spellingAsYouType': [app.tm('Check spelling as you type'), app.tm('Show or hide red lines under words the dictionary does not know. Right-click a red word for suggestions.')],
+    'review.writingAssistant': [app.tm('Writing Assistant'), app.tm('Open the pane with your writing score, goals and every suggestion by category. Underlines: red correctness, blue clarity, green engagement, purple delivery.')],
+    'review.thesaurus': [app.tm('Thesaurus'), app.tm('See synonyms and antonyms of the selected word, grouped by meaning. Click one to put it in place.')],
+    'writing.toggle': [app.tm('Check writing as you type'), app.tm('Show or hide the colored lines for grammar, clarity, engagement and delivery. Markooj never changes your text by itself.')],
+    'writing.goals': [app.tm('Goals'), app.tm('Audience, formality and domain (general, academic or business). Goals change which suggestions you see.')],
+    'writing.acceptAll': [app.tm('Accept all safe fixes'), app.tm('Apply every fix that cannot change your meaning in one step. One Ctrl+Z takes them all back.')],
+    'writing.nextIssue': [app.tm('Next writing issue'), app.tm('Go to the next underlined word and open its card.')],
+    'writing.prevIssue': [app.tm('Previous writing issue'), app.tm('Go to the previous underlined word and open its card.')],
+    'writing.setLanguage': [app.tm('Proofing language'), app.tm('The language Markooj checks this document in: English (US), English (UK) or an installed language pack. Saved as lang in the front matter.')],
+    'writing.dictionary': [app.tm('Edit my dictionary'), app.tm('See, add or remove the words you taught Markooj.')],
+    'writing.synonyms': [app.tm('Synonyms'), app.tm('Show synonyms for the word at the cursor. Right-click or double-click a word does the same.')],
+    'writing.domainWords': [app.tm('Accept technical terms and place names'), app.tm('Spelling accepts terms such as penstock, tailrace and hydrograph, software names such as Simulink, and places such as San Onofre, Lahore and Gilgit-Baltistan. On by default.')],
+    'writing.autocomplete': [app.tm('Suggest words as I type'), app.tm('Show the rest of a word in gray while you type. Tab or Right arrow accepts it; Esc hides it. Off by default.')],
   };
   for (const [id, [t, d]] of Object.entries(TIPS)) tip(id, t, d);
 
@@ -384,23 +409,23 @@
   const big = (command, label, ic) => ({ type: 'big', command, label, icon: ic });
   const small = (command, label, ic) => ({ type: 'small', command, label, icon: ic });
   try { app.ribbon.removeGroup?.('review', 'rev-proof'); } catch {}
-  app.ribbon.addGroup('review', { id: 'rev-proof', label: 'Proofing', order: 10, items: [
-    big('review.spelling', 'Spelling & Grammar', 'spell'), big('review.thesaurus', 'Thesaurus', 'mkw-book'),
-    { type: 'col', items: [small('review.wordCount', 'Word count', 'count'), small('review.readability', 'Readability', 'sparkle')] },
-    { type: 'col', items: [small('review.spellingAsYouType', 'Check spelling as you type', 'spell'), small('writing.dictionary', 'My dictionary', 'mkw-abc')] },
+  app.ribbon.addGroup('review', { id: 'rev-proof', label: app.tm('Proofing'), order: 10, items: [
+    big('review.spelling', app.tm('Spelling & Grammar'), 'spell'), big('review.thesaurus', app.tm('Thesaurus'), 'mkw-book'),
+    { type: 'col', items: [small('review.wordCount', app.tm('Word count'), 'count'), small('review.readability', app.tm('Readability'), 'sparkle')] },
+    { type: 'col', items: [small('review.spellingAsYouType', app.tm('Check spelling as you type'), 'spell'), small('writing.dictionary', app.tm('My dictionary'), 'mkw-abc'), small('writing.domainWords', app.tm('Technical terms'), 'mkw-abc')] },
   ] });
-  app.ribbon.addGroup('review', { id: 'rev-writing', label: 'Writing', order: 12, items: [
-    big('review.writingAssistant', 'Writing Assistant', 'mkw-assist'),
-    { type: 'col', items: [small('writing.goals', 'Goals', 'mkw-goal'), small('writing.acceptAll', 'Accept safe fixes', 'mkw-accept')] },
-    { type: 'col', items: [small('writing.toggle', 'Check writing as you type', 'mkw-assist'), small('writing.autocomplete', 'Suggest words', 'mkw-complete')] },
-    { type: 'col', items: [{ type: 'select', command: 'writing.setLanguage', label: 'Language', width: 128, options: () => W.languages().map(l => ({ value: l.code, label: l.name })), value: () => W.languageFor(app.docs.active()).code }] },
+  app.ribbon.addGroup('review', { id: 'rev-writing', label: app.tm('Writing'), order: 12, items: [
+    big('review.writingAssistant', app.tm('Writing Assistant'), 'mkw-assist'),
+    { type: 'col', items: [small('writing.goals', app.tm('Goals'), 'mkw-goal'), small('writing.acceptAll', app.tm('Accept safe fixes'), 'mkw-accept')] },
+    { type: 'col', items: [small('writing.toggle', app.tm('Check writing as you type'), 'mkw-assist'), small('writing.autocomplete', app.tm('Suggest words'), 'mkw-complete')] },
+    { type: 'col', items: [{ type: 'select', command: 'writing.setLanguage', label: app.tm('Language'), width: 128, options: () => W.languages().map(l => ({ value: l.code, label: app.t(l.name) })), value: () => W.languageFor(app.docs.active()).code }] },
   ] });
 
   // =================================================================== status bar: writing score
   let sbEl = null;
   app.status.addItem({ id: 'writing', side: 'left', order: 25, render(el) {
     sbEl = document.createElement('button'); sbEl.type = 'button'; sbEl.className = 'sb mkw-sb hide-narrow';
-    sbEl.dataset.tip = 'Writing score'; sbEl.dataset.tipD = 'Your score from 0 to 100 and the number of suggestions. Click to open the Writing Assistant.';
+    sbEl.dataset.tip = app.t('Writing score'); sbEl.dataset.tipD = app.t('Your score from 0 to 100 and the number of suggestions. Click to open the Writing Assistant.');
     sbEl.addEventListener('click', () => app.commands.run('review.writingAssistant'));
     el.appendChild(sbEl); paintStatus(); requestAnimationFrame(paintStatus);
   } });
@@ -410,10 +435,11 @@
     if (!doc || doc.kind !== 'markdown' || (!S.on() && !S.spell())) { sbEl.style.display = 'none'; return; }
     sbEl.style.display = '';
     const st = W.state(doc);
-    if (st.text == null) { sbEl.innerHTML = `${ring(100, 16, 3).replace(/<text[\s\S]*?<\/text>/, '')}<span>Checking…</span>`; return; }
+    sbEl.dataset.tip = app.t('Writing score'); sbEl.dataset.tipD = app.t('Your score from 0 to 100 and the number of suggestions. Click to open the Writing Assistant.');
+    if (st.text == null) { sbEl.innerHTML = `${ring(100, 16, 3).replace(/<text[\s\S]*?<\/text>/, '')}<span>${app.th('Checking…')}</span>`; return; }
     const c = st.counts || {};
-    sbEl.innerHTML = `${ring(st.score, 16, 3).replace(/<text[\s\S]*?<\/text>/, '')}<span>${st.score}</span>${R.CATS.filter(k => c[k]).map(k => `<i class="mkw-sb-c" style="background:${W.CAT_COLOR[k]}" title="${R.CAT_LABEL[k]}: ${c[k]}">${c[k]}</i>`).join('')}`;
-    sbEl.setAttribute('aria-label', `Writing score ${st.score}. ${st.findings.length} suggestions.`);
+    sbEl.innerHTML = `${ring(st.score, 16, 3).replace(/<text[\s\S]*?<\/text>/, '')}<span>${st.score}</span>${R.CATS.filter(k => c[k]).map(k => `<i class="mkw-sb-c" style="background:${W.CAT_COLOR[k]}" title="${esc(app.t('{category}: {n}', { category: catName(k), n: c[k] }))}">${c[k]}</i>`).join('')}`;
+    sbEl.setAttribute('aria-label', app.tn('Writing score {score}. {count} suggestions.', st.findings.length, { score: st.score }));
   }
   ['writing:changed', 'doc:active', 'settings:changed'].forEach(ev => app.events.on(ev, () => requestAnimationFrame(paintStatus)));
 
@@ -430,46 +456,48 @@
     app.events.on('settings:changed', fn); requestAnimationFrame(() => { if (sel.isConnected) sel.dataset.mounted = '1'; });
   }
   function selectEl(options, value, onChange, label) { const s = document.createElement('select'); s.className = 'txt mkw-sel'; s.setAttribute('aria-label', label); for (const [v, l] of options) { const o = document.createElement('option'); o.value = v; o.textContent = l; if (String(v) === String(value)) o.selected = true; s.append(o); } s.addEventListener('change', () => onChange(s.value)); return s; }
-  app.options.addSection({ id: 'writing', label: 'Writing', order: 22, render(el) {
-    const pl = selectEl(W.languages().map(l => [l.code, l.name]), S.lang(), v => app.settings.set('proofingLanguage', v), 'Proofing language');
+  app.options.addSection({ id: 'writing', label: app.tm('Writing'), order: 22, render(el) {
+    const t = app.t;
+    const pl = selectEl(W.languages().map(l => [l.code, t(l.name)]), S.lang(), v => app.settings.set('proofingLanguage', v), t('Proofing language'));
     syncSelect(pl, 'proofingLanguage', () => S.lang()); // the same setting is also in File → Options → Language
-    el.append(optRow('Proofing language', 'Used for documents without lang: in their front matter. Also in Options → Language.', pl));
-    el.append(switchRow('writingAssistant', true, 'Check writing as you type', 'Colored lines for grammar, clarity, engagement and delivery. Markooj never changes text by itself.'));
-    el.append(switchRow('spellcheck', true, 'Check spelling as you type', 'Red lines under words the dictionary does not know.'));
-    const n = document.createElement('input'); n.type = 'number'; n.min = '10'; n.max = '80'; n.step = '1'; n.className = 'txt mkw-num'; n.value = String(S.long()); n.setAttribute('aria-label', 'Long sentence length');
+    el.append(optRow(t('Proofing language'), t('Used for documents without lang: in their front matter. Also in Options → Language.'), pl));
+    el.append(switchRow('writingAssistant', true, t('Check writing as you type'), t('Colored lines for grammar, clarity, engagement and delivery. Markooj never changes text by itself.')));
+    el.append(switchRow('spellcheck', true, t('Check spelling as you type'), t('Red lines under words the dictionary does not know.')));
+    const n = document.createElement('input'); n.type = 'number'; n.min = '10'; n.max = '80'; n.step = '1'; n.className = 'txt mkw-num'; n.value = String(S.long()); n.setAttribute('aria-label', t('Long sentence length'));
     n.addEventListener('change', () => { const v = Math.max(10, Math.min(80, Math.round(+n.value || 30))); n.value = String(v); app.settings.set('writingLongSentence', v); });
-    el.append(optRow('Long sentences', 'Mark sentences longer than this many words.', n));
+    el.append(optRow(t('Long sentences'), t('Mark sentences longer than this many words.'), n));
     const g = S.goals();
     const setG = (k, v) => app.settings.set('writingGoals', { ...S.goals(), [k]: v });
-    el.append(optRow('Audience', 'Who will read your writing.', selectEl([['general', 'General'], ['knowledgeable', 'Knowledgeable'], ['expert', 'Expert']], g.audience, v => setG('audience', v), 'Audience')));
-    el.append(optRow('Formality', 'Formal hides contractions and casual words.', selectEl([['informal', 'Informal'], ['neutral', 'Neutral'], ['formal', 'Formal']], g.formality, v => setG('formality', v), 'Formality')));
-    el.append(optRow('Domain', 'Academic allows the passive voice and asks to spell out abbreviations.', selectEl([['general', 'General'], ['academic', 'Academic'], ['business', 'Business']], g.domain, v => setG('domain', v), 'Domain')));
+    el.append(optRow(t('Audience'), t('Who will read your writing.'), selectEl([['general', t('General')], ['knowledgeable', t('Knowledgeable')], ['expert', t('Expert')]], g.audience, v => setG('audience', v), t('Audience'))));
+    el.append(optRow(t('Formality'), t('Formal hides contractions and casual words.'), selectEl([['informal', t('Informal')], ['neutral', t('Neutral')], ['formal', t('Formal')]], g.formality, v => setG('formality', v), t('Formality'))));
+    el.append(optRow(t('Domain'), t('Academic allows the passive voice and asks to spell out abbreviations.'), selectEl([['general', t('General')], ['academic', t('Academic')], ['business', t('Business')]], g.domain, v => setG('domain', v), t('Domain'))));
     const cats = document.createElement('div'); cats.className = 'mkw-cats';
     for (const k of R.CATS) {
       const b = document.createElement('label'); b.className = 'mkw-catchk';
       const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = S.cats()[k] !== false;
       cb.addEventListener('change', () => app.settings.set('writingCategories', { ...S.cats(), [k]: cb.checked }));
-      b.append(cb); b.insertAdjacentHTML('beforeend', `<span class="mkw-dot" style="background:${W.CAT_COLOR[k]}"></span>${R.CAT_LABEL[k]}`);
-      b.dataset.tip = R.CAT_LABEL[k]; b.dataset.tipD = catDesc[k];
+      b.append(cb); b.insertAdjacentHTML('beforeend', `<span class="mkw-dot" style="background:${W.CAT_COLOR[k]}"></span>${esc(catName(k))}`);
+      b.dataset.tip = catName(k); b.dataset.tipD = t(catDesc[k]);
       cats.append(b);
     }
-    el.append(optRow('Show suggestions for', '', cats));
-    el.append(switchRow('writingAutocomplete', false, 'Suggest words as I type', 'Shows the rest of a word in gray after three letters. Tab or Right arrow accepts; Esc hides it.'));
-    el.append(switchRow('writingSynonymsOnDoubleClick', true, 'Show synonyms when I double-click a word', 'A small list of other words appears under the word.'));
+    el.append(optRow(t('Show suggestions for'), '', cats));
+    el.append(switchRow('writingAutocomplete', false, t('Suggest words as I type'), t('Shows the rest of a word in gray after three letters. Tab or Right arrow accepts; Esc hides it.')));
+    el.append(switchRow('writingDomainWords', true, t('Accept technical terms and place names'), t('Hydraulics, hydropower and fluid mechanics terms, engineering software and units, US and world places, and Pakistan’s provinces, cities, rivers and dams are never marked as misspelled.')));
+    el.append(switchRow('writingSynonymsOnDoubleClick', true, t('Show synonyms when I double-click a word'), t('A small list of other words appears under the word.')));
     const acts = document.createElement('div'); acts.className = 'mkw-opt-acts';
-    const b1 = document.createElement('button'); b1.type = 'button'; b1.className = 'btn'; b1.textContent = `My dictionary (${S.dict().length})…`; b1.addEventListener('click', () => dictionaryDialog().then(() => { b1.textContent = `My dictionary (${S.dict().length})…`; }));
+    const b1 = document.createElement('button'); b1.type = 'button'; b1.className = 'btn'; b1.textContent = t('My dictionary ({n})…', { n: S.dict().length }); b1.addEventListener('click', () => dictionaryDialog().then(() => { b1.textContent = t('My dictionary ({n})…', { n: S.dict().length }); }));
     const ign = (app.settings.get('writingIgnoredRules', []) || []).length;
-    const b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'btn'; b2.textContent = `Turn ignored rules back on (${ign})`; b2.disabled = !ign; b2.addEventListener('click', () => { W.resetIgnoredRules(); b2.textContent = 'Turn ignored rules back on (0)'; b2.disabled = true; toast('All writing rules are on again.'); });
+    const b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'btn'; b2.textContent = t('Turn ignored rules back on ({n})', { n: ign }); b2.disabled = !ign; b2.addEventListener('click', () => { W.resetIgnoredRules(); b2.textContent = t('Turn ignored rules back on ({n})', { n: 0 }); b2.disabled = true; toast(t('All writing rules are on again.')); });
     acts.append(b1, b2);
-    el.append(optRow('Dictionary and rules', 'Words you added and rules you turned off.', acts));
+    el.append(optRow(t('Dictionary and rules'), t('Words you added and rules you turned off.'), acts));
     const lic = W.thesaurusLicense();
-    el.insertAdjacentHTML('beforeend', `<p class="mkw-opt-note">Checking runs on this computer; your text never leaves it. Grammar: Harper (Apache-2.0). Spelling: Hunspell dictionaries from SCOWL (en-US, en-GB). Thesaurus: ${esc(lic.source)}.</p>`);
+    el.insertAdjacentHTML('beforeend', `<p class="mkw-opt-note">${app.th('Checking runs on this computer; your text never leaves it. Grammar: Harper (Apache-2.0). Spelling: Hunspell dictionaries from SCOWL (en-US, en-GB), with suggestions ranked by word frequencies from WordNet. Technical terms and place names: lists written for Markooj. Thesaurus: {source}.', { source: lic.source })}</p>`);
   } });
   async function dictionaryDialog() {
     const body = document.createElement('div'); body.className = 'mkw-dict';
-    body.innerHTML = '<p class="mkw-g-note">One word per line. These words are never marked as misspelled, in any document.</p><textarea class="txt" rows="12" spellcheck="false" aria-label="My dictionary"></textarea>';
+    body.innerHTML = `<p class="mkw-g-note">${app.th('One word per line. These words are never marked as misspelled, in any document.')}</p><textarea class="txt" rows="12" spellcheck="false" aria-label="${esc(app.t('My dictionary'))}"></textarea>`;
     const ta = body.querySelector('textarea'); ta.value = S.dict().join('\n');
-    const v = await app.ui.dialog({ title: 'My dictionary', body, buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Save', value: 'ok', primary: true }] });
+    const v = await app.ui.dialog({ title: app.t('My dictionary'), body, buttons: [{ label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Save'), value: 'ok', primary: true }] });
     if (v === 'ok') W.dictionary.set(ta.value.split(/\r?\n/));
   }
   W.dictionaryDialog = dictionaryDialog;
@@ -484,12 +512,12 @@
     const p = W.findingAt(e.clientX, e.clientY);
     if (p && !p.f.wide) {
       const f = p.f; const fixes = W.fixesFor(f).slice(0, 5);
-      items.push({ header: f.title || 'Suggestion' });
-      for (const r of fixes) items.push({ label: r === '' ? `Remove “${f.text.trim().slice(0, 30)}”` : r, icon: 'check', run: () => W.accept(f, r) });
-      if (!fixes.length) items.push({ note: f.rule === 'spelling' ? 'No spelling suggestions.' : f.message });
-      if (f.rule === 'spelling') { items.push({ label: 'Add to dictionary', icon: 'mkw-abc', run: () => W.addToDictionary(f.text) }, { label: 'Ignore all', icon: 'x', run: () => W.ignoreWord(f.text) }); }
-      else items.push({ label: 'Dismiss', icon: 'x', run: () => W.dismiss(f) });
-      items.push({ label: 'Why?…', icon: 'mkw-assist', run: () => { W.showCard(f); setTimeout(() => document.querySelector('.mkw-card .mkw-why')?.click(), 30); } });
+      items.push({ header: f.title || app.t('Suggestion') });
+      for (const r of fixes) items.push({ label: r === '' ? app.t('Remove “{text}”', { text: f.text.trim().slice(0, 30) }) : r, icon: 'check', run: () => W.accept(f, r) });
+      if (!fixes.length) items.push({ note: f.rule === 'spelling' ? app.t('No spelling suggestions.') : f.message });
+      if (f.rule === 'spelling') { items.push({ label: app.t('Add to dictionary'), icon: 'mkw-abc', run: () => W.addToDictionary(f.text) }, { label: app.t('Ignore all'), icon: 'x', run: () => W.ignoreWord(f.text) }); }
+      else items.push({ label: app.t('Dismiss'), icon: 'x', run: () => W.dismiss(f) });
+      items.push({ label: app.t('Why?…'), icon: 'mkw-assist', run: () => { W.showCard(f); setTimeout(() => document.querySelector('.mkw-card .mkw-why')?.click(), 30); } });
       items.push({ sep: 1 });
     }
     const t = wordTargetAt(e.clientX, e.clientY);
@@ -497,17 +525,17 @@
     if (t && lang.english && /^[\p{L}][\p{L}'’-]*$/u.test(t.word) && t.word.length > 1) {
       const syn = W.synonymsSync(t.word, { before: textBefore(t) });
       if (syn && syn.flat.length) {
-        items.push({ header: `Synonyms for “${t.word}”` });
+        items.push({ header: app.t('Synonyms for “{word}”', { word: t.word }) });
         for (const w of syn.flat.filter(x => !x.includes(' ') || syn.flat.length < 5).slice(0, 6)) items.push({ label: R.matchCase(t.word, w), run: () => W.replaceTarget(t, w) });
       }
-      items.push({ label: 'Thesaurus…', icon: 'mkw-book', shortcut: 'Shift+F7', run: () => openThesaurus(t.word, t) });
+      items.push({ label: app.t('Thesaurus…'), icon: 'mkw-book', shortcut: 'Shift+F7', run: () => openThesaurus(t.word, t) });
       items.push({ sep: 1 });
     }
-    items.push({ label: 'Cut', icon: 'cut', shortcut: 'Ctrl+X', run: () => app.commands.run('edit.cut') });
-    items.push({ label: 'Copy', icon: 'copy', shortcut: 'Ctrl+C', run: () => app.commands.run('edit.copy') });
-    items.push({ label: 'Paste', icon: 'paste', shortcut: 'Ctrl+V', run: () => app.commands.run('edit.paste') });
-    if (app.commands.get('edit.pastePlain')) items.push({ label: 'Paste as plain text', icon: 'doc', shortcut: 'Ctrl+Shift+V', run: () => app.commands.run('edit.pastePlain') });
-    items.push({ sep: 1 }, { label: 'Select all', shortcut: 'Ctrl+A', run: () => { const ed = app.editors.active(); ed?.focus?.(); const ta = host.querySelector('textarea.mk-src-ta'); if (app.mode === 'simple' && ta) ta.select(); else document.execCommand('selectAll'); } });
+    items.push({ label: app.t('Cut'), icon: 'cut', shortcut: 'Ctrl+X', run: () => app.commands.run('edit.cut') });
+    items.push({ label: app.t('Copy'), icon: 'copy', shortcut: 'Ctrl+C', run: () => app.commands.run('edit.copy') });
+    items.push({ label: app.t('Paste'), icon: 'paste', shortcut: 'Ctrl+V', run: () => app.commands.run('edit.paste') });
+    if (app.commands.get('edit.pastePlain')) items.push({ label: app.t('Paste as plain text'), icon: 'doc', shortcut: 'Ctrl+Shift+V', run: () => app.commands.run('edit.pastePlain') });
+    items.push({ sep: 1 }, { label: app.t('Select all'), shortcut: 'Ctrl+A', run: () => { const ed = app.editors.active(); ed?.focus?.(); const ta = host.querySelector('textarea.mk-src-ta'); if (app.mode === 'simple' && ta) ta.select(); else document.execCommand('selectAll'); } });
     W.hideCard();
     app.ui.contextMenu(e, items);
   });
@@ -532,9 +560,9 @@
   async function synonymsPopup(t) {
     hideSyn();
     const syn = await W.synonyms(t.word, { before: textBefore(t) }); if (!syn || !syn.flat.length) return;
-    synPop = document.createElement('div'); synPop.className = 'mkw-syn'; synPop.setAttribute('role', 'dialog'); synPop.setAttribute('aria-label', `Synonyms for ${t.word}`);
+    synPop = document.createElement('div'); synPop.className = 'mkw-syn'; synPop.setAttribute('role', 'dialog'); synPop.setAttribute('aria-label', app.t('Synonyms for {word}', { word: t.word }));
     const words = syn.flat.filter(x => !x.includes(' ')).slice(0, 8);
-    synPop.innerHTML = `<div class="mkw-syn-h">Synonyms for “${esc(t.word)}”</div><div class="mkw-chips">${words.map(w => `<button type="button" class="mkw-chip" data-w="${esc(w)}">${esc(R.matchCase(t.word, w))}</button>`).join('')}</div><button type="button" class="mkw-syn-more" data-tip="Thesaurus" data-tip-d="All meanings, synonyms and antonyms." data-key="Shift+F7">Thesaurus…</button>`;
+    synPop.innerHTML = `<div class="mkw-syn-h">${app.th('Synonyms for “{word}”', { word: t.word })}</div><div translate="no" class="mkw-chips">${words.map(w => `<button type="button" translate="no" class="mkw-chip" data-w="${esc(w)}">${esc(R.matchCase(t.word, w))}</button>`).join('')}</div><button type="button" class="mkw-syn-more" data-tip="${esc(app.t('Thesaurus'))}" data-tip-d="${esc(app.t('All meanings, synonyms and antonyms.'))}" data-key="Shift+F7">${app.th('Thesaurus…')}</button>`;
     synPop.addEventListener('mousedown', e => e.preventDefault());
     synPop.addEventListener('click', async e => { const b = e.target.closest('.mkw-chip'); if (b) { app.ui.ripple?.(b); hideSyn(); await W.replaceTarget(t, b.dataset.w); } else if (e.target.closest('.mkw-syn-more')) { hideSyn(); openThesaurus(t.word, t); } });
     document.body.appendChild(synPop);

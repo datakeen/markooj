@@ -14,7 +14,7 @@
 
 /* header */
 .mkeq-head{display:flex;align-items:center;gap:12px;padding:16px 20px 10px}
-.mkeq-head h3{margin:0;font:600 15px/1.3 var(--font);letter-spacing:-.01em;margin-right:auto}
+.mkeq-head h3{margin:0;font:600 15px/1.3 var(--font);letter-spacing:-.01em;margin-inline-end:auto}
 .mkeq-ghost{height:28px;min-width:28px;padding:0 7px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;gap:6px;color:var(--text-2);transition:background .15s,color .15s,transform .12s var(--ease)}
 .mkeq-ghost:hover{background:var(--hover);color:var(--text)}
 .mkeq-ghost:active{background:var(--press);transform:scale(.94)}
@@ -76,7 +76,7 @@
 .mkeq-recent .rc:hover,.mkeq-recent .rc:focus-visible{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);outline:none}
 .mkeq-recent .rc:active{transform:scale(.97)}
 .mkeq-recent .rc .katex{font-size:.95em;white-space:nowrap}
-.mkeq-recent .star{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:5px;display:grid;place-items:center;color:var(--text-3);opacity:0;transition:opacity .15s,color .15s,background .15s}
+.mkeq-recent .star{position:absolute;top:3px;inset-inline-end:3px;width:20px;height:20px;border-radius:5px;display:grid;place-items:center;color:var(--text-3);opacity:0;transition:opacity .15s,color .15s,background .15s}
 .mkeq-recent .rc:hover .star,.mkeq-recent .rc:focus-within .star,.mkeq-recent .star.on{opacity:1}
 .mkeq-recent .star:hover{background:var(--hover);color:var(--text)}
 .mkeq-recent .star.on{color:var(--orange,#ff9f0a)}
@@ -112,7 +112,7 @@
 /* LaTeX box */
 .mkeq-tex{display:flex;flex-direction:column;gap:5px}
 .mkeq-tex .cap{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
-.mkeq-tex .cap .sync{font-size:11px;color:var(--text-3);margin-left:auto;transition:color .2s}
+.mkeq-tex .cap .sync{font-size:11px;color:var(--text-3);margin-inline-start:auto;transition:color .2s}
 .mkeq-tex .cap .sync.live{color:var(--green,#28a745)}
 .mkeq-tex textarea{min-height:52px;max-height:160px;resize:vertical;border-radius:8px;border:.5px solid var(--line-2);background:var(--surface);color:var(--text);font:13px/1.55 var(--mono);padding:8px 10px;outline:none;transition:border-color .15s,box-shadow .15s}
 .mkeq-tex textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
@@ -141,7 +141,7 @@
 
 /* footer */
 .mkeq-foot{display:flex;align-items:center;gap:8px;padding:12px 20px 16px;border-top:.5px solid var(--line)}
-.mkeq-foot .hint{color:var(--text-3);font-size:11.5px;margin-right:auto}
+.mkeq-foot .hint{color:var(--text-3);font-size:11.5px;margin-inline-end:auto}
 .mkeq-foot .hint kbd{font:11px var(--font);color:var(--text-2);border:.5px solid var(--line-2);border-radius:4px;padding:0 4px}
 .mkeq-btn{height:30px;padding:0 14px;border-radius:8px;border:.5px solid var(--line-2);background:var(--surface);color:var(--text);font-weight:500;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;transition:background .15s,border-color .15s,box-shadow .15s,transform .12s var(--ease)}
 .mkeq-btn:hover{border-color:var(--accent)}

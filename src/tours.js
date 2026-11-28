@@ -59,6 +59,48 @@
     ':::',
     '',
   ].join('\n');
+  /** The practice document in the interface language (headings and sentences; the Markdown, the equation, the code and the Urdu line stay). */
+  function tutorialText() {
+    const cell = s => s.replace(/\|/g, '/');
+    return [
+      '# ' + cell(app.t('Tutorial document')),
+      '',
+      cell(app.t('This is a practice page. Try anything here: it is never saved, and it closes when the tutorial ends.')),
+      '',
+      '## ' + cell(app.t('Writing@@heading')),
+      '',
+      cell(app.t('Markooj keeps your words as plain Markdown, so any program can open them. Select a word and press Ctrl+B to make it **bold**.')),
+      '',
+      '## ' + cell(app.t('An equation')),
+      '',
+      cell(app.t('The energy of a body at rest is given in @eq:energy.')),
+      '',
+      '$$ E = mc^2 $$ {#eq:energy}',
+      '',
+      '## ' + cell(app.t('A table')),
+      '',
+      `| ${cell(app.t('Sample'))} | ${cell(app.t('Mass (g)'))} | ${cell(app.t('Time (s)'))} |`,
+      '|---|---:|---:|',
+      '| A | 12.5 | 3.1 |',
+      '| B | 9.8 | 2.7 |',
+      '',
+      `: ${cell(app.t('Results of the first run'))} {#tbl:results}`,
+      '',
+      '## Python',
+      '',
+      '```python',
+      'masses = [12.5, 9.8]',
+      'print(sum(masses))',
+      '```',
+      '',
+      '## ' + cell(app.t('Urdu')),
+      '',
+      '::: {dir="rtl"}',
+      'اردو میں لکھنا بھی آسان ہے۔',
+      ':::',
+      '',
+    ].join('\n');
+  }
 
   // ---------- registry and progress ----------
   const tours = new Map();
@@ -117,7 +159,7 @@
       tour, saved, doc: null,
       async useDoc() {
         if (ctx.doc && app.docs.get?.(ctx.doc.id)) { if (app.docs.active()?.id !== ctx.doc.id) { app.docs.activate(ctx.doc.id); await sleep(400); } return ctx.doc; }
-        ctx.doc = app.docs.create({ title: 'Tutorial document', text: TUTORIAL_TEXT });
+        ctx.doc = app.docs.create({ title: app.t('Tutorial document'), text: tutorialText() });
         ctx.doc.tutorial = true;
         await waitFor(() => $('#editorHost .mk-page, #editorHost textarea'), 3000);
         await sleep(S?.auto ? 250 : 450);
@@ -189,7 +231,7 @@
 
   async function start(id, opts = {}) {
     const tour = tours.get(id);
-    if (!tour) { app.ui.toast?.('Pick a tutorial from Help → Tutorials. This one is not in this copy of Markooj.', { kind: 'warn', actions: [{ label: 'Open Tutorials', run: () => app.commands.run('help.tutorials') }] }); return null; }
+    if (!tour) { app.ui.toast?.(app.t('Pick a tutorial from Help → Tutorials. This one is not in this copy of Markooj.'), { kind: 'warn', actions: [{ label: app.t('Open Tutorials'), run: () => app.commands.run('help.tutorials') }] }); return null; }
     if (S) await stop();
     try { app.help?.close?.(); } catch {}
     try { if (bsOpen()) app.backstage.close(); } catch {}
@@ -225,7 +267,7 @@
       const st = steps[i];
       if (st.click || st.until || st.perform) {
         await doIt(st, target);
-        if (st.until && !(await waitFor(() => st.until(run.ctx), 4000, 40))) run.report.waited.push(`${i + 1}. ${st.title}`);
+        if (st.until && !(await waitFor(() => st.until(run.ctx), 4000, 40))) run.report.waited.push(`${i + 1}. ${stepText(st, 'title')}`);
         await sleep(60);
       }
     }
@@ -258,7 +300,7 @@
       target = await waitFor(() => resolve(st.target, run.ctx), st.wait ?? 2500);
       if (seq !== run.seq || run.stopped) return null;
       if (!target) {
-        run.report.missing.push(`${i + 1}. ${st.title} (${typeof st.target === 'string' ? st.target : 'target'})`);
+        run.report.missing.push(`${i + 1}. ${stepText(st, 'title')} (${typeof st.target === 'string' ? st.target : 'target'})`);
         if (!o.auto) {
           // skip gracefully: on to the next step in the direction the user was going
           const n = i + run.dir;
@@ -273,9 +315,14 @@
     renderCard(st, i, steps.length, !!target);
     place(true);
     if (!o.auto) arm(st, target);
-    app.events.emit('tour:step', { id: run.tour.id, index: i, title: st.title, target: !!target });
+    app.events.emit('tour:step', { id: run.tour.id, index: i, title: stepText(st, 'title'), target: !!target });
     return target;
   }
+
+  // A step's title, text or hint in the interface language. Steps hold English keys (app.tm); `vars` fill {name} with a
+  // tab, mode or page name, which is translated too. `html` gives text that may hold <kbd>/<b>/<code> (from the catalog).
+  function stepVars(st) { return st.vars ? Object.fromEntries(Object.entries(st.vars).map(([k, v]) => [k, app.t(v)])) : undefined; }
+  function stepText(st, key, html) { const v = st[key]; if (!v) return ''; return html ? app.th(v, stepVars(st)) : app.t(v, stepVars(st)); }
 
   function renderCard(st, i, n, hasTarget) {
     const run = S;
@@ -285,14 +332,14 @@
     const tid = 'mkt-t-' + run.seq;
     card.setAttribute('aria-labelledby', tid);
     card.innerHTML = `
-      <div class="mkt-head"><span class="mkt-count">${run.tour.title} · ${i + 1} of ${n}</span>
-        <button type="button" class="mkt-x" aria-label="Close tutorial" data-tip="Close tutorial" data-tip-d="You can start it again from Help → Tutorials." data-key="Escape"><svg class="i" aria-hidden="true"><use href="#mkh-i-x"/></svg></button></div>
-      <h4 id="${tid}">${esc(st.title)}</h4>
-      <p>${st.text || ''}</p>
-      ${waits ? `<div class="mkt-wait"><span class="mkt-pulse" aria-hidden="true"></span><span>${esc(st.hint || 'Waiting for you to do it.')}</span><button type="button" class="mkt-doit">Do it for me</button></div>` : ''}
+      <div class="mkt-head"><span class="mkt-count">${app.th('{tour} · {step} of {count}', { tour: app.t(run.tour.title), step: i + 1, count: n })}</span>
+        <button type="button" class="mkt-x" aria-label="${app.th('Close tutorial')}" data-tip="${app.th('Close tutorial')}" data-tip-d="${app.th('You can start it again from Help → Tutorials.')}" data-key="Escape"><svg class="i" aria-hidden="true"><use href="#mkh-i-x"/></svg></button></div>
+      <h4 id="${tid}">${esc(stepText(st, 'title'))}</h4>
+      <p>${stepText(st, 'text', true)}</p>
+      ${waits ? `<div class="mkt-wait"><span class="mkt-pulse" aria-hidden="true"></span><span>${esc(st.hint ? stepText(st, 'hint') : app.t('Waiting for you to do it.'))}</span><button type="button" class="mkt-doit">${app.th('Do it for me')}</button></div>` : ''}
       <div class="mkt-foot"><div class="mkt-dots" aria-hidden="true">${Array.from({ length: n }, (_, k) => `<i class="${k < i ? 'past' : k === i ? 'on' : ''}"></i>`).join('')}</div>
-        ${i > 0 ? '<button type="button" class="btn sm mkt-back">Back</button>' : ''}
-        ${waits ? '' : `<button type="button" class="btn sm primary mkt-next">${last ? 'Done' : 'Next'}</button>`}</div>`;
+        ${i > 0 ? `<button type="button" class="btn sm mkt-back">${app.th('Back')}</button>` : ''}
+        ${waits ? '' : `<button type="button" class="btn sm primary mkt-next">${last ? app.th('Done') : app.th('Next')}</button>`}</div>`;
     card.querySelector('.mkt-x').addEventListener('click', () => stop());
     card.querySelector('.mkt-back')?.addEventListener('click', () => back());
     card.querySelector('.mkt-next')?.addEventListener('click', () => next());
@@ -343,7 +390,7 @@
     if (completed && !run.auto) {
       markDone(run.tour.id);
       const nextTour = list().find(t => !isDone(t.id));
-      app.ui.toast?.(`Tutorial done: ${run.tour.title}.`, nextTour ? { kind: 'success', timeout: 8000, actions: [{ label: 'More Tutorials', run: () => app.commands.run('help.tutorials') }] } : { kind: 'success' });
+      app.ui.toast?.(app.t('Tutorial done: {title}.', { title: app.t(run.tour.title) }), nextTour ? { kind: 'success', timeout: 8000, actions: [{ label: app.t('More Tutorials'), run: () => app.commands.run('help.tutorials') }] } : { kind: 'success' });
     }
     app.events.emit('tour:ended', { id: run.tour.id, completed: !!completed });
     run.resolveDone(run.report);
@@ -425,131 +472,138 @@
     card.dataset.side = side;
   }
   addEventListener('resize', () => { lastSig = ''; });
+  // the interface language changed during a tour: draw the card again in the new language
+  app.events.on('i18n:changed', () => {
+    if (!S || !card || S.i < 0) return;
+    const st = S.tour.steps[S.i];
+    if (!st) return;
+    renderCard(st, S.i, S.tour.steps.length, !!S.target);
+    lastSig = ''; place(true);
+  });
 
   // =====================================================================
   //  The tours
   // =====================================================================
-  const K = k => `<kbd>${k}</kbd>`;
-  const tabStep = (id, name, text) => ({ target: tabSel(id), title: `Click ${name}`, text, click: true, until: () => activeTab() === id, hint: `Click the ${name} tab.`, perform: () => app.shell?.selectTab?.(id) });
-  const modeStep = (m, name, text) => ({ target: `#modeSeg [data-tip-cmd="view.mode${name}"]`, title: `Try ${name} mode`, text, click: true, until: () => app.mode === m && document.body.classList.contains('mode-' + m), hint: `Click ${name} at the top right.`, perform: () => app.setMode(m) });
+  const tabStep = (id, name, text) => ({ target: tabSel(id), title: app.tm('Click {name}'), vars: { name }, text, click: true, until: () => activeTab() === id, hint: app.tm('Click the {name} tab.'), perform: () => app.shell?.selectTab?.(id) });
+  const modeStep = (m, name, text) => ({ target: `#modeSeg [data-tip-cmd="view.mode${m[0].toUpperCase() + m.slice(1)}"]`, title: app.tm('Try {name} mode'), vars: { name }, text, click: true, until: () => app.mode === m && document.body.classList.contains('mode-' + m), hint: app.tm('Click {name} at the top right.'), perform: () => app.setMode(m) });
   const inTab = (id, step) => ({ ...step, before: async ctx => { ctx.closeBackstage(); ctx.tab(id); await sleep(80); await step.before?.(ctx); } });
   const onPage = step => ({ ...step, before: async ctx => { ctx.closeBackstage(); await step.before?.(ctx); } });
-  const fileStep = { target: '#ribbon .rtab.file', title: 'Open the File menu', text: 'File holds everything about the whole document.', click: true, until: () => bsOpen(), hint: 'Click File.', before: ctx => ctx.closeBackstage(), perform: () => app.backstage.open() };
-  const bsNavStep = (page, label, text) => ({ target: `#backstage .bs-nav button.n[data-page="${page}"]`, title: `Click ${label}`, text, click: true, until: () => !!$(`#backstage .bs-page[data-page="${page}"]`), hint: `Click ${label} on the left.`, before: ctx => { if (!bsOpen()) ctx.openBackstage(); }, perform: () => app.backstage.open(page) });
+  const fileStep = { target: '#ribbon .rtab.file', title: app.tm('Open the File menu'), text: app.tm('File holds everything about the whole document.'), click: true, until: () => bsOpen(), hint: app.tm('Click File.'), before: ctx => ctx.closeBackstage(), perform: () => app.backstage.open() };
+  const bsNavStep = (page, label, text) => ({ target: `#backstage .bs-nav button.n[data-page="${page}"]`, title: app.tm('Click {name}'), vars: { name: label }, text, click: true, until: () => !!$(`#backstage .bs-page[data-page="${page}"]`), hint: app.tm('Click {name} on the left.'), before: ctx => { if (!bsOpen()) ctx.openBackstage(); }, perform: () => app.backstage.open(page) });
 
   register({
-    id: 'getting-started', title: 'Getting started', minutes: 2, icon: 'mkh-i-tour',
-    description: 'The ribbon, the four editing modes and saving.',
+    id: 'getting-started', title: app.tm('Getting started'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('The ribbon, the four editing modes and saving.'),
     steps: [
-      { title: 'Welcome to Markooj', text: 'Markooj feels like Word but saves plain Markdown files. This is a practice document, so try anything.' },
-      onPage({ target: '#ribbon .rtabs', title: 'The ribbon', text: 'Commands are grouped in tabs, as in Word: Home for text, Insert for tables and pictures, References for citations.', pad: 4 }),
-      tabStep('insert', 'Insert', 'See what you can add to the page.'),
-      inTab('insert', { target: '#ribbon .rbody', title: 'Everything you can add', text: 'Tables, pictures, diagrams, equations, footnotes and citations. Point at any button to see what it does.', pad: 2 }),
-      onPage({ target: '#modeSeg', title: 'Four ways to edit', text: 'Word mode is click and type. Inline shows Markdown marks only where you type. Simple shows the Markdown next to a preview. Read is for reading.' }),
-      modeStep('simple', 'Simple', 'Click Simple to see the Markdown behind the page.'),
-      { target: '#editorHost', title: 'Plain text underneath', text: 'This is the file exactly as it is saved. Change it here and the preview follows.', place: 'center', before: ctx => ctx.mode('simple') },
-      modeStep('word', 'Word', 'Click Word to go back to the page.'),
-      { target: '#titlebar [data-cmd="file.save"] || #titlebar button[data-tip="Save"]', title: 'Save', text: `${K('Ctrl+S')} saves the document as a .md file. Unsaved text is also kept for you in File → Recover.`, before: ctx => ctx.mode('word') },
-      { target: '#titlebar .search', title: 'Search for any command', text: `Press ${K('Alt+Q')} and type what you want to do, such as “table” or “PDF”.` },
-      { title: 'You’re all set', text: `Find more tutorials in Help → Tutorials. Press ${K('F1')} at any time for the reference manual.` },
+      { title: app.tm('Welcome to Markooj'), text: app.tm('Markooj feels like Word but saves plain Markdown files. This is a practice document, so try anything.') },
+      onPage({ target: '#ribbon .rtabs', title: app.tm('The ribbon'), text: app.tm('Commands are grouped in tabs, as in Word: Home for text, Insert for tables and pictures, References for citations.'), pad: 4 }),
+      tabStep('insert', app.tm('Insert'), app.tm('See what you can add to the page.')),
+      inTab('insert', { target: '#ribbon .rbody', title: app.tm('Everything you can add'), text: app.tm('Tables, pictures, diagrams, equations, footnotes and citations. Point at any button to see what it does.'), pad: 2 }),
+      onPage({ target: '#modeSeg', title: app.tm('Four ways to edit'), text: app.tm('Word mode is click and type. Inline shows Markdown marks only where you type. Simple shows the Markdown next to a preview. Read is for reading.') }),
+      modeStep('simple', app.tm('Simple@@editing mode'), app.tm('Click Simple to see the Markdown behind the page.')),
+      { target: '#editorHost', title: app.tm('Plain text underneath'), text: app.tm('This is the file exactly as it is saved. Change it here and the preview follows.'), place: 'center', before: ctx => ctx.mode('simple') },
+      modeStep('word', app.tm('Word'), app.tm('Click Word to go back to the page.')),
+      { target: '#titlebar [data-cmd="file.save"] || #titlebar button[data-tip="Save"]', title: app.tm('Save'), text: app.tm('<kbd>Ctrl+S</kbd> saves the document as a .md file. Unsaved text is also kept for you in File → Recover.'), before: ctx => ctx.mode('word') },
+      { target: '#titlebar .search', title: app.tm('Search for any command'), text: app.tm('Press <kbd>Alt+Q</kbd> and type what you want to do, such as “table” or “PDF”.') },
+      { title: app.tm('You’re all set'), text: app.tm('Find more tutorials in Help → Tutorials. Press <kbd>F1</kbd> at any time for the reference manual.') },
     ],
   });
 
   register({
-    id: 'modes', title: 'Modes: Word, Inline, Simple, Read', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Four views of the same Markdown file, and when to use each.',
+    id: 'modes', title: app.tm('Modes: Word, Inline, Simple, Read'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Four views of the same Markdown file, and when to use each.'),
     steps: [
-      { target: '#modeSeg', title: 'Four editing modes', text: `The same file, four ways. Switch with these buttons or ${K('Ctrl+1')} to ${K('Ctrl+4')}.`, before: ctx => ctx.mode('word') },
-      modeStep('inline', 'Inline', 'Markdown marks such as ** appear only in the line you are typing.'),
-      { target: '#editorHost', title: 'Inline mode', text: 'Click a bold word and its ** marks show. Move away and they hide again.', place: 'center', before: ctx => ctx.mode('inline') },
-      modeStep('simple', 'Simple', 'The Markdown file on the left, the finished look on the right.'),
-      { target: '#editorHost', title: 'Simple mode', text: 'Best for tables, code and anything you want to type exactly.', place: 'center', before: ctx => ctx.mode('simple') },
-      modeStep('read', 'Read', 'A clean page for reading and checking.'),
-      { target: '#editorHost', title: 'Read mode', text: `Nothing can change by accident here. Press ${K('Esc')} to go back to editing.`, place: 'center', before: ctx => ctx.mode('read') },
-      modeStep('word', 'Word', 'Word mode: click and type on the page, like Word.'),
-      { title: 'Same file in every mode', text: 'Switching modes never changes your text. Pick the one that suits the task.' },
+      { target: '#modeSeg', title: app.tm('Four editing modes'), text: app.tm('The same file, four ways. Switch with these buttons or <kbd>Ctrl+1</kbd> to <kbd>Ctrl+4</kbd>.'), before: ctx => ctx.mode('word') },
+      modeStep('inline', app.tm('Inline@@editing mode'), app.tm('Markdown marks such as ** appear only in the line you are typing.')),
+      { target: '#editorHost', title: app.tm('Inline mode'), text: app.tm('Click a bold word and its ** marks show. Move away and they hide again.'), place: 'center', before: ctx => ctx.mode('inline') },
+      modeStep('simple', app.tm('Simple@@editing mode'), app.tm('The Markdown file on the left, the finished look on the right.')),
+      { target: '#editorHost', title: app.tm('Simple mode'), text: app.tm('Best for tables, code and anything you want to type exactly.'), place: 'center', before: ctx => ctx.mode('simple') },
+      modeStep('read', app.tm('Read@@editing mode'), app.tm('A clean page for reading and checking.')),
+      { target: '#editorHost', title: app.tm('Read mode'), text: app.tm('Nothing can change by accident here. Press <kbd>Esc</kbd> to go back to editing.'), place: 'center', before: ctx => ctx.mode('read') },
+      modeStep('word', app.tm('Word'), app.tm('Word mode: click and type on the page, like Word.')),
+      { title: app.tm('Same file in every mode'), text: app.tm('Switching modes never changes your text. Pick the one that suits the task.') },
     ],
   });
 
   register({
-    id: 'macro', title: 'Record a macro', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Record steps once, then repeat them with one click.',
+    id: 'macro', title: app.tm('Record a macro'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Record steps once, then repeat them with one click.'),
     steps: [
-      tabStep('developer', 'Developer', 'Macros live on the Developer tab.'),
-      inTab('developer', { target: cmdSel('dev.record'), title: 'Record', text: 'Click Record, then do the steps you want to repeat: type, format, insert. Markooj writes them down as a Python macro.' }),
-      inTab('developer', { target: cmdSel('dev.record'), title: 'Stop and name it', text: 'Click Record again, or Stop in the status bar, when you are done. Then give the macro a name.' }),
-      inTab('developer', { target: cmdSel('dev.macros'), title: 'Run it later', text: `${K('Alt+F8')} lists your macros. Double-click one to run it on the open document.` }),
-      inTab('developer', { target: cmdSel('dev.editor'), title: 'See the steps', text: `The Macro editor (${K('Alt+F11')}) shows what was recorded. You can change it or give it a shortcut.` }),
+      tabStep('developer', app.tm('Developer'), app.tm('Macros live on the Developer tab.')),
+      inTab('developer', { target: cmdSel('dev.record'), title: app.tm('Record'), text: app.tm('Click Record, then do the steps you want to repeat: type, format, insert. Markooj writes them down as a Python macro.') }),
+      inTab('developer', { target: cmdSel('dev.record'), title: app.tm('Stop and name it'), text: app.tm('Click Record again, or Stop in the status bar, when you are done. Then give the macro a name.') }),
+      inTab('developer', { target: cmdSel('dev.macros'), title: app.tm('Run it later'), text: app.tm('<kbd>Alt+F8</kbd> lists your macros. Double-click one to run it on the open document.') }),
+      inTab('developer', { target: cmdSel('dev.editor'), title: app.tm('See the steps'), text: app.tm('The Macro editor (<kbd>Alt+F11</kbd>) shows what was recorded. You can change it or give it a shortcut.') }),
     ],
   });
 
   register({
-    id: 'python', title: 'Run Python code', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Run code blocks and use the Python console, offline.',
+    id: 'python', title: app.tm('Run Python code'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Run code blocks and use the Python console, offline.'),
     steps: [
-      onPage({ target: '#editorHost pre', title: 'Python in your document', text: 'A code block marked python can run right here. Python runs inside Markooj; nothing leaves your computer.' }),
-      tabStep('developer', 'Developer', 'The Python commands are on the Developer tab.'),
-      inTab('developer', { target: cmdSel('dev.runSelection'), title: 'Run the code', text: `Click inside a code block and press ${K('Ctrl+Alt+Enter')}. The output appears below it.` }),
-      inTab('developer', { target: cmdSel('dev.pythonConsole'), title: 'Python console', text: `${K('Ctrl+Alt+P')} opens a console for trying code. The first start takes a few seconds while Python loads.` }),
+      onPage({ target: '#editorHost pre', title: app.tm('Python in your document'), text: app.tm('A code block marked python can run right here. Python runs inside Markooj; nothing leaves your computer.') }),
+      tabStep('developer', app.tm('Developer'), app.tm('The Python commands are on the Developer tab.')),
+      inTab('developer', { target: cmdSel('dev.runSelection'), title: app.tm('Run the code'), text: app.tm('Click inside a code block and press <kbd>Ctrl+Alt+Enter</kbd>. The output appears below it.') }),
+      inTab('developer', { target: cmdSel('dev.pythonConsole'), title: app.tm('Python console'), text: app.tm('<kbd>Ctrl+Alt+P</kbd> opens a console for trying code. The first start takes a few seconds while Python loads.') }),
     ],
   });
 
   register({
-    id: 'js-macro', title: 'Write a JavaScript macro', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Automate Markooj with a few lines of JavaScript.',
+    id: 'js-macro', title: app.tm('Write a JavaScript macro'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Automate Markooj with a few lines of JavaScript.'),
     steps: [
-      tabStep('developer', 'Developer', 'The Macro editor is on the Developer tab.'),
-      inTab('developer', { target: cmdSel('dev.editor'), title: 'Open the Macro editor', text: `Click Editor or press ${K('Alt+F11')}. Choose JavaScript as the language of a new macro.` }),
-      inTab('developer', { target: cmdSel('dev.editor'), title: 'Use the app object', text: 'For example, <code>app.commands.run("format.bold")</code> makes the selection bold, and <code>app.docs.active().text</code> is the whole document.' }),
-      inTab('developer', { target: cmdSel('dev.macros'), title: 'Run and share', text: 'Run it from Macros, give it a shortcut, or add it to the ribbon. The manual lists every command you can use.' }),
+      tabStep('developer', app.tm('Developer'), app.tm('The Macro editor is on the Developer tab.')),
+      inTab('developer', { target: cmdSel('dev.editor'), title: app.tm('Open the Macro editor'), text: app.tm('Click Editor or press <kbd>Alt+F11</kbd>. Choose JavaScript as the language of a new macro.') }),
+      inTab('developer', { target: cmdSel('dev.editor'), title: app.tm('Use the app object'), text: app.tm('For example, <code>app.commands.run("format.bold")</code> makes the selection bold, and <code>app.docs.active().text</code> is the whole document.') }),
+      inTab('developer', { target: cmdSel('dev.macros'), title: app.tm('Run and share'), text: app.tm('Run it from Macros, give it a shortcut, or add it to the ribbon. The manual lists every command you can use.') }),
     ],
   });
 
   register({
-    id: 'equations', title: 'Equations and numbering', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Insert equations and let Markooj number them.',
+    id: 'equations', title: app.tm('Equations and numbering'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Insert equations and let Markooj number them.'),
     steps: [
-      tabStep('insert', 'Insert', 'Equations are on the Insert tab.'),
-      inTab('insert', { target: cmdSel('insert.equation'), title: 'Insert an equation', text: `Click Equation or press ${K('Alt+=')}. Type LaTeX or use the palettes, and choose Numbered for a number.` }),
-      onPage({ target: '#editorHost .mk-math-block', title: 'Numbers on the right', text: 'Numbered equations count up by themselves. Double-click an equation to change it.', before: ctx => ctx.mode('word') }),
-      tabStep('references', 'References', 'Numbering options are on the References tab.'),
-      inTab('references', { target: cmdSel('xref.numbering'), title: 'Numbering style', text: 'Plain numbers (1, 2, 3) or by chapter (2.1, 2.2), for equations, figures and tables.' }),
-      inTab('references', { target: cmdSel('xref.update'), title: 'Update numbers', text: `${K('F9')} updates every number and reference, as in Word.` }),
+      tabStep('insert', app.tm('Insert'), app.tm('Equations are on the Insert tab.')),
+      inTab('insert', { target: cmdSel('insert.equation'), title: app.tm('Insert an equation'), text: app.tm('Click Equation or press <kbd>Alt+=</kbd>. Type LaTeX or use the palettes, and choose Numbered for a number.') }),
+      onPage({ target: '#editorHost .mk-math-block', title: app.tm('Numbers on the right'), text: app.tm('Numbered equations count up by themselves. Double-click an equation to change it.'), before: ctx => ctx.mode('word') }),
+      tabStep('references', app.tm('References'), app.tm('Numbering options are on the References tab.')),
+      inTab('references', { target: cmdSel('xref.numbering'), title: app.tm('Numbering style'), text: app.tm('Plain numbers (1, 2, 3) or by chapter (2.1, 2.2), for equations, figures and tables.') }),
+      inTab('references', { target: cmdSel('xref.update'), title: app.tm('Update numbers'), text: app.tm('<kbd>F9</kbd> updates every number and reference, as in Word.') }),
     ],
   });
 
   register({
-    id: 'crossref', title: 'Cross-references', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Refer to equations, figures and tables that renumber themselves.',
+    id: 'crossref', title: app.tm('Cross-references'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Refer to equations, figures and tables that renumber themselves.'),
     steps: [
-      onPage({ target: '#editorHost .mk-xref', title: 'A cross-reference', text: 'This shows the equation’s number. In the file it is written as @eq:energy, so it stays right when numbers change.', before: ctx => ctx.mode('word') }),
-      tabStep('references', 'References', 'Captions and cross-references are on the References tab.'),
-      inTab('references', { target: cmdSel('xref.caption'), title: 'Insert a caption', text: `Select a picture, table or equation and click Insert Caption (${K('Ctrl+Alt+Shift+C')}). It gets a label like fig:map.` }),
-      inTab('references', { target: cmdSel('xref.crossref'), title: 'Insert a cross-reference', text: `Click Cross-reference or press ${K('Ctrl+Alt+R')}, then pick the item. The page shows “Figure 1”.` }),
-      { title: 'Numbers stay right', text: 'Move or delete an item and every reference to it updates. Hover a reference to preview what it points to.' },
+      onPage({ target: '#editorHost .mk-xref', title: app.tm('A cross-reference'), text: app.tm('This shows the equation’s number. In the file it is written as @eq:energy, so it stays right when numbers change.'), before: ctx => ctx.mode('word') }),
+      tabStep('references', app.tm('References'), app.tm('Captions and cross-references are on the References tab.')),
+      inTab('references', { target: cmdSel('xref.caption'), title: app.tm('Insert a caption'), text: app.tm('Select a picture, table or equation and click Insert Caption (<kbd>Ctrl+Alt+Shift+C</kbd>). It gets a label like fig:map.') }),
+      inTab('references', { target: cmdSel('xref.crossref'), title: app.tm('Insert a cross-reference'), text: app.tm('Click Cross-reference or press <kbd>Ctrl+Alt+R</kbd>, then pick the item. The page shows “Figure 1”.') }),
+      { title: app.tm('Numbers stay right'), text: app.tm('Move or delete an item and every reference to it updates. Hover a reference to preview what it points to.') },
     ],
   });
 
   register({
-    id: 'citations', title: 'Citations from a BibTeX library', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Cite from Zotero, Mendeley or JabRef, and let the bibliography build itself.',
+    id: 'citations', title: app.tm('Citations from a BibTeX library'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Cite from Zotero, Mendeley or JabRef, and let the bibliography build itself.'),
     steps: [
-      tabStep('references', 'References', 'Citations are on the References tab.'),
-      inTab('references', { target: cmdSel('ref.library'), title: 'Choose your library', text: 'Click Library and pick a BibTeX (.bib) file. Zotero, Mendeley, JabRef and EndNote can all export one.' }),
-      inTab('references', { target: cmdSel('ref.cite'), title: 'Cite a source', text: `Click Cite or press ${K('Ctrl+Shift+C')}, type part of an author or a title, and press Enter. The page shows the citation in your style.` }),
-      inTab('references', { target: cmdSel('ref.bibliography'), title: 'The bibliography', text: 'Click Bibliography to list every source you cited at the end. The list updates as you cite.' }),
-      { title: 'Right in every format', text: 'Pick APA, Chicago or IEEE under Citation style. Word, PDF and LaTeX exports format the citations for you.' },
+      tabStep('references', app.tm('References'), app.tm('Citations are on the References tab.')),
+      inTab('references', { target: cmdSel('ref.library'), title: app.tm('Choose your library'), text: app.tm('Click Library and pick a BibTeX (.bib) file. Zotero, Mendeley, JabRef and EndNote can all export one.') }),
+      inTab('references', { target: cmdSel('ref.cite'), title: app.tm('Cite a source'), text: app.tm('Click Cite or press <kbd>Ctrl+Shift+C</kbd>, type part of an author or a title, and press Enter. The page shows the citation in your style.') }),
+      inTab('references', { target: cmdSel('ref.bibliography'), title: app.tm('The bibliography'), text: app.tm('Click Bibliography to list every source you cited at the end. The list updates as you cite.') }),
+      { title: app.tm('Right in every format'), text: app.tm('Pick APA, Chicago or IEEE under Citation style. Word, PDF and LaTeX exports format the citations for you.') },
     ],
   });
 
   register({
-    id: 'tables', title: 'Tables like Word', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Insert a table, type in its cells and use the Table tabs.',
+    id: 'tables', title: app.tm('Tables like Word'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Insert a table, type in its cells and use the Table tabs.'),
     steps: [
-      tabStep('insert', 'Insert', 'Tables are on the Insert tab.'),
-      inTab('insert', { target: cmdSel('insert.table'), title: 'Insert a table', text: 'Click Table and move over the grid to pick rows and columns, as in Word.' }),
+      tabStep('insert', app.tm('Insert'), app.tm('Tables are on the Insert tab.')),
+      inTab('insert', { target: cmdSel('insert.table'), title: app.tm('Insert a table'), text: app.tm('Click Table and move over the grid to pick rows and columns, as in Word.') }),
       onPage({
-        target: '#editorHost .mk-page table td', title: 'Click in a cell', text: 'Click any cell of the table on the page.', hint: 'Click in a table cell.', click: true, place: 'bottom',
+        target: '#editorHost .mk-page table td', title: app.tm('Click in a cell'), text: app.tm('Click any cell of the table on the page.'), hint: app.tm('Click in a table cell.'), click: true, place: 'bottom',
         before: ctx => ctx.mode('word'), until: () => !!app.ribbon.isContextualShown?.('tableLayout'),
         perform: async (_ctx, td) => {
           const page = td.closest('[contenteditable="true"]') || td.closest('.mk-page');
@@ -560,89 +614,104 @@
           document.dispatchEvent(new Event('selectionchange'));
         },
       }),
-      { target: tabSel('tableLayout'), title: 'Click Table Layout', text: 'This tab shows up while you are in a table, as in Word.', wait: 1500, click: true, hint: 'Click Table Layout.', until: () => activeTab() === 'tableLayout', perform: () => app.shell?.selectTab?.('tableLayout') },
-      { target: '#ribbon .rbody', title: 'Table tools', text: 'Insert rows and columns, delete, align and sort. Table Design next to it has styles and the header row.', pad: 2, before: ctx => { if (app.ribbon.isContextualShown?.('tableLayout')) ctx.tab('tableLayout'); } },
-      { target: '#editorHost .mk-page table', title: 'Move with Tab', text: `${K('Tab')} goes to the next cell; in the last cell it adds a row. The table is saved as a plain Markdown table.` },
+      { target: tabSel('tableLayout'), title: app.tm('Click Table Layout'), text: app.tm('This tab shows up while you are in a table, as in Word.'), wait: 1500, click: true, hint: app.tm('Click Table Layout.'), until: () => activeTab() === 'tableLayout', perform: () => app.shell?.selectTab?.('tableLayout') },
+      { target: '#ribbon .rbody', title: app.tm('Table tools'), text: app.tm('Insert rows and columns, delete, align and sort. Table Design next to it has styles and the header row.'), pad: 2, before: ctx => { if (app.ribbon.isContextualShown?.('tableLayout')) ctx.tab('tableLayout'); } },
+      { target: '#editorHost .mk-page table', title: app.tm('Move with Tab'), text: app.tm('<kbd>Tab</kbd> goes to the next cell; in the last cell it adds a row. The table is saved as a plain Markdown table.') },
     ],
   });
 
   register({
-    id: 'writing', title: 'Writing Assistant', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Spelling, grammar and style suggestions with an explanation for each.',
+    id: 'writing', title: app.tm('Writing Assistant'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Spelling, grammar and style suggestions with an explanation for each.'),
     steps: [
-      tabStep('review', 'Review', 'The Writing Assistant is on the Review tab.'),
-      inTab('review', { target: cmdSel('review.writingAssistant'), title: 'Open the Writing Assistant', text: 'Click Writing Assistant to see suggestions for this document.', click: true, hint: 'Click Writing Assistant.', until: () => !!app.writing?.pane?.view || visible($('#mkwPane')) }),
-      { target: '#mkwPane', title: 'Suggestions', text: 'Each card says what to change and why. Accept a fix, dismiss it, or open Why? to learn the rule.', place: 'left', before: async () => { if (!app.writing?.pane?.view) await app.commands.run('review.writingAssistant'); } },
-      { target: '#statusbar .mkw-sb || #sbSpell', title: 'Your writing score', text: `Click it any time to open the Writing Assistant. ${K('F7')} steps through issues one by one.`, place: 'top' },
-      inTab('review', { target: cmdSel('review.thesaurus'), title: 'Synonyms', text: `Double-click a word for synonyms, or press ${K('Shift+F7')} for the Thesaurus. It works offline.` }),
+      tabStep('review', app.tm('Review'), app.tm('The Writing Assistant is on the Review tab.')),
+      inTab('review', { target: cmdSel('review.writingAssistant'), title: app.tm('Open the Writing Assistant'), text: app.tm('Click Writing Assistant to see suggestions for this document.'), click: true, hint: app.tm('Click Writing Assistant.'), until: () => !!app.writing?.pane?.view || visible($('#mkwPane')) }),
+      { target: '#mkwPane', title: app.tm('Suggestions'), text: app.tm('Each card says what to change and why. Accept a fix, dismiss it, or open Why? to learn the rule.'), place: 'left', before: async () => { if (!app.writing?.pane?.view) await app.commands.run('review.writingAssistant'); } },
+      { target: '#statusbar .mkw-sb || #sbSpell', title: app.tm('Your writing score'), text: app.tm('Click it any time to open the Writing Assistant. <kbd>F7</kbd> steps through issues one by one.'), place: 'top' },
+      inTab('review', { target: cmdSel('review.thesaurus'), title: app.tm('Synonyms'), text: app.tm('Double-click a word for synonyms, or press <kbd>Shift+F7</kbd> for the Thesaurus. It works offline.') }),
     ],
   });
 
   register({
-    id: 'rtl', title: 'Right-to-left languages and language packs', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Write Urdu, Arabic and Persian, and add spelling packs.',
+    id: 'rtl', title: app.tm('Right-to-left languages and language packs'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Write Urdu, Arabic and Persian, and add spelling packs.'),
     steps: [
-      tabStep('home', 'Home', 'Text direction is on the Home tab, as in Word.'),
-      inTab('home', { target: cmdSel('para.rtl'), title: 'Right-to-left paragraphs', text: `Click in a paragraph and use these buttons, or ${K('Ctrl+Right Shift')} and ${K('Ctrl+Left Shift')}.` }),
-      onPage({ target: '#editorHost [data-mk-script] || #editorHost [dir="rtl"]', title: 'Urdu, Arabic and Persian', text: 'Text in these scripts flows right to left and gets a matching font.', before: ctx => ctx.mode('word') }),
-      onPage({ target: '#sbLang || #statusbar', title: 'Document language', text: 'Click to choose the language for spelling. It is saved in the file as lang.', place: 'top' }),
-      { target: '#backstage .opt-card[data-section="language"] || #backstage .bs-page', title: 'Language packs', text: 'File → Options → Language downloads spelling packs for Urdu, Arabic and Persian, or installs one from a file.', before: async () => { await app.commands.run('lang.options'); await sleep(350); } },
-      { title: 'Ready to write', text: 'Exports to PDF, Word and the other formats keep the right-to-left direction and fonts.', before: ctx => ctx.closeBackstage() },
+      tabStep('home', app.tm('Home'), app.tm('Text direction is on the Home tab, as in Word.')),
+      inTab('home', { target: cmdSel('para.rtl'), title: app.tm('Right-to-left paragraphs'), text: app.tm('Click in a paragraph and use these buttons, or <kbd>Ctrl+Right Shift</kbd> and <kbd>Ctrl+Left Shift</kbd>.') }),
+      onPage({ target: '#editorHost [data-mk-script] || #editorHost [dir="rtl"]', title: app.tm('Urdu, Arabic and Persian'), text: app.tm('Text in these scripts flows right to left and gets a matching font.'), before: ctx => ctx.mode('word') }),
+      onPage({ target: '#sbLang || #statusbar', title: app.tm('Document language'), text: app.tm('Click to choose the language for spelling. It is saved in the file as lang.'), place: 'top' }),
+      { target: '#backstage .opt-card[data-section="language"] || #backstage .bs-page', title: app.tm('Language packs'), text: app.tm('File → Options → Language downloads spelling packs for Urdu, Arabic and Persian, or installs one from a file.'), before: async () => { await app.commands.run('lang.options'); await sleep(350); } },
+      { title: app.tm('Ready to write'), text: app.tm('Exports to PDF, Word and the other formats keep the right-to-left direction and fonts.'), before: ctx => ctx.closeBackstage() },
     ],
   });
 
   register({
-    id: 'export', title: 'Export and convert', minutes: 2, icon: 'mkh-i-tour',
-    description: 'Save as PDF, Word, EPUB, LaTeX and more, and open Word files.',
-    steps: [
-      fileStep,
-      bsNavStep('saveas', 'Save As / Export', 'Every format Markooj can write is here.'),
-      { target: '#backstage .bs-page[data-page="saveas"]', title: 'Pick a format', text: 'PDF, Word, OpenDocument, EPUB, LaTeX, HTML, DjVu and more. Your Markdown file stays as it is.', before: () => { if (!$('#backstage .bs-page[data-page="saveas"]')) app.backstage.open('saveas'); } },
-      { target: '#backstage .bs-nav button.n[data-page="open"]', title: 'Convert by opening', text: 'Open a Word, OpenDocument or LaTeX file and Markooj turns it into Markdown. The original stays untouched.', place: 'right', before: ctx => { if (!bsOpen()) ctx.openBackstage('saveas'); } },
-      { title: 'Print too', text: `${K('Ctrl+P')} prints with the same page layout as the PDF.`, before: ctx => ctx.closeBackstage() },
-    ],
-  });
-
-  register({
-    id: 'recover', title: 'Recover unsaved text', minutes: 1, icon: 'mkh-i-tour',
-    description: 'Get back text from a closed tab or a crash.',
+    id: 'export', title: app.tm('Export and convert'), minutes: 2, icon: 'mkh-i-tour',
+    description: app.tm('Save as PDF, Word, EPUB, LaTeX and more, and open Word files.'),
     steps: [
       fileStep,
-      bsNavStep('recover', 'Recover', 'Markooj keeps copies of text you did not save.'),
-      { target: '#backstage .bs-page[data-page="recover"]', title: 'Pick one to open', text: 'Copies from closed tabs and crashes are listed here, newest first. They are kept for 7 days; change that in Options.', before: () => { if (!$('#backstage .bs-page[data-page="recover"]')) app.backstage.open('recover'); } },
-      { title: 'Nothing is lost', text: 'Even “Don’t Save” keeps a copy here, so you can change your mind.', before: ctx => ctx.closeBackstage() },
+      bsNavStep('saveas', app.tm('Save As / Export'), app.tm('Every format Markooj can write is here.')),
+      { target: '#backstage .bs-page[data-page="saveas"]', title: app.tm('Pick a format'), text: app.tm('PDF, Word, OpenDocument, EPUB, LaTeX, HTML, DjVu and more. Your Markdown file stays as it is.'), before: () => { if (!$('#backstage .bs-page[data-page="saveas"]')) app.backstage.open('saveas'); } },
+      { target: '#backstage .bs-nav button.n[data-page="open"]', title: app.tm('Convert by opening'), text: app.tm('Open a Word, OpenDocument or LaTeX file and Markooj turns it into Markdown. The original stays untouched.'), place: 'right', before: ctx => { if (!bsOpen()) ctx.openBackstage('saveas'); } },
+      { title: app.tm('Print too'), text: app.tm('<kbd>Ctrl+P</kbd> prints with the same page layout as the PDF.'), before: ctx => ctx.closeBackstage() },
     ],
   });
 
   register({
-    id: 'ribbon', title: 'Pin or unpin the ribbon', minutes: 1, icon: 'mkh-i-tour', doc: false, mode: null,
-    description: 'Show the full ribbon, tabs only, or hide it for more room.',
+    id: 'recover', title: app.tm('Recover unsaved text'), minutes: 1, icon: 'mkh-i-tour',
+    description: app.tm('Get back text from a closed tab or a crash.'),
     steps: [
-      { target: '#ribbon .rt-collapse || #ribbon .rdisp', title: 'Ribbon display options', text: 'Show tabs and commands, Show tabs only, or Full-screen mode, as in Word.', before: ctx => { if (ctx.ribbonDisplay() !== 'pinned') ctx.ribbon('pinned'); } },
-      { target: '#ribbon .rtabs', title: 'Hide the commands', text: `Press ${K('Ctrl+F1')}, or double-click any tab.`, hint: 'Press Ctrl+F1 or double-click a tab.', until: ctx => ctx.ribbonDisplay() === 'tabs', perform: ctx => ctx.ribbon('tabs'), before: ctx => { if (ctx.ribbonDisplay() === 'full') ctx.ribbon('pinned'); } },
-      { target: tabSel('home'), title: 'Tabs only', text: 'Click a tab to drop its commands over the page. They hide again after you use one.', before: ctx => { if (ctx.ribbonDisplay() !== 'tabs') ctx.ribbon('tabs'); } },
-      { target: '#ribbon .rtabs', title: 'Pin it back', text: `Press ${K('Ctrl+F1')} again, or click the pin on the dropped-down ribbon.`, hint: 'Press Ctrl+F1 or double-click a tab.', until: ctx => ctx.ribbonDisplay() === 'pinned', perform: ctx => ctx.ribbon('pinned') },
+      fileStep,
+      bsNavStep('recover', app.tm('Recover'), app.tm('Markooj keeps copies of text you did not save.')),
+      { target: '#backstage .bs-page[data-page="recover"]', title: app.tm('Pick one to open'), text: app.tm('Copies from closed tabs and crashes are listed here, newest first. They are kept for 7 days; change that in Options.'), before: () => { if (!$('#backstage .bs-page[data-page="recover"]')) app.backstage.open('recover'); } },
+      { title: app.tm('Nothing is lost'), text: app.tm('Even “Don’t Save” keeps a copy here, so you can change your mind.'), before: ctx => ctx.closeBackstage() },
     ],
   });
 
   register({
-    id: 'keys', title: 'Keyboard and KeyTips', minutes: 1, icon: 'mkh-i-tour', doc: false, mode: null,
-    description: 'Run any ribbon command from the keyboard, as in Word.',
+    id: 'ribbon', title: app.tm('Pin or unpin the ribbon'), minutes: 1, icon: 'mkh-i-tour', doc: false, mode: null,
+    description: app.tm('Show the full ribbon, tabs only, or hide it for more room.'),
     steps: [
-      { target: '#ribbon .rtabs', title: 'Press Alt', text: 'Press and release Alt. Letters appear on the tabs and buttons.', hint: 'Press Alt.', until: () => !!app.keytips?.active?.(), perform: () => app.keytips?.start?.(), before: () => { try { if (app.keytips?.active?.()) app.keytips.stop(); } catch {} } },
-      { target: '#ribbon .rtabs', title: 'Type a letter', text: `H is Home, N is Insert, R is Review. A second letter runs a button. ${K('Esc')} steps back.`, before: async () => { try { if (!app.keytips?.active?.()) await app.keytips?.start?.(); } catch {} } },
-      { target: '#titlebar .search', title: 'Search for a command', text: `${K('Alt+Q')} jumps here. Type what you want to do and press Enter.`, before: () => { try { if (app.keytips?.active?.()) app.keytips.stop(); } catch {} } },
-      { title: 'Word’s shortcuts work', text: `${K('Ctrl+B')}, ${K('Ctrl+K')}, ${K('F7')} for spelling, ${K('F12')} for Save As and ${K('F1')} for Help. Help → Keyboard Shortcuts lists them all.` },
+      { target: '#ribbon .rt-collapse || #ribbon .rdisp', title: app.tm('Ribbon display options'), text: app.tm('Show tabs and commands, Show tabs only, or Full-screen mode, as in Word.'), before: ctx => { if (ctx.ribbonDisplay() !== 'pinned') ctx.ribbon('pinned'); } },
+      { target: '#ribbon .rtabs', title: app.tm('Hide the commands'), text: app.tm('Press <kbd>Ctrl+F1</kbd>, or double-click any tab.'), hint: app.tm('Press Ctrl+F1 or double-click a tab.'), until: ctx => ctx.ribbonDisplay() === 'tabs', perform: ctx => ctx.ribbon('tabs'), before: ctx => { if (ctx.ribbonDisplay() === 'full') ctx.ribbon('pinned'); } },
+      { target: tabSel('home'), title: app.tm('Tabs only'), text: app.tm('Click a tab to drop its commands over the page. They hide again after you use one.'), before: ctx => { if (ctx.ribbonDisplay() !== 'tabs') ctx.ribbon('tabs'); } },
+      { target: '#ribbon .rtabs', title: app.tm('Pin it back'), text: app.tm('Press <kbd>Ctrl+F1</kbd> again, or click the pin on the dropped-down ribbon.'), hint: app.tm('Press Ctrl+F1 or double-click a tab.'), until: ctx => ctx.ribbonDisplay() === 'pinned', perform: ctx => ctx.ribbon('pinned') },
     ],
   });
 
-  // one command per tutorial, so they can be found with Alt+Q
-  for (const t of tours.values()) {
-    const id = 'tour.' + t.id.replace(/-(\w)/g, (_, c) => c.toUpperCase());
-    app.commands.register(id, { label: `Tutorial: ${t.title}`, icon: 'mkh-i-tour', category: 'Help', description: `${t.description} A guided tour of about ${t.minutes} min.`, run: () => start(t.id) });
-    try { app.tooltips?.register?.(id, { title: `Tutorial: ${t.title}`, description: `${t.description} A guided tour of about ${t.minutes} min.` }); } catch {}
+  register({
+    id: 'keys', title: app.tm('Keyboard and KeyTips'), minutes: 1, icon: 'mkh-i-tour', doc: false, mode: null,
+    description: app.tm('Run any ribbon command from the keyboard, as in Word.'),
+    steps: [
+      { target: '#ribbon .rtabs', title: app.tm('Press Alt'), text: app.tm('Press and release Alt. Letters appear on the tabs and buttons.'), hint: app.tm('Press Alt.'), until: () => !!app.keytips?.active?.(), perform: () => app.keytips?.start?.(), before: () => { try { if (app.keytips?.active?.()) app.keytips.stop(); } catch {} } },
+      { target: '#ribbon .rtabs', title: app.tm('Type a letter'), text: app.tm('H is Home, N is Insert, R is Review. A second letter runs a button. <kbd>Esc</kbd> steps back.'), before: async () => { try { if (!app.keytips?.active?.()) await app.keytips?.start?.(); } catch {} } },
+      { target: '#titlebar .search', title: app.tm('Search for a command'), text: app.tm('<kbd>Alt+Q</kbd> jumps here. Type what you want to do and press Enter.'), before: () => { try { if (app.keytips?.active?.()) app.keytips.stop(); } catch {} } },
+      { title: app.tm('Word’s shortcuts work'), text: app.tm('<kbd>Ctrl+B</kbd>, <kbd>Ctrl+K</kbd>, <kbd>F7</kbd> for spelling, <kbd>F12</kbd> for Save As and <kbd>F1</kbd> for Help. Help → Keyboard Shortcuts lists them all.') },
+    ],
+  });
+
+  // one command per tutorial, so they can be found with Alt+Q. Their label and ScreenTip are whole sentences built from
+  // the tour's title, so they are written again in the new language when the interface language changes.
+  const tourCmdId = t => 'tour.' + t.id.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+  function tourCmdText(t) {
+    return { label: app.t('Tutorial: {title}', { title: app.t(t.title) }), description: app.tn('{description} A guided tour of about {count} min.', t.minutes, { description: app.t(t.description) }) };
   }
-  app.commands.register('help.stopTour', { label: 'Close tutorial', hidden: true, palette: false, description: 'Closes the tutorial that is running.', run: () => stop() });
+  function localizeTourCommands() {
+    for (const t of tours.values()) {
+      const id = tourCmdId(t), c = app.commands.get(id);
+      if (!c) continue;
+      const x = tourCmdText(t);
+      c.label = x.label; c.description = x.description;
+      try { app.tooltips?.register?.(id, { title: x.label, description: x.description }); } catch {}
+    }
+  }
+  for (const t of tours.values()) {
+    const x = tourCmdText(t);
+    app.commands.register(tourCmdId(t), { label: x.label, icon: 'mkh-i-tour', category: 'Help', description: x.description, run: () => start(t.id) });
+    try { app.tooltips?.register?.(tourCmdId(t), { title: x.label, description: x.description }); } catch {}
+  }
+  app.events.on('i18n:changed', localizeTourCommands);
+  app.commands.register('help.stopTour', { label: app.tm('Close tutorial'), hidden: true, palette: false, description: app.tm('Closes the tutorial that is running.'), run: () => stop() });
 
   app.tours = { register, list, get: id => tours.get(id) || null, start, stop, next, back, active: () => (S ? { id: S.tour.id, index: S.i, auto: S.auto } : null), isDone, markDone, resetDone, tutorialText: TUTORIAL_TEXT };
 

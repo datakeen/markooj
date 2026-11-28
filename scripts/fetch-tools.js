@@ -10,7 +10,8 @@
  *   vendor/<dir>/MANIFEST.json   (versions, URLs, hashes, where the source code lives)
  *
  * <dir> is `win32` on Windows (x64 only) and `<platform>-<arch>` elsewhere: darwin-arm64, darwin-x64, linux-x64.
- * electron-builder ships that folder as resources/vendor (package.json: extraResources with ${arch}).
+ * Since Markooj 1.2 the installers leave it out: scripts/make-features.js packs it into the optional feature zips
+ * (File → Options → Features), and build/portable-zip.js puts it into the full Windows portable zip as resources/vendor.
  * On macOS and Linux only Pandoc is bundled; DjVuLibre and pdf2djvu come from Homebrew or the system
  * package manager (brew install djvulibre pdf2djvu / sudo apt install djvulibre-bin pdf2djvu).
  *
@@ -120,6 +121,16 @@ const VENDOR_NAME = PLATFORM === 'win32' ? 'win32' : `${PLATFORM}-${ARCH}`;
 const VENDOR = path.join(VENDOR_ROOT, VENDOR_NAME);
 const VENDOR_SRC = path.join(ROOT, 'vendor-src');
 const LICENSES = path.join(ROOT, 'licenses');
+// THIRD_PARTY_NOTICES.md section for the in-app keyboard layouts (licenses/keyman-keyboards-LICENSE.txt is kept by hand)
+const KEYBOARD_NOTICE = [
+  "### Keyboard layouts (src/keyboards.js)",
+  "",
+  "- What: the key-to-letter tables of the typing keyboards built into Markooj (data only; the typing code is Markooj's own).",
+  "- **Urdu Phonetic** follows the *CRULP Urdu Phonetic Keyboard Layout v1.1 for Windows* (2007) by the Center for Research in Urdu Language Processing, now the Center for Language Engineering (CLE), KICS, UET Lahore (https://www.cle.org.pk/software/localization/keyboards/CRULPphonetickbv1.1.html), checked key by key against Keyman's *Urdu Phonetic (CRULP)* keyboard 1.2.2, which was imported from the official CRULPKB.dll. Keyman keyboard: **MIT**, Copyright © 2019-2025 SIL Global (https://github.com/keymanapp/keyboards/tree/master/release/u/urdu_phonetic_crulp). Text: `licenses/keyman-keyboards-LICENSE.txt`.",
+  "- **Punjabi (Shahmukhi)** is the Urdu Phonetic table with four keys added by Markooj (ݨ, ڵ, ݪ, ۓ).",
+  "- **Arabic (101)** and **Persian (Standard, ISIRI 9147)** follow the Windows keyboard layouts KBDA1 and KBDFAR, as listed by https://kbdlayout.info. Only which key types which character was used; no Microsoft code or files are included.",
+  ""
+];
 const MANIFEST_PATH = path.join(VENDOR, 'MANIFEST.json');
 
 // ---------------------------------------------------------------------------------------------
@@ -877,7 +888,7 @@ const EXTRA_COMPONENTS = [
     what: 'UK English spelling dictionary, made from SCOWL', copyright: 'Copyright 2000-2018 by Kevin Atkinson and the other SCOWL authors named in the license file', url: 'https://github.com/wooorm/dictionaries (SCOWL: http://wordlist.aspell.net)' },
   { pkg: 'dictionary-fa', title: 'dictionary-fa (Persian, Lilak)', license: 'Apache-2.0', files: ['license'], dest: 'dictionary-fa-LICENSE.txt', what: 'Persian spelling dictionary (Lilak)', copyright: 'Lilak, Persian Spell Checking Dictionary, Copyright 2015 (see the license file)', url: 'https://github.com/wooorm/dictionaries' },
   { pkg: 'wordnet-db', title: 'WordNet 3.x (wordnet-db)', license: 'WordNet 3.0 License (Princeton University); npm package MIT', files: ['LICENSE'], dest: 'wordnet-LICENSE.txt',
-    what: 'English lexical database behind Synonyms and the Thesaurus pane (Markooj ships data derived from it)', copyright: 'WordNet 3.0 Copyright 2006 by Princeton University. All rights reserved.', url: 'https://wordnet.princeton.edu (package: https://github.com/moos/wordnet-db)' },
+    what: 'English lexical database behind Synonyms and the Thesaurus pane, and the word-frequency tiers that rank English spelling suggestions (`data/thesaurus-en.json` and `data/words-rank-en.txt`, derived from it by `scripts/make-thesaurus.js` and `scripts/make-word-ranks.js`)', copyright: 'WordNet 3.0 Copyright 2006 by Princeton University. All rights reserved.', url: 'https://wordnet.princeton.edu (package: https://github.com/moos/wordnet-db)' },
   { pkg: 'write-good', title: 'write-good', license: 'MIT', files: ['LICENSE'], dest: 'write-good-LICENSE.txt', what: 'style checks (passive voice, weasel words, wordy phrases)', url: 'https://github.com/btford/write-good' },
   { pkg: '@fontsource/noto-nastaliq-urdu', title: 'Noto Nastaliq Urdu (font)', license: 'OFL-1.1', files: ['LICENSE'], dest: 'font-noto-nastaliq-urdu-OFL.txt', what: 'Urdu font (via Fontsource)', url: 'https://github.com/notofonts/nastaliq' },
   { pkg: '@fontsource/noto-naskh-arabic', title: 'Noto Naskh Arabic (font)', license: 'OFL-1.1', files: ['LICENSE'], dest: 'font-noto-naskh-arabic-OFL.txt', what: 'Arabic font (via Fontsource)', url: 'https://github.com/notofonts/arabic' },
@@ -938,7 +949,11 @@ function writeNotices() {
   L.push('(MIT, BSD, ISC, Apache-2.0, MPL-2.0, PSF-2.0, OFL-1.1, the WordNet license and CC BY-SA 3.0 for the citation styles), or, where a');
   L.push('library offers a choice, under its GPL-3.0-or-later option, which AGPL v3 section 13 lets Markooj combine with (elkjs inside Mermaid).');
   L.push('Pandoc and DjVuLibre (GPL-2.0-or-later) and pdf2djvu (GPL-2.0-only) are not part of Markooj: they are shipped next to it as');
-  L.push('separate programs and run as tools, so each keeps its own license and Markooj’s AGPL does not apply to them.', '');
+  L.push('separate programs and run as tools, so each keeps its own license and Markooj’s AGPL does not apply to them.');
+  L.push('Since Markooj 1.2 they are optional features: the installers leave them out, and Markooj downloads them from its GitHub release');
+  L.push('when someone asks for them (File → Options → Features), as `markooj-feature-pandoc-…zip` and `markooj-feature-djvu-…zip`. Each');
+  L.push('feature zip carries these license texts (`licenses/`) and a `SOURCE.txt` with the source addresses. The Windows portable zip');
+  L.push('still includes them in `resources/vendor`. Pyodide (Python macros) is an optional feature the same way.', '');
   L.push('These are separate programs. Markooj starts them as child processes; it does not link to them.');
   L.push('They are redistributed **unmodified**, exactly as published by their upstream projects, under the');
   L.push('GNU General Public License (GPL). Under GPL-2.0 section 3 you are entitled to the complete corresponding');
@@ -1035,6 +1050,8 @@ function writeNotices() {
   const epj = readPkg(path.join(ROOT, 'node_modules', 'electron'));
   const eDist = path.join(ROOT, 'node_modules', 'electron', 'dist');
   if (fs.existsSync(path.join(eDist, 'LICENSE'))) fs.copyFileSync(path.join(eDist, 'LICENSE'), path.join(LICENSES, 'electron-LICENSE.txt'));
+  // keyboard-layout data (src/keyboards.js, round 5): written by hand, so it is kept here as static text
+  L.push(...KEYBOARD_NOTICE);
   L.push('## Electron and Chromium', '');
   L.push(`- **Electron** ${epj ? epj.version : ''} (MIT, Copyright (c) Electron contributors, Copyright (c) 2013-2020 GitHub Inc.): the application runtime, https://github.com/electron/electron. Text: \`licenses/electron-LICENSE.txt\`.`);
   L.push('- **Chromium**, **Node.js**, **V8**, **FFmpeg** and the other components inside Electron keep their own licenses (BSD-3-Clause, MIT, LGPL-2.1 for FFmpeg and others). Their full texts are in `LICENSES.chromium.html` next to `Markooj.exe` (installed by Electron with every copy). Chromium source: https://source.chromium.org/chromium.', '');
@@ -1047,11 +1064,12 @@ function writeNotices() {
   const want = ['markdown-it', 'katex', 'highlight.js', 'mermaid', 'turndown', 'mammoth', 'html-to-docx', 'jszip', 'pdfjs-dist', 'dompurify', 'pyodide', 'yaml', 'harper.js', 'nspell', 'dictionary-en', 'dictionary-en-gb', 'dictionary-fa', 'wordnet-db', 'write-good'];
   const absent = want.filter((w) => !prod.some((p) => p.name === w));
   L.push('Notes:', '');
-  L.push('- **Pyodide** (MPL-2.0) bundles CPython (PSF-2.0) and its standard library compiled to WebAssembly; see `node_modules/pyodide/` and https://github.com/pyodide/pyodide. License texts: `licenses/pyodide-LICENSE.txt` (MPL-2.0) and `licenses/cpython-LICENSE.txt` (PSF License Agreement and the CPython history and terms).');
+  L.push('- **Pyodide** (MPL-2.0) bundles CPython (PSF-2.0) and its standard library compiled to WebAssembly; since 1.2 it is the optional "Python macros" feature (`markooj-feature-python-…zip`, or `resources/pyodide/` in the Windows portable zip) instead of part of `app.asar`; see https://github.com/pyodide/pyodide. License texts: `licenses/pyodide-LICENSE.txt` (MPL-2.0) and `licenses/cpython-LICENSE.txt` (PSF License Agreement and the CPython history and terms).');
   L.push('- **Citation styles** `csl/apa.csl`, `csl/ieee.csl`, `csl/chicago-author-date.csl` (used for DOCX, ODT, EPUB and LaTeX exports) come from the Citation Style Language styles project (https://github.com/citation-style-language/styles), as included with the Pandoc source, under the Creative Commons Attribution-ShareAlike 3.0 license (https://creativecommons.org/licenses/by-sa/3.0/). Each file names its authors in its <info> section. See `licenses/csl-styles.txt`.');
   L.push('- **JSZip** is dual licensed (MIT or GPL-3.0-or-later); Markooj uses it under MIT. **DOMPurify** is dual licensed (MPL-2.0 or Apache-2.0); Markooj uses it under Apache-2.0. **elkjs** (EPL-2.0 or GPL-3.0-or-later; its layout code is compiled into Mermaid\'s `mermaid.min.js`) is used under GPL-3.0-or-later, which is compatible with Markooj\'s AGPL-3.0-or-later (AGPL v3 section 13). Texts: `licenses/GPL-3.0.txt` and, for its other option, the EPL-2.0 text in `licenses/npm-licenses.txt`.');
   L.push('- **KaTeX** fonts are under the SIL Open Font License / MIT as stated in the KaTeX package.');
   L.push('- Full license texts of all npm packages above: `licenses/npm-licenses.txt`.');
+  L.push("- **Website copies.** The website's \"Try it\" preview (`site/vendor/`, published to GitHub Pages, not part of the app) carries unmodified copies of KaTeX 0.19.1 (`katex.min.js`, `katex.min.css`, the `.woff2` fonts; MIT), Marked 16.4.2 (`marked.umd.js`, only its source-map comment removed; MIT) and Mermaid 12.3.0 (`mermaid.min.js`; MIT, loaded only when a visitor adds a diagram). Their license texts travel with them: `site/vendor/*/LICENSE.txt`, `site/vendor/mermaid/THIRD-PARTY-LICENSES.txt` (every package bundled inside `mermaid.min.js`) and `site/vendor/mermaid/GPL-3.0.txt` (elkjs, used under GPL-3.0-or-later). See `site/vendor/README.txt`.");
   L.push('- **Language packs** (Urdu, Arabic, Punjabi, Persian and others) are not part of the app. They are downloaded on request from the releases of https://github.com/datakeen/markooj-language-packs, and each pack carries the licenses of its word lists, dictionaries and rules inside the pack. See "Language data (downloaded separately)" below.');
   if (absent.length) L.push(`- Not installed at the time this file was generated: ${absent.join(', ')}.`);
   L.push('');

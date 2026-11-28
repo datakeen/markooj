@@ -1,0 +1,91 @@
+# Markooj — place names the English spelling check accepts (File → Options → Writing → "Accept technical terms and place names").
+# Compiled for Markooj by its authors (AGPL-3.0-or-later, like the rest of Markooj). Names of places are facts; no third-party
+# list was copied. Format: names separated by spaces or new lines; a name of several words is written as its words.
+# Case matters: "Lahore" is accepted, "lahore" is marked (the dictionary would mark it too).
+
+# ---- United States: states, well-known cities, rivers, dams, parks and plants
+Alabama Alaska Arizona Arkansas California Colorado Connecticut Delaware Florida Georgia Hawaii Idaho Illinois Indiana Iowa
+Kansas Kentucky Louisiana Maine Maryland Massachusetts Michigan Minnesota Mississippi Missouri Montana Nebraska Nevada New
+Hampshire Jersey Mexico York Carolina Dakota Ohio Oklahoma Oregon Pennsylvania Rhode Island Tennessee Texas Utah Vermont
+Virginia Washington Wisconsin Wyoming Columbia Puerto Rico Guam
+San Onofre Diablo Canyon Palo Verde Vogtle Seabrook Millstone Oconee Catawba Hanford Savannah Oak Ridge Alamos Livermore
+Sandia Argonne Brookhaven Fermilab Hoover Coulee Bonneville Glen Shasta Oroville Folsom Fontana Norris Kinzua Tahoe Mead
+Powell Okeechobee Everglades Yellowstone Yosemite Zion Sequoia Shenandoah Appalachian Appalachia Chesapeake Potomac
+Susquehanna Allegheny Monongahela Merrimack Wabash Platte Klamath Gila Pecos Yukon Sacramento Snake Hudson Rio Grande
+Mojave Sonoma Napa Monterey Carmel Cupertino Sunnyvale Palo Alto Jose Oakland Berkeley Stanford Pasadena Anaheim Burbank
+Malibu Fresno Bakersfield Modesto Stockton Redding Eureka Riverside Temecula Oceanside Escondido Chula Vista Jolla Irvine
+Fullerton Torrance Ventura Oxnard Santa Barbara Luis Obispo Pomona Seattle Spokane Tacoma Portland Boise Reno Vegas
+Henderson Tucson Phoenix Scottsdale Flagstaff Yuma Albuquerque Fe Paso Austin Houston Dallas Antonio Worth Galveston
+Corpus Christi Laredo Lubbock Amarillo Midland Odessa Waco Plano Arlington Tulsa Wichita Omaha Lincoln Moines Minneapolis
+Paul Milwaukee Madison Chicago Detroit Ann Arbor Cleveland Columbus Cincinnati Pittsburgh Philadelphia Harrisburg Baltimore
+Annapolis Richmond Norfolk Raleigh Durham Charlotte Asheville Charleston Atlanta Jacksonville Tallahassee Orlando Tampa
+Miami Birmingham Montgomery Mobile Nashville Memphis Knoxville Chattanooga Louisville Lexington Indianapolis Louis Topeka
+Denver Boulder Aspen Provo Cheyenne Billings Bozeman Helena Bismarck Fargo Sioux Anchorage Juneau Fairbanks Honolulu Hilo
+Maui Oahu Kauai Boston Cambridge Worcester Providence Hartford Haven Albany Buffalo Rochester Syracuse Ithaca Manhattan
+Brooklyn Queens Bronx Newark Trenton Princeton Wilmington Dover Burlington Montpelier Concord Augusta Bangor Poughkeepsie
+Schenectady Niagara Fairfax Alexandria Quantico Tuscaloosa Baton Rouge Shreveport Lafayette Biloxi Gulfport Pensacola
+
+# ---- countries
+Afghanistan Albania Algeria Andorra Angola Antigua Barbuda Argentina Armenia Australia Austria Azerbaijan Bahamas Bahrain
+Bangladesh Barbados Belarus Belgium Belize Benin Bhutan Bolivia Bosnia Herzegovina Botswana Brazil Brunei Bulgaria Burkina
+Faso Burundi Cabo Verde Cambodia Cameroon Canada Chad Chile China Colombia Comoros Congo Costa Rica Côte Ivoire Croatia Cuba
+Cyprus Czechia Denmark Djibouti Dominica Ecuador Egypt Salvador Eritrea Estonia Eswatini Ethiopia Fiji Finland France Gabon
+Gambia Germany Ghana Greece Grenada Guatemala Guinea Bissau Guyana Haiti Honduras Hungary Iceland India Indonesia Iran Iraq
+Ireland Israel Italy Jamaica Japan Jordan Kazakhstan Kenya Kiribati Korea Kosovo Kuwait Kyrgyzstan Laos Latvia Lebanon
+Lesotho Liberia Libya Liechtenstein Lithuania Luxembourg Madagascar Malawi Malaysia Maldives Mali Malta Marshall
+Mauritania Mauritius Micronesia Moldova Monaco Mongolia Montenegro Morocco Mozambique Myanmar Namibia Nauru Nepal
+Netherlands Zealand Nicaragua Niger Nigeria Macedonia Norway Oman Pakistan Palau Palestine Panama Papua Paraguay Peru
+Philippines Poland Portugal Qatar Romania Russia Rwanda Kitts Nevis Lucia Vincent Grenadines Samoa Marino Tomé Príncipe
+Saudi Arabia Senegal Serbia Seychelles Sierra Leone Singapore Slovakia Slovenia Solomon Somalia Sudan Spain Sri Lanka
+Suriname Sweden Switzerland Syria Taiwan Tajikistan Tanzania Thailand Timor-Leste Togo Tonga Trinidad Tobago Tunisia
+Türkiye Turkey Turkmenistan Tuvalu Uganda Ukraine Emirates Uruguay Uzbekistan Vanuatu Vatican Venezuela Vietnam Yemen
+Zambia Zimbabwe
+
+# ---- major world cities
+Tokyo Delhi Shanghai Paulo Cairo Mumbai Beijing Dhaka Osaka Karachi Chongqing Istanbul Buenos Aires Kolkata Kinshasa Lagos
+Manila Tianjin Guangzhou Rio Janeiro Lahore Bangalore Bengaluru Shenzhen Moscow Chennai Bogotá Bogota Paris Jakarta Lima
+Bangkok Seoul Nagoya Hyderabad London Tehran Chengdu Nanjing Wuhan Ho Chi Minh Luanda Ahmedabad Kuala Lumpur Xi'an Hong
+Kong Dongguan Hangzhou Foshan Shenyang Riyadh Baghdad Santiago Surat Madrid Suzhou Pune Harbin Toronto Dar Salaam Belo
+Horizonte Fukuoka Khartoum Barcelona Johannesburg Petersburg Qingdao Dalian Yangon Jinan Guadalajara Ankara Melbourne
+Sydney Abidjan Nairobi Addis Ababa Kabul Kandahar Herat Mazar-i-Sharif Jalalabad Tashkent Samarkand Bukhara Almaty Astana
+Bishkek Dushanbe Ashgabat Baku Tbilisi Yerevan Doha Dubai Abu Dhabi Sharjah Muscat Manama Amman Beirut Damascus Aleppo
+Jerusalem Tel Aviv Haifa Jeddah Mecca Makkah Medina Madinah Dammam Sana'a Aden Mashhad Isfahan Shiraz Tabriz Kathmandu
+Pokhara Thimphu Colombo Kandy Malé Chittagong Sylhet Hanoi Phnom Penh Vientiane Ulaanbaatar Pyongyang Taipei Kaohsiung
+Busan Incheon Daegu Kyoto Yokohama Sapporo Hiroshima Nagasaki Kobe Sendai Wellington Auckland Christchurch Brisbane Perth
+Adelaide Canberra Hobart Darwin Suva Moresby Reykjavik Oslo Bergen Stockholm Gothenburg Malmö Uppsala Helsinki Copenhagen
+Aarhus Tallinn Riga Vilnius Warsaw Kraków Krakow Gdańsk Wrocław Prague Brno Bratislava Vienna Salzburg Graz Budapest
+Ljubljana Zagreb Belgrade Sarajevo Podgorica Skopje Tirana Sofia Bucharest Chișinău Kyiv Kiev Kharkiv Odesa Lviv Minsk
+Athens Thessaloniki Rome Milan Naples Turin Venice Florence Bologna Genoa Palermo Lisbon Porto Seville Valencia Bilbao
+Málaga Malaga Zaragoza Marseille Lyon Toulouse Nice Nantes Strasbourg Bordeaux Lille Grenoble Brussels Antwerp Ghent
+Amsterdam Rotterdam Utrecht Hague Eindhoven Zürich Zurich Geneva Basel Bern Lausanne Berlin Hamburg Munich Cologne
+Frankfurt Stuttgart Düsseldorf Dusseldorf Dortmund Essen Leipzig Dresden Hanover Nuremberg Bremen Aachen Karlsruhe
+Heidelberg Dublin Cork Belfast Edinburgh Glasgow Aberdeen Cardiff Manchester Liverpool Leeds Sheffield Bristol Newcastle
+Nottingham Leicester Coventry Oxford Southampton Ottawa Montreal Vancouver Calgary Edmonton Winnipeg Quebec Halifax
+Victoria Havana Kingston Caracas Quito Guayaquil Paz Sucre Asunción Asuncion Montevideo Brasília Brasilia Fortaleza Recife
+Alegre Curitiba Manaus Medellín Medellin Cali Cartagena Monterrey Puebla Tijuana Cancún Cancun Tegucigalpa Managua Domingo
+Port-au-Prince Accra Dakar Bamako Niamey Ouagadougou Abuja Kano Ibadan Douala Yaoundé Yaounde Libreville Brazzaville
+Kampala Kigali Bujumbura Dodoma Mombasa Mogadishu Asmara Juba Tripoli Tunis Algiers Rabat Casablanca Marrakesh Marrakech
+Fez Nouakchott Lusaka Harare Lilongwe Maputo Gaborone Windhoek Pretoria Cape Durban Maseru Mbabane Antananarivo Louis
+
+# ---- Pakistan: provinces, regions, districts, cities, rivers, dams and barrages
+Punjab Sindh Khyber Pakhtunkhwa Balochistan Baluchistan Gilgit Baltistan Gilgit-Baltistan Azad Kashmir Jammu Islamabad
+Potohar Pothohar Potwar Thar Thal Cholistan Makran Swat Hazara Malakand Waziristan Kurram Bajaur Mohmand Orakzai Chitral
+Hunza Nagar Ghizer Diamer Astore Ghanche Shigar Kharmang Neelum Muzaffarabad Mirpur Kotli Bhimber Rawalakot Bagh Poonch
+Sudhnoti Haveli Kohistan Shangla Battagram Torghar Buner Dir
+Karachi Lahore Faisalabad Rawalpindi Gujranwala Peshawar Multan Hyderabad Quetta Bahawalpur Bahawalnagar Sargodha Sialkot
+Sukkur Larkana Sheikhupura Rahim Yar Khan Jhang Dera Ghazi Ismail Gujrat Sahiwal Wah Cantt Taxila Mardan Kasur Okara
+Mingora Nawabshah Shaheed Benazirabad Chiniot Kotri Kamoke Hafizabad Sadiqabad Mirpurkhas Burewala Kohat Khanewal Jhelum
+Muzaffargarh Abbottabad Mansehra Haripur Attock Chakwal Mianwali Bhakkar Layyah Khushab Talagang Murree Nowshera Charsadda
+Swabi Bannu Lakki Marwat Hangu Karak Parachinar Timergara Skardu Gwadar Turbat Khuzdar Chaman Zhob Loralai Sibi Jacobabad
+Shikarpur Khairpur Dadu Thatta Badin Sanghar Umerkot Mithi Tharparkar Vehari Pakpattan Lodhran Rajanpur Narowal Mandi
+Bahauddin Toba Tek Singh Nankana Gojra Kamalia Arifwala Daska Wazirabad Gujar Khan Fateh Jang Pindi Gheb Hasan Abdal
+Kharian Lalamusa Sarai Alamgir Dina Rohtas Kallar Kahar Kalar Kahar Jauharabad Ziarat Pishin Mastung Kalat Nushki Kharan
+Panjgur Lasbela Hub Uthal Dera Murad Jamali Naseerabad Jaffarabad Usta Muhammad Gilgit Aliabad Karimabad Gulmit Sost
+Naran Kaghan Babusar Khunjerab Margalla Nathia Gali Ayubia Bhurban Patriata Kalam Bahrain Malam Jabba Mingora Saidu Sharif
+Indus Chenab Ravi Sutlej Beas Kunhar Haro Soan Gomal Hingol Dasht Shyok Shigar Gilgit Astore Kabul Panjkora Kurram Tochi
+Mangla Tarbela Warsak Ghazi Barotha Diamer-Bhasha Bhasha Dasu Neelum-Jhelum Kalabagh Chashma Jinnah Taunsa Guddu Marala
+Khanki Qadirabad Balloki Sulemanki Panjnad Trimmu Sidhnai Rasul Mailsi Rawal Simly Khanpur Hub Mirani Sabakzai Gomal Zam
+Satpara Duber Khwar Allai Khan Khwar Malakand Dargai Jabban Suki Kinari Karot Azad Pattan Kohala Mahl Munda Keyal Patrind
+Karakoram Hindu Kush Himalaya Himalayas Nanga Parbat Rakaposhi Baltoro Siachen Deosai Concordia Masherbrum Gasherbrum
+Broad Peak Haramosh Batura Hispar Biafo Passu Attabad Saif-ul-Malook Saiful Malook Lulusar Dudipatsar Bolan Khojak Lowari
+Kohat Khyber Tochi Kalabagh Salt Range Kirthar Sulaiman Toba Kakar Chagai Ras Koh

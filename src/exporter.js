@@ -8,10 +8,10 @@
 
   const BUILTIN = [
     { id: 'pdf', label: 'PDF', ext: 'pdf', available: true, via: 'built-in' },
-    { id: 'docx', label: 'Word document', ext: 'docx', available: true, via: 'built-in' },
-    { id: 'epub', label: 'EPUB e-book', ext: 'epub', available: true, via: 'built-in' },
-    { id: 'html', label: 'Web page', ext: 'html', available: true, via: 'built-in' },
-    { id: 'txt', label: 'Plain text', ext: 'txt', available: true, via: 'built-in' },
+    { id: 'docx', label: app.tm('Word document'), ext: 'docx', available: true, via: 'built-in' },
+    { id: 'epub', label: app.tm('EPUB e-book'), ext: 'epub', available: true, via: 'built-in' },
+    { id: 'html', label: app.tm('Web page'), ext: 'html', available: true, via: 'built-in' },
+    { id: 'txt', label: app.tm('Plain text'), ext: 'txt', available: true, via: 'built-in' },
   ];
 
   // Print-friendly, light-only page styles for exported documents (no app tokens, no contenteditable).
@@ -318,7 +318,15 @@ pre.mermaid svg{max-width:100%;height:auto}
     stage.setAttribute('aria-hidden', 'true');
     // opacity (not visibility) keeps innerText working; off-screen keeps it out of sight
     stage.style.cssText = 'position:fixed;left:-30000px;top:0;width:602px;opacity:0;pointer-events:none;z-index:-1';
-    stage.innerHTML = r.html || '';
+    // parsed in an inert document first: a picture written as C:/… or file:/// (other editors) would otherwise make the window try
+    // to load it as file:/// before decorate runs; it shows through markooj://local like in the editors (original kept in data-mk-src)
+    const box = document.implementation.createHTMLDocument('').createElement('div');
+    box.innerHTML = r.html || '';
+    for (const img of box.querySelectorAll('img[src]')) {
+      const s = img.getAttribute('src');
+      if (/^(?:[a-z]:[\\/]|file:)/i.test(s)) { let u = null; try { u = app.assetUrl?.(doc, s); } catch {} if (u) { img.setAttribute('data-mk-src', s); img.setAttribute('src', u); } }
+    }
+    stage.append(...[...box.childNodes].map(n => document.adoptNode(n)));
     document.body.appendChild(stage);
     try { await app.decorate(stage, doc); } catch (e) { console.warn('exporter: decorate failed', e); }
     return { stage, r };
@@ -347,7 +355,22 @@ pre.mermaid svg{max-width:100%;height:auto}
     const keepComments = includeComments(opts);
     const { stage } = await renderStage(doc, { keepComments });
     let body;
-    try { cleanStage(stage, doc, { absoluteAssets: opts.forPrint, ...opts, keepComments }); body = stage.innerHTML; }
+    try {
+      cleanStage(stage, doc, { absoluteAssets: opts.forPrint, ...opts, keepComments });
+      // pictures from other editors (src/pictures.js): file:/// addresses go in only after the stage leaves the live window, so the
+      // window never tries (and fails) to load them; print keeps the markooj://local address it already has
+      if (stage.querySelector('img[data-mk-file-src], img[data-mk-src]')) {
+        const inert = document.implementation.createHTMLDocument('');
+        inert.body.append(inert.adoptNode(stage));
+        const abs = opts.forPrint || opts.absoluteAssets;
+        for (const img of stage.querySelectorAll('img[data-mk-src]')) { if (!abs) img.setAttribute('src', img.getAttribute('data-mk-src')); img.removeAttribute('data-mk-src'); }
+        for (const img of stage.querySelectorAll('img[data-mk-file-src]')) {
+          if (!(abs && /^markooj:/i.test(img.getAttribute('src') || ''))) img.setAttribute('src', img.getAttribute('data-mk-file-src'));
+          img.removeAttribute('data-mk-file-src');
+        }
+      }
+      body = stage.innerHTML;
+    }
     finally { stage.remove(); }
     const meta = metaOf(doc);
     const title = flat(meta.title) || doc.title || 'Document';
@@ -464,24 +487,24 @@ ${body}
 
   /** Asks where to save, exports, and offers "Show in folder". Returns the out path or false. */
   async function exportDoc(format, doc = app.docs.active()) {
-    if (!doc || doc.kind !== 'markdown') { app.ui.toast(doc ? 'Use “Edit as text” to make an editable copy, then save that copy in another format.' : 'Open or create a document first, then save it in another format.', { kind: 'info' }); return false; }
+    if (!doc || doc.kind !== 'markdown') { app.ui.toast(doc ? app.t('Use “Edit as text” to make an editable copy, then save that copy in another format.') : app.t('Open or create a document first, then save it in another format.'), { kind: 'info' }); return false; }
     const list = await formats();
     const fmt = list.find(f => f.id === format) || (format === 'md' ? { id: 'md', label: 'Markdown', ext: 'md' } : { id: format, label: format.toUpperCase(), ext: format });
     if (fmt.available === false) {
       // the moment the user picks a format whose tool is not there: say how to get it (solution first)
       const needs = fmt.needs || (fmt.via === 'djvulibre' ? 'pdf2djvu' : fmt.via === 'pandoc' ? 'pandoc' : null);
-      if (needs && app.health?.offer) { app.health.offer(needs, { feature: fmt.label }); return false; }
-      app.ui.toast(fmt.reason || `Choose another format: ${fmt.label} is not available in this copy of Markooj.`, { kind: 'info' }); return false;
+      if (needs && app.health?.offer) { app.health.offer(needs, { feature: app.t(fmt.label) }); return false; }
+      app.ui.toast(fmt.reason || app.t('Choose another format: {format} is not available in this copy of Markooj.', { format: app.t(fmt.label) }), { kind: 'info' }); return false;
     }
     const ext = fmt.ext || format;
     let base = doc.path ? doc.path.replace(/\.[^.\\/]+$/, '') : (doc.title || 'Untitled').replace(/[\\/:*?"<>|]+/g, '-');
     // never suggest the original Word/ODT file of a converted document as the export target
     if (doc.path && (doc.convertedFrom || doc.ext || '').toLowerCase() === String(ext).toLowerCase()) base += ' (edited)';
     let out;
-    try { out = await mk.invoke('save-dialog', { defaultPath: `${base}.${ext}`, filters: [{ name: fmt.label || ext.toUpperCase(), extensions: [ext] }] }); }
-    catch (e) { app.ui.toast('Try again: the Save window did not open.', { kind: 'error', actions: [{ label: 'Try again', run: () => exportDoc(format, doc) }] }); console.error(e); return false; }
+    try { out = await mk.invoke('save-dialog', { defaultPath: `${base}.${ext}`, filters: [{ name: fmt.label ? app.t(fmt.label) : ext.toUpperCase(), extensions: [ext] }] }); }
+    catch (e) { app.ui.toast(app.t('Try again: the Save window did not open.'), { kind: 'error', actions: [{ label: app.t('Try again'), run: () => exportDoc(format, doc) }] }); console.error(e); return false; }
     if (!out) return false;
-    const busy = app.ui.toast(`Exporting ${baseName(out)}…`, { kind: 'info', timeout: 0 });
+    const busy = app.ui.toast(app.t('Exporting {file}…', { file: baseName(out) }), { kind: 'info', timeout: 0 });
     try {
       const done = await exportTo(fmt.id, doc, out);
       busy?.close?.();
@@ -491,10 +514,10 @@ ${body}
         const dir = app.lang?.docDir?.(doc), lang = app.lang?.docLang?.(doc) || '';
         if (/^(docx|odt)$/.test(fmt.id) && dir === 'rtl') {
           const font = { ur: 'Noto Nastaliq Urdu', ar: 'Noto Naskh Arabic', fa: 'Vazirmatn' }[String(lang).split('-')[0].toLowerCase()];
-          if (font) note = ` Word uses ${font} when it is installed on the computer that opens the file.`;
+          if (font) note = font;
         }
       } catch {}
-      app.ui.toast(`Exported ${baseName(done)}.${note}`, { action: { label: 'Show in folder', run: () => mk.invoke('reveal', done) } });
+      app.ui.toast(note ? app.t('Exported {file}. Word uses {font} when it is installed on the computer that opens the file.', { file: baseName(done), font: note }) : app.t('Exported {file}.', { file: baseName(done) }), { action: { label: app.t('Show in folder'), run: () => mk.invoke('reveal', done) } });
       app.events.emit('doc:exported', { doc, format: fmt.id, out: done });
       // formats that need Pandoc: counted, so a broken Pandoc is worth a startup message only for people who use it
       if (fmt.via === 'pandoc') { try { app.health?.noteUse?.('pandoc'); } catch {} }
@@ -505,20 +528,20 @@ ${body}
       // main's message already leads with the fix and carries its buttons (Try again, Save to another folder, Choose another format …)
       const again = () => exportDoc(format, doc);
       if (app.health?.toastError) app.health.toastError(e, { retry: again, saveAs: again, chooseFormat: () => app.backstage?.open?.('saveas') });
-      else app.ui.toast(`${cleanErr(e)} (${baseName(out)})`, { kind: 'error', actions: [{ label: 'Try again', run: again }] });
+      else app.ui.toast(app.t('{message} ({file})', { message: cleanErr(e), file: baseName(out) }), { kind: 'error', actions: [{ label: app.t('Try again'), run: again }] });
       return false;
     }
   }
 
   async function print(doc = app.docs.active(), opts = {}) {
-    if (!doc || doc.kind !== 'markdown') { app.ui.toast(doc ? 'Use “Edit as text” to make an editable copy, then print that copy. Markooj prints the documents you write.' : 'Open a document first, then print it.', { kind: 'info' }); return false; }
+    if (!doc || doc.kind !== 'markdown') { app.ui.toast(doc ? app.t('Use “Edit as text” to make an editable copy, then print that copy. Markooj prints the documents you write.') : app.t('Open a document first, then print it.'), { kind: 'info' }); return false; }
     try {
       const html = await buildHtml(doc, { ...opts, forPrint: true, absoluteAssets: true });
       await mk.invoke('print', { html, title: flat(metaOf(doc).title) || doc.title });
       return true;
     } catch (e) {
       console.error(e);
-      app.ui.toast('Try printing again, or save as PDF and print that file.', { kind: 'error', actions: [{ label: 'Try again', run: () => print(doc, opts) }, { label: 'Save as PDF', run: () => exportDoc('pdf', doc) }] });
+      app.ui.toast(app.t('Try printing again, or save as PDF and print that file.'), { kind: 'error', actions: [{ label: app.t('Try again'), run: () => print(doc, opts) }, { label: app.t('Save as PDF'), run: () => exportDoc('pdf', doc) }] });
       return false;
     }
   }

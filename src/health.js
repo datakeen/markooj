@@ -27,24 +27,26 @@
   // What each program is for, in words a Word user knows.
   const TOOLS = {
     pandoc: {
-      label: 'Pandoc', kind: 'program', goal: 'save as OpenDocument, Rich Text, LaTeX and more',
-      uses: 'Saves as OpenDocument, Rich Text, LaTeX, PowerPoint and more, and opens Word, OpenDocument and LaTeX files.',
-      works: 'Everything else works, including Word (.docx), PDF and EPUB.',
-      url: 'https://pandoc.org/installing.html', get: 'Get Pandoc',
+      label: 'Pandoc', kind: 'program', goal: app.tm('save as OpenDocument, Rich Text, LaTeX and more'),
+      uses: app.tm('Saves as OpenDocument, Rich Text, LaTeX, PowerPoint and more, and opens Word, OpenDocument and LaTeX files.'),
+      works: app.tm('Everything else works, including Word (.docx), PDF and EPUB.'),
+      url: 'https://pandoc.org/installing.html',
     },
     pdf2djvu: {
-      label: 'pdf2djvu', kind: 'program', goal: 'save as DjVu', uses: 'Saves documents as DjVu.',
-      works: 'Everything else works.', url: 'https://jwilk.net/software/pdf2djvu', get: 'Get pdf2djvu',
+      label: 'pdf2djvu', kind: 'program', goal: app.tm('save as DjVu'), uses: app.tm('Saves documents as DjVu.'),
+      works: app.tm('Everything else works.'), url: 'https://jwilk.net/software/pdf2djvu',
     },
     ddjvu: {
-      label: 'DjVuLibre', kind: 'tools', goal: 'open DjVu files', uses: 'Opens DjVu files and reads their text.',
-      works: 'Everything else works.', url: 'https://djvu.sourceforge.net/', get: 'Get DjVuLibre',
+      label: 'DjVuLibre', kind: 'tools', goal: app.tm('open DjVu files'), uses: app.tm('Opens DjVu files and reads their text.'),
+      works: app.tm('Everything else works.'), url: 'https://djvu.sourceforge.net/',
     },
   };
   const IDS = ['pandoc', 'pdf2djvu', 'ddjvu'];
   // djvutxt, djvused, djvm and c44 come with DjVuLibre
   const family = id => (id === 'pandoc' || id === 'pdf2djvu' ? id : 'ddjvu');
-  const join = names => (names.length <= 1 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]);
+  // English keeps its own list style ("A, B and C"); other languages use their own list words
+  const join = names => (app.i18n && !/^(en|qps)$/.test(app.i18n.language()) ? app.i18n.list(names) : names.length <= 1 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]);
+  const getLabel = T => app.t('Get {tool}', { tool: T.label });
 
   async function check(opts = {}) {
     const r = await mk.invoke('tools-health', { refresh: !!opts.refresh });
@@ -57,9 +59,10 @@
   // ---------- what fixes it ----------
   const BREW = 'brew install djvulibre pdf2djvu', APT = 'sudo apt install djvulibre-bin pdf2djvu', DNF = 'sudo dnf install djvulibre pdf2djvu';
   const A = {
-    check: { id: 'check-tools', label: 'Check again' },
-    report: { id: 'report', label: 'Report this', url: ISSUES_URL },
-    details: text => ({ id: 'copy-details', label: 'Copy details', text }),
+    // getters: the label is read in the interface language of the moment
+    get check() { return { id: 'check-tools', label: app.t('Check again') }; },
+    get report() { return { id: 'report', label: app.t('Report this'), url: ISSUES_URL }; },
+    details: text => ({ id: 'copy-details', label: app.t('Copy details'), text }),
     url: (label, url) => ({ id: 'open-url', label, url }),
     copy: (label, text) => ({ id: 'copy', label, text }),
   };
@@ -67,10 +70,16 @@
   function fallbackRemedy(id, r = {}) {
     const T = TOOLS[id], platform = r.platform || mk.platform;
     const shipped = platform === 'win32' || id === 'pandoc';
-    if (shipped && r.packaged === false) return { text: `Run npm run fetch-tools in the Markooj folder, then check again. Or install ${T.label} yourself.`, steps: [{ text: 'In the Markooj folder, run:', command: 'npm run fetch-tools' }], actions: [A.copy('Copy command', 'npm run fetch-tools'), A.url(T.get, T.url), A.check] };
-    if (shipped) return { text: r.portable ? `Unzip the full portable zip again into a new folder: that puts ${T.label} back, and your data folder can move with it. Or install ${T.label} yourself.` : `Download Markooj again and install it over this copy: that puts ${T.label} back, and your documents and settings stay. Or install ${T.label} yourself.`, steps: [], actions: [A.url('Repair Markooj', DOWNLOAD_URL), A.url(T.get, T.url), A.check] };
-    if (platform === 'darwin') return { text: `Install the free DjVu tools with Homebrew: open Terminal and run ${BREW}, then check again.`, steps: [{ text: 'If you do not have Homebrew yet, get it from brew.sh.' }, { text: 'Then open Terminal and run:', command: BREW }], actions: [A.copy('Copy command', BREW), A.url('Get Homebrew', 'https://brew.sh'), A.check] };
-    return { text: `Install the free DjVu tools from a terminal: ${APT} (Debian, Ubuntu) or ${DNF} (Fedora), then check again.`, steps: [{ text: 'Debian, Ubuntu and Mint:', command: APT }, { text: 'Fedora:', command: DNF }], actions: [A.copy('Copy apt command', APT), A.copy('Copy dnf command', DNF), A.check] };
+    if (shipped && r.packaged === false) return { text: app.t('Run npm run fetch-tools in the Markooj folder, then check again. Or install {tool} yourself.', { tool: T.label }), steps: [{ text: app.t('In the Markooj folder, run:'), command: 'npm run fetch-tools' }], actions: [A.copy(app.t('Copy command'), 'npm run fetch-tools'), A.url(getLabel(T), T.url), A.check] };
+    // since 1.2 the tools are optional Features (src/features.js): Install from File → Options → Features
+    const feat = app.features?.forTool?.(id, platform);
+    if (feat && feat.available) return {
+      text: r.portable ? app.t('Install {feature} from File → Options → Features ({size} to download), or unzip the full portable zip again into a new folder. Or install {tool} yourself.', { feature: feat.name, size: feat.downloadText, tool: T.label }) : app.t('Install {feature} from File → Options → Features ({size} to download). Or install {tool} yourself.', { feature: feat.name, size: feat.downloadText, tool: T.label }),
+      steps: [{ text: app.t('Open File → Options → Features and choose Install next to {feature}.', { feature: feat.name }) }], actions: [{ id: 'install-feature', label: app.t('Install {feature}', { feature: feat.name }), feature: feat.id }, A.url(getLabel(T), T.url), A.check],
+    };
+    if (shipped) return { text: r.portable ? app.t('Unzip the full portable zip again into a new folder: that puts {tool} back, and your data folder can move with it. Or install {tool} yourself.', { tool: T.label }) : app.t('Download Markooj again and install it over this copy: that puts {tool} back, and your documents and settings stay. Or install {tool} yourself.', { tool: T.label }), steps: [], actions: [A.url(app.t('Repair Markooj'), DOWNLOAD_URL), A.url(getLabel(T), T.url), A.check] };
+    if (platform === 'darwin') return { text: app.t('Install the free DjVu tools with Homebrew: open Terminal and run {command}, then check again.', { command: BREW }), steps: [{ text: app.t('If you do not have Homebrew yet, get it from brew.sh.') }, { text: app.t('Then open Terminal and run:'), command: BREW }], actions: [A.copy(app.t('Copy command'), BREW), A.url(app.t('Get Homebrew'), 'https://brew.sh'), A.check] };
+    return { text: app.t('Install the free DjVu tools from a terminal: {apt} (Debian, Ubuntu) or {dnf} (Fedora), then check again.', { apt: APT, dnf: DNF }), steps: [{ text: app.t('Debian, Ubuntu and Mint:'), command: APT }, { text: app.t('Fedora:'), command: DNF }], actions: [A.copy(app.t('Copy apt command'), APT), A.copy(app.t('Copy dnf command'), DNF), A.check] };
   }
   const stateOf = t => (!t ? 'missing' : t.ok ? 'ok' : t.state || (t.path ? 'failed' : 'missing'));
 
@@ -81,7 +90,7 @@
     for (const id of IDS) {
       if (only && family(only) !== id) continue;
       const t = tools[id] || {};
-      lines.push(`${TOOLS[id].label}: ${stateOf(t)}${t.version ? ' ' + t.version : ''}${t.bundled ? ' (included)' : ''} | ${t.path || 'not found'}${t.error ? ' | ' + t.error : ''}`);
+      lines.push(`${TOOLS[id].label}: ${stateOf(t)}${t.version ? ' ' + t.version : ''}${t.bundled ? ' (included)' : t.feature ? ' (feature)' : ''} |${t.path || 'not found'}${t.error ? ' | ' + t.error : ''}`);
       if (t.output) lines.push('  output: ' + String(t.output).replace(/\s+/g, ' ').slice(0, 300));
     }
     if (r.toolsDir) lines.push('Tools folder: ' + r.toolsDir);
@@ -98,26 +107,28 @@
     const T = TOOLS[id], t = (r && r.tools && r.tools[id]) || null;
     const state = stateOf(t);
     const details = detailsText(r || {}, id);
-    const base = { id, label: T.label, state, ok: state === 'ok', works: T.works, details, steps: [] };
-    if (state === 'ok') return { ...base, title: `${T.label} is ready`, text: T.uses, actions: [] };
+    const goal = app.t(T.goal);
+    const base = { id, label: T.label, state, ok: state === 'ok', works: app.t(T.works), details, steps: [] };
+    if (state === 'ok') return { ...base, title: app.t('{tool} is ready', { tool: T.label }), text: app.t(T.uses), actions: [] };
     if (state === 'missing') {
       const m = (t && t.remedy) || fallbackRemedy(id, r || {});
-      const repair = (m.actions || []).some(a => a.label === 'Repair Markooj');
+      const repair = (m.actions || []).some(a => a.url === DOWNLOAD_URL || a.label === 'Repair Markooj' || a.label === app.t('Repair Markooj'));
+      const install = (m.actions || []).find(a => a.id === 'install-feature');
       const gone = r && r.reason === 'missing-during-use' && r.failedTool && family(r.failedTool) === id;
       return {
         ...base, steps: m.steps || [], actions: m.actions || [], fix: m.text,
-        title: `${repair ? 'Repair Markooj' : `Get ${T.label}`} to ${T.goal}`,
-        text: `To ${T.goal}, Markooj needs the free ${T.label} ${T.kind}. ${m.text}${gone ? ` (${T.label} was moved or deleted while Markooj was running.)` : ''}`,
+        title: app.t('{action} to {goal}', { action: install ? install.label : repair ? app.t('Repair Markooj') : getLabel(T), goal }),
+        text: [T.kind === 'tools' ? app.t('To {goal}, Markooj needs the free {tool} tools.', { goal, tool: T.label }) : app.t('To {goal}, Markooj needs the free {tool} program.', { goal, tool: T.label }), m.text, gone ? app.t('({tool} was moved or deleted while Markooj was running.)', { tool: T.label }) : ''].filter(Boolean).join(' '),
       };
     }
     if (state === 'blocked') return {
-      ...base, title: `Let ${T.label} start to ${T.goal}`,
-      text: `Allow ${T.label} in your security software, then check again. Markooj found ${T.label}, but your computer did not let it start.`,
+      ...base, title: app.t('Let {tool} start to {goal}', { tool: T.label, goal }),
+      text: app.t('Allow {tool} in your security software, then check again. Markooj found {tool}, but your computer did not let it start.', { tool: T.label }),
       actions: [A.check, A.details(details), A.report],
     };
     return {
-      ...base, title: `Check ${T.label} again`,
-      text: `Check again. Markooj found ${T.label} but could not confirm that it works. If it still fails, copy the details and report it, so it can be fixed.`,
+      ...base, title: app.t('Check {tool} again', { tool: T.label }),
+      text: app.t('Check again. Markooj found {tool} but could not confirm that it works. If it still fails, copy the details and report it, so it can be fixed.', { tool: T.label }),
       actions: [A.check, A.details(details), A.report],
     };
   }
@@ -127,12 +138,13 @@
     r = r || last || {};
     const tools = r.tools || {};
     const ids = (r.missing || []).map(family).filter((id, i, a) => a.indexOf(id) === i && TOOLS[id]);
-    const missing = ids.map(id => ({ id, label: TOOLS[id].label, off: TOOLS[id].goal }));
+    const missing = ids.map(id => ({ id, label: TOOLS[id].label, off: app.t(TOOLS[id].goal) }));
     const remedies = ids.map(id => remedy(id, r));
-    const title = !missing.length ? 'Your tools are ready' : 'Almost everything is ready';
+    const title = !missing.length ? app.t('Your tools are ready') : app.t('Almost everything is ready');
     const lead = !missing.length
-      ? 'Pandoc, pdf2djvu and DjVuLibre all work, so every format in Save As is ready and DjVu files open.'
-      : `${missing.length > 1 ? `${join(missing.map(m => m.label))} need attention` : `${missing[0].label} needs attention`}: follow the steps below. Writing, editing, PDF, printing, Word (.docx) and EPUB all work.`;
+      ? app.t('Pandoc, pdf2djvu and DjVuLibre all work, so every format in Save As is ready and DjVu files open.')
+      : missing.length > 1 ? app.t('{tools} need attention: follow the steps below. Writing, editing, PDF, printing, Word (.docx) and EPUB all work.', { tools: join(missing.map(m => m.label)) })
+        : app.t('{tool} needs attention: follow the steps below. Writing, editing, PDF, printing, Word (.docx) and EPUB all work.', { tool: missing[0].label });
     const lines = IDS.filter(id => tools[id]).map(id => { const t = tools[id]; return { id, label: TOOLS[id].label, ok: !!t.ok, state: stateOf(t), version: t.version || null, bundled: !!t.bundled, path: t.path || null, error: t.error || null }; });
     return { ok: !missing.length, title, lead, missing, remedies, works: lead, fix: remedies[0] ? remedies[0].text : '', lines, portable: !!r.portable };
   }
@@ -140,9 +152,9 @@
   /** One sentence for a toast or a status tip: the first fix, then what still works. */
   function summary(r) {
     const d = describe(r);
-    if (d.ok) return d.title + '.';
+    if (d.ok) return app.t('{title}.', { title: d.title });
     const first = d.remedies[0];
-    return `${first.title}${d.remedies.length > 1 ? ` (and ${d.remedies.length - 1} more)` : ''}. ${first.works}`;
+    return d.remedies.length > 1 ? app.tn('{title} (and {count} more). {works}', d.remedies.length - 1, { title: first.title, works: first.works }) : app.t('{title}. {works}', { title: first.title, works: first.works });
   }
 
   // ---------- usage: help shows up for features people use ----------
@@ -168,19 +180,19 @@
   // Save As reads export-formats (cached 30 s in the exporter): drop that cache so the grid labels follow the check.
   function refreshFormats() {
     try { if (typeof app.exporter?.refreshFormats === 'function') return app.exporter.refreshFormats(); } catch {}
-    try { const off = app.exporter?.register?.({ id: 'mk-health-refresh', label: 'Refresh', ext: 'tmp', run() { return ''; } }); if (typeof off === 'function') off(); } catch {}
+    try { const off = app.exporter?.register?.({ id: 'mk-health-refresh', label: 'Refresh', ext: 'tmp', /* never shown */ run() { return ''; } }); if (typeof off === 'function') off(); } catch {}
   }
 
   // ---------- doing what a button says ----------
-  async function copy(text, okMsg = 'Copied.') {
+  async function copy(text, okMsg = app.t('Copied.')) {
     let ok = false;
     try { if (mk.copyText) { await mk.copyText(String(text ?? '')); ok = true; } } catch {}
     if (!ok) { try { await navigator.clipboard.writeText(String(text ?? '')); ok = true; } catch {} }
-    app.ui.toast(ok ? okMsg : 'Select the text and press Ctrl+C to copy it. The clipboard did not answer this time.', { kind: ok ? 'success' : 'warn', timeout: ok ? 1800 : 6000 });
+    app.ui.toast(ok ? okMsg : app.t('Select the text and press Ctrl+C to copy it. The clipboard did not answer this time.'), { kind: ok ? 'success' : 'warn', timeout: ok ? 1800 : 6000 });
     return ok;
   }
   function openUrl(url) {
-    return mk.invoke('open-external', url).then(() => true, () => copy(url, 'Link copied. Paste it into your browser.'));
+    return mk.invoke('open-external', url).then(() => true, () => copy(url, app.t('Link copied. Paste it into your browser.')));
   }
   /**
    * Runs an action from main or from remedy(): {id, label, url?, text?, tool?, path?}. `ctx` may give
@@ -192,11 +204,11 @@
     if (typeof ctx[a.id] === 'function') return ctx[a.id](a);
     switch (a.id) {
       case 'open-url': return openUrl(a.url);
-      case 'copy': return copy(a.text, /^(npm|brew|sudo)\b/.test(String(a.text || '')) ? 'Command copied. Paste it into a terminal.' : 'Copied.');
-      case 'copy-details': return copy(a.text || ctx.details || detailsText(), 'Details copied. Paste them into your report.');
+      case 'copy': return copy(a.text, /^(npm|brew|sudo)\b/.test(String(a.text || '')) ? app.t('Command copied. Paste it into a terminal.') : app.t('Copied.'));
+      case 'copy-details': return copy(a.text || ctx.details || detailsText(), app.t('Details copied. Paste them into your report.'));
       case 'report': {
         const det = ctx.details || a.text || detailsText();
-        await copy(det, 'Details copied. Paste them into the report that opens.');
+        await copy(det, app.t('Details copied. Paste them into the report that opens.'));
         return openUrl(a.url || ISSUES_URL);
       }
       case 'check-tools': {
@@ -204,7 +216,7 @@
         refreshFormats();
         const id = ctx.tool ? family(ctx.tool) : null;
         if (typeof ctx.onChecked === 'function') { try { await ctx.onChecked(n); } catch (e) { console.error(e); } }
-        if (id ? n.tools?.[id]?.ok : n.ok) { app.ui.toast(id ? `${TOOLS[id].label} is ready. You can ${TOOLS[id].goal} now.` : 'Your tools are ready.', { kind: 'success' }); return n; }
+        if (id ? n.tools?.[id]?.ok : n.ok) { app.ui.toast(id ? app.t('{tool} is ready. You can {goal} now.', { tool: TOOLS[id].label, goal: app.t(TOOLS[id].goal) }) : app.t('Your tools are ready.'), { kind: 'success' }); return n; }
         if (id) return offer(id, { result: n, again: true });
         return showDetails(n);
       }
@@ -218,6 +230,10 @@
       case 'choose-format': return ctx.chooseFormat ? ctx.chooseFormat() : app.backstage?.open?.('saveas');
       case 'open-file': return ctx.openFile ? ctx.openFile() : app.commands.run('file.open');
       case 'open-folder': return a.path ? mk.invoke('open-folder', a.path).catch(e => toastError(e)) : undefined;
+      // optional Features (src/features.js): Install, Install from file…, File → Options → Features
+      case 'install-feature': return app.features ? app.features.install(a.feature || app.features.forTool?.(a.tool || ctx.tool)?.id) : app.backstage?.open?.('options');
+      case 'feature-from-file': return app.features ? app.features.installFromFile(a.feature) : app.backstage?.open?.('options');
+      case 'open-features': return app.features ? app.features.open() : app.backstage?.open?.('options');
       default: console.warn('[health] no handler for action', a.id);
     }
   }
@@ -240,8 +256,8 @@
     if (tool) markTried(tool);
     const actions = errorActions(e, opts).slice(0, 2);
     const details = (info && info.details) || '';
-    const msg = [opts.lead, plainError(e, 'Try that again.')].filter(Boolean).join(' ');
-    if (details && actions.length < 3) actions.push({ label: 'Details', run: () => showError(e, opts) });
+    const msg = [opts.lead, plainError(e, app.t('Try that again.'))].filter(Boolean).join(' ');
+    if (details && actions.length < 3) actions.push({ label: app.t('Details'), run: () => showError(e, opts) });
     return app.ui.toast(msg, { kind: opts.kind || 'error', actions, timeout: opts.timeout ?? (actions.length ? 12000 : 7000) });
   }
   /** The full message in a dialog: the fix, its buttons, and the technical details folded away. */
@@ -249,12 +265,12 @@
     const info = (mk.errorInfo && mk.errorInfo(e)) || { actions: [], details: '' };
     const box = document.createElement('div');
     box.className = 'mk-health';
-    box.innerHTML = `<p class="mk-health-lead">${esc(plainError(e, 'Try that again.'))}</p>${info.details ? `<details class="mk-health-more"><summary>Technical details</summary><pre>${esc(info.details)}</pre></details>` : ''}`;
+    box.innerHTML = `<p class="mk-health-lead">${esc(plainError(e, app.t('Try that again.')))}</p>${info.details ? `<details class="mk-health-more"><summary>${app.th('Technical details')}</summary><pre>${esc(info.details)}</pre></details>` : ''}`;
     const acts = (info.actions || []).filter(a => a && a.label && (a.id !== 'retry' || opts.retry));
     if (info.details && !acts.some(a => a.id === 'copy-details')) acts.push(A.details(info.details));
     const v = await app.ui.dialog({
-      title: opts.title || 'What you can do', icon: 'info', wide: !!info.details, body: box,
-      buttons: [...acts.map((a, i) => ({ label: a.label, value: 'a' + i, left: a.id === 'copy-details' || a.id === 'report' })), { label: 'Close', value: 'close', primary: true }],
+      title: opts.title || app.t('What you can do'), icon: 'info', wide: !!info.details, body: box,
+      buttons: [...acts.map((a, i) => ({ label: a.label, value: 'a' + i, left: a.id === 'copy-details' || a.id === 'report' })), { label: app.t('Close'), value: 'close', primary: true }],
       cancelValue: 'close',
     });
     const picked = acts[Number(String(v).slice(1))];
@@ -270,7 +286,7 @@
     let r = opts.result || last;
     if (!r) { try { r = await check(); } catch { r = null; } }
     const rem = remedy(id, r);
-    if (rem.ok) { app.ui.toast(`${rem.label} is ready. Try that again.`, { kind: 'success' }); return 'ok'; }
+    if (rem.ok) { app.ui.toast(app.t('{tool} is ready. Try that again.', { tool: rem.label }), { kind: 'success' }); return 'ok'; }
     const T = TOOLS[id];
     const ctx = { tool: id, details: rem.details };
     const lead = rem.text;
@@ -279,17 +295,17 @@
       return app.ui.solution({
         title: rem.title, icon: 'info', lead, steps: rem.steps, still: rem.works, details: rem.details,
         actions: footer.map((a, i) => ({ label: a.label, primary: i === 0, left: a.id === 'copy-details' || a.id === 'report', run: () => runAction(a, ctx) })),
-        closeLabel: 'Not now',
+        closeLabel: app.t('Not now'),
       });
     }
     const box = document.createElement('div');
     box.className = 'mk-health';
     box.innerHTML = `<p class="mk-health-lead">${esc(lead)}</p>${stepsHtml(rem.steps)}<p class="mk-health-works">${esc(rem.works)}</p>
-      <details class="mk-health-more"><summary>Technical details</summary><pre>${esc(rem.details)}</pre></details>`;
+      <details class="mk-health-more"><summary>${app.th('Technical details')}</summary><pre>${esc(rem.details)}</pre></details>`;
     wireCopy(box);
     const v = await app.ui.dialog({
       title: rem.title, icon: 'info', wide: true, body: box,
-      buttons: [...footer.map((a, i) => ({ label: a.label, value: 'a' + i, primary: i === 0, left: a.id === 'copy-details' || a.id === 'report' })), { label: 'Not now', value: 'close' }],
+      buttons: [...footer.map((a, i) => ({ label: a.label, value: 'a' + i, primary: i === 0, left: a.id === 'copy-details' || a.id === 'report' })), { label: app.t('Not now'), value: 'close' }],
       cancelValue: 'close',
     });
     const picked = footer[Number(String(v).slice(1))];
@@ -298,10 +314,10 @@
   }
   function stepsHtml(steps) {
     if (!steps || !steps.length) return '';
-    return `<ol class="mk-health-steps">${steps.map(s => `<li>${esc(s.text || '')}${s.command ? `<div class="mk-health-cmd"><code>${esc(s.command)}</code><button type="button" class="btn" data-copy="${esc(s.command)}">Copy</button></div>` : ''}</li>`).join('')}</ol>`;
+    return `<ol class="mk-health-steps">${steps.map(s => `<li>${esc(s.text || '')}${s.command ? `<div class="mk-health-cmd"><code>${esc(s.command)}</code><button type="button" class="btn" data-copy="${esc(s.command)}">${app.th('Copy')}</button></div>` : ''}</li>`).join('')}</ol>`;
   }
   function wireCopy(el) {
-    el.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => copy(b.dataset.copy, 'Command copied. Paste it into a terminal.')));
+    el.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => copy(b.dataset.copy, app.t('Command copied. Paste it into a terminal.'))));
   }
 
   // ---------- Help → Check Tools ----------
@@ -313,18 +329,18 @@
     const rows = IDS.filter(id => tools[id]).map(id => {
       const rem = remedy(id, r), t = tools[id];
       const status = rem.ok
-        ? `<div class="mk-health-what">${esc(TOOLS[id].uses)}</div><div class="mk-health-ok">${esc(t.bundled ? 'Ready · included with Markooj' : 'Ready · found on this computer')}</div>`
-        : `<div class="mk-health-what">${esc(TOOLS[id].uses)}</div><div class="mk-health-fix"><b>${esc(rem.title)}.</b> ${esc(rem.fix || rem.text)}</div>${stepsHtml(rem.steps)}
+        ? `<div class="mk-health-what">${esc(app.t(TOOLS[id].uses))}</div><div class="mk-health-ok">${esc(t.bundled ? app.t('Ready · included with Markooj') : t.feature ? app.t('Ready · installed from Features') : app.t('Ready · found on this computer'))}</div>`
+        : `<div class="mk-health-what">${esc(app.t(TOOLS[id].uses))}</div><div class="mk-health-fix"><b>${esc(rem.title)}.</b> ${esc(rem.fix || rem.text)}</div>${stepsHtml(rem.steps)}
            <div class="mk-health-acts">${rem.actions.filter(a => a.id !== 'check-tools' && !(a.id === 'copy' && rem.steps.some(s => s.command === a.text))).map((a, i) => `<button type="button" class="btn${i === 0 ? ' primary' : ''}" data-tool="${id}" data-act="${rem.actions.indexOf(a)}">${esc(a.label)}</button>`).join('')}</div>`;
       return `<tr data-tool="${id}">
         <td class="mk-health-st ${rem.ok ? 'ok' : 'bad'}">${svg(rem.ok ? 'check' : 'info')}</td>
-        <td><b>${esc(TOOLS[id].label)}</b>${t.version ? ` <span class="mk-health-v">${esc(t.version)}</span>` : ''}${status}</td>
+        <td><b>${esc(TOOLS[id].label)}</b>${t.version ? ` <span class="mk-health-v" translate="no">${esc(t.version)}</span>` : ''}${status}</td>
       </tr>`;
     }).join('');
     box.innerHTML = `
       <p class="mk-health-lead">${esc(d.lead)}</p>
       <table class="mk-health-t">${rows}</table>
-      <details class="mk-health-more"><summary>Technical details</summary><pre>${esc(detailsText(r))}</pre>${r && r.portable ? '<p>Portable copy: settings are kept in the data folder next to Markooj.</p>' : ''}</details>`;
+      <details class="mk-health-more"><summary>${app.th('Technical details')}</summary><pre>${esc(detailsText(r))}</pre>${r && r.portable ? `<p>${app.th('Portable copy: settings are kept in the data folder next to Markooj.')}</p>` : ''}</details>`;
     wireCopy(box);
     box.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
       const rem = remedy(b.dataset.tool, r);
@@ -339,13 +355,13 @@
     const v = await app.ui.dialog({
       title: d.title, icon: d.ok ? 'check' : 'info', kind: '', wide: true,
       body: detailsBody(r),
-      buttons: [{ label: 'Copy details', value: 'copy', left: true }, { label: 'Check again', value: 'again', left: true }, { label: 'OK', value: true, primary: true }],
+      buttons: [{ label: app.t('Copy details'), value: 'copy', left: true }, { label: app.t('Check again'), value: 'again', left: true }, { label: app.t('OK'), value: true, primary: true }],
     });
-    if (v === 'copy') await copy(detailsText(r), 'Details copied. Paste them into your report.');
+    if (v === 'copy') await copy(detailsText(r), app.t('Details copied. Paste them into your report.'));
     if (v === 'again') {
       const n = await check({ refresh: true });
       refreshFormats();
-      if (n.ok) app.ui.toast('Your tools are ready.', { kind: 'success' });
+      if (n.ok) app.ui.toast(app.t('Your tools are ready.'), { kind: 'success' });
       else showDetails(n);
     }
     return v;
@@ -364,8 +380,8 @@
     const first = rem.actions.find(a => a.id !== 'check-tools');
     const actions = [];
     if (first) actions.push({ label: first.label, run: () => runAction(first, { tool: rem.id, details: rem.details }) });
-    actions.push({ label: 'How to fix', run: () => offer(rem.id, { result: r }) });
-    app.ui.toast(`${rem.title}. ${rem.works}`, { kind: 'info', timeout: 15000, actions });
+    actions.push({ label: app.t('How to fix'), run: () => offer(rem.id, { result: r }) });
+    app.ui.toast(app.t('{title}. {works}', { title: rem.title, works: rem.works }), { kind: 'info', timeout: 15000, actions });
   }
 
   // Status bar: a small button while a tool the user relies on needs attention (hidden otherwise).
@@ -379,9 +395,9 @@
       const b = document.createElement('button');
       b.className = 'sb mk-health-sb';
       b.type = 'button';
-      b.innerHTML = `${svg('info')}<span class="hide-narrow">Tools</span>`;
+      b.innerHTML = `${svg('info')}<span class="hide-narrow">${app.th('Tools@@status bar')}</span>`;
       b.dataset.tip = rem.title;
-      b.dataset.tipD = `${rem.text} ${rem.works} Click to see how.`;
+      b.dataset.tipD = app.t('{text} {works} Click to see how.', { text: rem.text, works: rem.works });
       b.setAttribute('aria-label', rem.title);
       b.addEventListener('click', () => { try { app.ui.ripple?.(b); } catch {} offer(rem.id, { result: last }); });
       el.append(b);
@@ -389,11 +405,11 @@
   });
 
   app.commands.register('help.checkTools', {
-    label: 'Check Tools', icon: 'check',
-    description: 'Shows whether Pandoc, pdf2djvu and DjVuLibre are ready, and how to get any that are missing.',
+    label: app.tm('Check Tools'), icon: 'check',
+    description: app.tm('Shows whether Pandoc, pdf2djvu and DjVuLibre are ready, and how to get any that are missing.'),
     run: async () => { await check({ refresh: true }); refreshFormats(); return showDetails(last); },
   });
-  try { app.tooltips?.register?.('help.checkTools', { title: 'Check Tools', description: 'Shows whether Pandoc, pdf2djvu and DjVuLibre are ready, and how to get any that are missing.' }); } catch {}
+  try { app.tooltips?.register?.('help.checkTools', { title: app.tm('Check Tools'), description: app.tm('Shows whether Pandoc, pdf2djvu and DjVuLibre are ready, and how to get any that are missing.') }); } catch {}
 
   const style = document.createElement('style');
   style.textContent = `
@@ -451,7 +467,7 @@
       try {
         const info = await mk.invoke('app-info');
         const p = info && info.portableInfo;
-        if (p && p.error && !p.active) app.ui.toast(p.error, { kind: 'info', timeout: 12000, details: p.details || '', detailsTitle: 'Technical details' });
+        if (p && p.error && !p.active) app.ui.toast(p.error, { kind: 'info', timeout: 12000, details: p.details || '', detailsTitle: app.t('Technical details') });
       } catch {}
     }, 1200);
   });
@@ -514,11 +530,12 @@
 
   app.tests.register('health: messages lead with the fix, per platform, and never say reinstall for a tool that is there', async () => {
     const cases = [
-      ['ddjvu', { platform: 'win32', packaged: true }, /Repair Markooj/, /datakeen\.github\.io\/markooj\/#download/, /djvu\.sourceforge\.net/],
-      ['ddjvu', { platform: 'win32', packaged: true, portable: true }, /Repair Markooj/, /portable zip/, /djvu\.sourceforge\.net/],
+      // since 1.2 the tools are optional Features: the fix is "Install … from File → Options → Features" with an Install button
+      ['ddjvu', { platform: 'win32', packaged: true }, /^Install DjVu tools$/, /File → Options → Features/, /djvu\.sourceforge\.net/],
+      ['ddjvu', { platform: 'win32', packaged: true, portable: true }, /^Install DjVu tools$/, /portable zip/, /djvu\.sourceforge\.net/],
       ['ddjvu', { platform: 'darwin', packaged: true }, /Copy command/, /brew install djvulibre pdf2djvu/, /brew\.sh/],
       ['pdf2djvu', { platform: 'linux', packaged: true }, /Copy apt command/, /sudo apt install djvulibre-bin pdf2djvu/, /sudo dnf install djvulibre pdf2djvu/],
-      ['pandoc', { platform: 'darwin', packaged: true }, /Repair Markooj/, /pandoc\.org\/installing\.html/, /Check again/],
+      ['pandoc', { platform: 'darwin', packaged: true }, /^Install Pandoc$/, /File → Options → Features/, /pandoc\.org\/installing\.html/],
       ['pandoc', { platform: 'win32', packaged: false }, /Copy command/, /npm run fetch-tools/, /pandoc\.org/],
     ];
     for (const [id, ctx, label, a, b] of cases) {
@@ -555,9 +572,10 @@
     const d = describe(fake);
     A2(!d.ok && d.title === 'Almost everything is ready', 'title: ' + d.title);
     A2(/PDF/.test(d.lead) && /Word/.test(d.lead) && /Pandoc needs attention/.test(d.lead), 'says what still works: ' + d.lead);
-    A2(d.remedies[0].title === 'Repair Markooj to save as OpenDocument, Rich Text, LaTeX and more', 'remedy title: ' + d.remedies[0].title);
+    A2(d.remedies[0].title === 'Install Pandoc to save as OpenDocument, Rich Text, LaTeX and more', 'remedy title: ' + d.remedies[0].title);
+    A2(/File → Options → Features/.test(d.remedies[0].text) && d.remedies[0].actions[0].id === 'install-feature', 'points to Features with an Install button: ' + d.remedies[0].text);
     const s = summary(fake);
-    A2(/^Repair Markooj to save as OpenDocument/.test(s) && /Everything else works/.test(s), 'summary leads with the fix: ' + s);
+    A2(/^Install Pandoc to save as OpenDocument/.test(s) && /Everything else works/.test(s), 'summary leads with the fix: ' + s);
     A2(!BAD_WORDS.test(s + d.lead + d.title + d.fix) && !/missing from this copy|Off for now/.test(s + d.lead + d.title), 'US English, plain, no old wording');
     const gone = remedy('pandoc', { ...fake, reason: 'missing-during-use', failedTool: 'pandoc' });
     A2(/moved or deleted while Markooj was running/.test(gone.text) && /^To save as/.test(gone.text), 'runtime loss: ' + gone.text);
@@ -567,7 +585,7 @@
     const dlg = topDialog();
     A2(dlg && dlg.querySelector('.mk-health') && dlg.querySelectorAll('.mk-health-t tr').length === 3, 'dialog lists 3 tools');
     A2(dlg.querySelector('h3').textContent === 'Almost everything is ready', 'dialog title');
-    A2(/Repair Markooj/.test(dlg.textContent) && [...dlg.querySelectorAll('.mk-health-acts button')].some(b => b.textContent === 'Get Pandoc'), 'row has its buttons');
+    A2(/Install Pandoc/.test(dlg.textContent) && [...dlg.querySelectorAll('.mk-health-acts button')].some(b => b.textContent === 'Install Pandoc') && [...dlg.querySelectorAll('.mk-health-acts button')].some(b => b.textContent === 'Get Pandoc'), 'row has its buttons');
     A2(dlg.querySelector('details.mk-health-more') && !dlg.querySelector('details.mk-health-more').open, 'technical details folded away');
     A2([...dlg.querySelectorAll('.dlg-foot button')].some(b => b.textContent === 'Check again'), 'Check again in the footer');
     try { await mk.invoke('smoke-shot', 'tools-health'); } catch {}
@@ -599,9 +617,10 @@
       const p = offer('ddjvu', { result: fake });
       await sleep(350);
       const dlg = topDialog();
-      A2(dlg && /^Repair Markooj to open DjVu files$/.test(dlg.querySelector('h3').textContent), 'dialog title leads with the fix: ' + (dlg && dlg.querySelector('h3').textContent));
+      A2(dlg && /^Install DjVu tools to open DjVu files$/.test(dlg.querySelector('h3').textContent), 'dialog title leads with the fix: ' + (dlg && dlg.querySelector('h3').textContent));
       const labels = [...dlg.querySelectorAll('.dlg-foot button')].map(b => b.textContent);
-      A2(labels.includes('Repair Markooj') && labels.includes('Get DjVuLibre') && labels.includes('Check again'), 'buttons: ' + labels);
+      A2(labels.includes('Install DjVu tools') && labels.includes('Get DjVuLibre') && labels.includes('Check again'), 'buttons: ' + labels);
+      A2(/File → Options → Features/.test(dlg.textContent), 'says where to install it');
       A2(/To open DjVu files, Markooj needs the free DjVuLibre tools/.test(dlg.textContent) && /Everything else works/.test(dlg.textContent), 'says what to do and what still works');
       try { await mk.invoke('smoke-shot', 'tools-offer'); } catch {}
       await closeDialog(labels.includes('Not now') ? 'Not now' : 'Close');
@@ -616,7 +635,7 @@
       notify({ ...fake, missing: ['pandoc'], tools: { ...fake.tools, pandoc: { id: 'pandoc', ok: false, state: 'missing', path: null } } }, ['pandoc']);
       await sleep(80);
       const t = [...document.querySelectorAll('.toast')].find(x => /Pandoc|OpenDocument/.test(x.textContent));
-      A2(t && /^Repair Markooj to save as OpenDocument/.test(t.querySelector('.tmsg').textContent) && /How to fix/.test(t.textContent), 'Pandoc toast: ' + (t && t.textContent));
+      A2(t && /^Install Pandoc to save as OpenDocument/.test(t.querySelector('.tmsg').textContent) && /How to fix/.test(t.textContent), 'Pandoc toast: ' + (t && t.textContent));
     } finally {
       app.settings.set('toolsTried', keepTried); app.settings.set('toolUse', keepUse);
       document.querySelectorAll('.toast').forEach(x => x.remove());

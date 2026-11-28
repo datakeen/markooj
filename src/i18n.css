@@ -1,0 +1,127 @@
+/* Markooj — interface translations: interface fonts per language, the language chip, pickers, and the hooks for the
+   mirrored (right-to-left) interface. src/i18n.js sets on <html>: lang, dir, .mk-ui-rtl, .mk-ui-lang-<code>,
+   .mk-ui-font-<hint> (hint from locales/languages.json). The CSS that mirrors the interface belongs to the ui-rtl work. */
+
+/* ---------- interface fonts ----------
+   Chinese and Japanese: the system's UI font for the script (Latin letters stay in the Latin UI font).
+   Arabic: the system font first (crisp at 11–13 px: Segoe UI, SF Arabic), the bundled Noto Naskh Arabic after it.
+   Urdu and Punjabi (Shahmukhi): the bundled Noto Naskh Arabic for all interface text. Nastaliq needs about twice the line
+   height and is hard to read below 15 px, so the bundled Noto Nastaliq Urdu is used only for large headings (File page titles,
+   Options section titles, the Welcome title). Both bundled fonts carry an Arabic-only unicode-range (src/lang.css), so
+   Latin letters and digits keep the Latin interface font. */
+html.mk-ui-font-cjk-sc{--font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Noto Sans SC","Source Han Sans SC","WenQuanYi Micro Hei",system-ui,sans-serif}
+html.mk-ui-font-cjk-jp{--font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI","Yu Gothic UI","Meiryo UI","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans CJK JP","Noto Sans JP","Source Han Sans JP",system-ui,sans-serif}
+html.mk-ui-font-naskh{--font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI","SF Arabic","Geeza Pro","Noto Naskh Arabic","Noto Sans Arabic",system-ui,sans-serif}
+html.mk-ui-font-naskh-nastaliq{--font:"Noto Naskh Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;--mk-ui-heading-font:"Noto Nastaliq Urdu","Noto Naskh Arabic",-apple-system,"Segoe UI",system-ui,sans-serif}
+html.mk-ui-font-naskh-nastaliq :is(.bs-page > h2,.opt-sec-title,.mkwel-head h1,.mkwel-head h2,.mk-i18n-heading){font-family:var(--mk-ui-heading-font);line-height:2;font-weight:400}
+
+/* The document keeps its own direction and fonts: the page sets dir/lang per document and per paragraph (src/lang.js). */
+html.mk-ui-rtl #editorHost{direction:ltr}
+
+/* ---------- status-bar chip and menu ---------- */
+.mk-i18n-chip{gap:4px;max-width:180px}
+.mk-i18n-chip .mk-i18n-chip-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mk-i18n-native:is([lang="ur"],[lang="pnb"],[lang="ar"]){font-family:"Noto Naskh Arabic",var(--font);font-size:1.05em;line-height:1.2}
+.mk-i18n-native:is([lang="zh-CN"]){font-family:"Microsoft YaHei UI","PingFang SC","Noto Sans CJK SC",var(--font)}
+.mk-i18n-native:is([lang="ja"]){font-family:"Yu Gothic UI","Hiragino Sans","Noto Sans CJK JP",var(--font)}
+/* Japanese ribbon labels wrap between phrases (文章作成 / アシスタント), not inside a katakana word */
+html:lang(ja) .big > span{word-break:auto-phrase}
+.mk-i18n-menu .mi-prev{display:flex;align-items:baseline;gap:8px;min-width:0}
+.mk-i18n-menu .mk-i18n-sub{color:var(--text-3);font-size:11px;white-space:nowrap}
+
+/* ---------- Options → Language → Interface language, and the Welcome step ---------- */
+.mk-i18n-opts .mk-i18n-select{min-width:220px}
+.mk-i18n-help{margin:8px 0 0;font-size:12px;color:var(--text-2)}
+.mk-i18n-help a{color:var(--accent)}
+.mk-i18n-wel{margin:0 0 14px;padding:10px 14px;border:.5px solid var(--line-2);border-radius:var(--r-lg);background:var(--surface)}
+.mk-i18n-wel label{display:flex;align-items:center;gap:12px;cursor:default}
+.mk-i18n-wel .mk-i18n-ic svg{width:20px;height:20px;color:var(--accent)}
+.mk-i18n-wel .mk-i18n-wel-t{display:flex;flex-direction:column;flex:1;min-width:0}
+.mk-i18n-wel .mk-i18n-wel-t small{color:var(--text-2)}
+.mk-i18n-wel .mk-i18n-select{max-width:260px}
+
+/* =====================================================================================================================
+   Mirrored interface (ur, pnb, ar) and longer or taller text. Layout rules elsewhere use logical properties
+   (margin-inline-start, inset-inline-end, text-align:start …), so flex rows, grids and panes turn around by themselves;
+   this block holds what logical properties cannot say. The document area stays as it is: #editorHost keeps
+   direction:ltr above, and each document and paragraph sets its own direction (src/lang.js).
+   ===================================================================================================================== */
+
+/* ---------- icons ----------
+   Turned around (as in Office's right-to-left interface): Back, sideways chevrons, Undo and Redo, Increase and Decrease
+   indent, Bullets, Contents, and the pictures of a side pane or tabs on the left (those panes move to the right).
+   Never turned: play and record, check marks, clocks and circular arrows (history, recover, refresh), math and Σ,
+   the numbered list (its digits would read backwards), up/down arrows (export, import, collapse), the external-link
+   arrow, align left/center/right (Align Left still means left), the logo and the Markdown mark. */
+html.mk-ui-rtl svg:has(> use:is([href="#back"],[href="#chevr"],[href="#undo"],[href="#redo"],[href="#indent"],[href="#outdent"],[href="#ul"],[href="#toc"],[href="#side"],[href="#tabsleft"])){transform:scaleX(-1)}
+
+/* ---------- text that keeps its own direction ----------
+   Names and text that come from the user's documents (titles, tab names, headings, paths, excerpts) read in their own
+   direction, so an English heading keeps its full stop on the right even in an Urdu interface. Interface strings are
+   not included: a translated string that starts with a Latin name (Markooj, PDF) must still read right to left. */
+html.mk-ui-rtl :is(.doc-title .t,.dtab .name,.oitem,.ritem .rinfo b,.ritem .rinfo small,.mk-split-label b,.mk-split-doc .t,.mk-split-item small,.mkw-i-txt,.mkw-fix,.mkw-chip,.mkw-f7-ctx,.mkw-th-g,.mkh-link,.mkh-res){unicode-bidi:plaintext;text-align:right}
+/* longer text and code keep the start edge of their own direction; the equation preview stays centered */
+html.mk-ui-rtl :is(.mks-readme,.mk-mdpeek .mp-code){unicode-bidi:plaintext;text-align:start}
+html.mk-ui-rtl .mkx-card-pv{unicode-bidi:plaintext}
+/* (match-parent resolved against the text's own direction, so English headings and suggestions sat on the left
+   edge of right-to-left panes; the right edge is the interface start) */
+html.mk-ui-rtl :is(input:not([type]),input[type=text],input[type=search],input[type=url],input[type=email],textarea){unicode-bidi:plaintext}
+/* keyboard shortcuts, code, math and LaTeX always read left to right. A shortcut takes the direction of its first
+   letter (plaintext), so its margins still follow the interface and Ctrl+] keeps the bracket at the end; code is
+   forced left to right, and the one code item with an auto margin gets it on the correct side */
+html.mk-ui-rtl kbd{unicode-bidi:plaintext}
+html.mk-ui-rtl code{direction:ltr;unicode-bidi:isolate}
+html.mk-ui-rtl .mkx-card-h code{margin-inline-start:0;margin-inline-end:auto}
+html.mk-ui-rtl :is(.kb-keys,.mk-tooltip .tt-k,.mkeq-help,pre,.mkh-pre,.mk-mdpeek .mp-code,.mkeq-stage,.mkeq-tex textarea,.mkeq-label,.mkw-dict textarea){direction:ltr}
+/* Help pages are in English this round: they read left to right inside the mirrored viewer */
+html.mk-ui-rtl :is(.mkh-doc,.mkh-pager,.mkh-new-body){direction:ltr}
+/* inline code written with the code font (Options → Inline math style shows \(…\) and $…$) */
+html.mk-ui-rtl [style*="var(--mono)"]{direction:ltr;unicode-bidi:isolate}
+/* template pictures on File → New show English documents, which read left to right */
+html.mk-ui-rtl .tpl .thumb{direction:ltr}
+/* the on-screen keyboard keeps the physical key order */
+html.mk-ui-rtl .mk-osk-keys{direction:ltr}
+
+/* ---------- controls that move ---------- */
+/* switches: "on" moves the knob to the inline end */
+html.mk-ui-rtl .mk-switch::after{left:auto;right:2px;transition:right .25s var(--ease),width .2s var(--ease)}
+html.mk-ui-rtl .mk-switch.on::after{left:auto;right:14px}
+html.mk-ui-rtl .mk-switch.on:active::after{left:auto;right:11px}
+html.mk-ui-rtl .mkeq-switch::after{left:auto;right:2px;transition:right .25s var(--ease)}
+html.mk-ui-rtl .mkeq-switch[aria-checked="true"]::after{left:auto;right:14px}
+/* the zoom slider runs from right to left; its filled part follows */
+html.mk-ui-rtl .zoom input[type=range]{background:linear-gradient(to left,var(--accent) var(--p,40%),var(--line-2) var(--p,40%))}
+/* "More" disclosure arrow: generated content is not mirrored by the text engine, so point it left explicitly; open turns it down */
+html.mk-ui-rtl .mkfeat-more summary::after{content:"‹"}
+html.mk-ui-rtl .mkfeat-more[open] summary::after{transform:rotate(-90deg)}
+html.mk-ui-rtl .mkh-crumb:not(:empty)::before{content:"‹"}
+/* busy bars and the Writing Assistant pane move in from the inline start */
+@keyframes mkfeat-slide-rtl{0%{transform:translateX(100%)}100%{transform:translateX(-340%)}}
+html.mk-ui-rtl .mkfeat-bar.busy > span{animation-name:mkfeat-slide-rtl}
+@keyframes mkwPaneRtl{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:none}}
+html.mk-ui-rtl .mkw-pane{animation-name:mkwPaneRtl}
+
+/* ---------- split view ----------
+   The two documents stay in reading order of the documents (first on the left), so dragging the divider and the
+   arrow keys move it the way the mouse goes; the outline pane sits on the right, as everywhere in the mirrored
+   interface, and each pane's own bar is mirrored. */
+html.mk-ui-rtl body.mk-split .mid-inner{direction:ltr;grid-template-columns:minmax(0,var(--mk-sa,1fr)) 7px minmax(0,var(--mk-sb,1fr)) auto}
+html.mk-ui-rtl body.mk-split .mid-inner > :not(#editorHost){direction:rtl}
+html.mk-ui-rtl body.mk-split .mid-inner > .outline{grid-column:4}
+html.mk-ui-rtl body.mk-split .mid-inner > #editorHost{grid-column:1}
+html.mk-ui-rtl body.mk-split .mid-inner > .mk-split-div{grid-column:2}
+html.mk-ui-rtl body.mk-split .mid-inner > .mk-split-pane{grid-column:3}
+html.mk-ui-rtl body.mk-split.mk-split-stacked .mid-inner{grid-template-columns:minmax(0,1fr) auto}
+html.mk-ui-rtl body.mk-split.mk-split-stacked .mid-inner > .outline{grid-column:2}
+html.mk-ui-rtl body.mk-split.mk-split-stacked .mid-inner > :is(#editorHost,.mk-split-div,.mk-split-pane){grid-column:1}
+html.mk-ui-rtl body.mk-split .mk-split-host{direction:ltr}
+
+/* ---------- taller scripts: Chinese, Japanese, Urdu, Punjabi, Arabic ----------
+   Text that is cut off with overflow:hidden gets a taller line, so Naskh marks above and below the letters and the
+   CJK ideographs are not clipped. The large ribbon buttons stay within their 62px; ribbon tabs and group names clip
+   only sideways (overflow-x:clip), so marks above and below the letters always show. */
+html:is(.mk-ui-font-cjk-sc,.mk-ui-font-cjk-jp) .big > span{line-height:1.3}
+html:is(.mk-ui-font-naskh,.mk-ui-font-naskh-nastaliq) .big > span{line-height:1.45}
+html:is(.mk-ui-font-cjk-sc,.mk-ui-font-cjk-jp,.mk-ui-font-naskh,.mk-ui-font-naskh-nastaliq) :is(.select > span,.mi .mi-label,.dtab .name,.ritem .rinfo b,.ritem .rinfo small,.palette .pi .pl,.palette .pi .ph,.mkw-goals span,.mkw-i-txt,.mkt-count,.mk-i18n-chip-t,.mk-split-label b,.mk-split-doc .t,.sty .n,.doc-title .t,.oitem,.mk-osk-note,.mks-facts dd,.mk-split-item small,.mk-dt-ex){line-height:1.7}
+/* uppercase small captions are a Latin habit; scripts without capitals keep their normal letter spacing */
+html:is(.mk-ui-font-cjk-sc,.mk-ui-font-cjk-jp,.mk-ui-font-naskh,.mk-ui-font-naskh-nastaliq) :is(.side-h h5,.vtabs h6,.pop h6,.palette h6,.kb-group,.mkh-sec,.mkw-c-cat,.mkw-th-res h4,.mk-mdpeek .mp-t){letter-spacing:0}

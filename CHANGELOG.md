@@ -5,6 +5,79 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-28
+
+Markooj in 11 languages, a Windows install half the size, split and side-by-side windows, rulers and guides, built-in right-to-left keyboards, and tables that travel to and from Word and Excel.
+
+### Added
+
+- **Markooj in 10 more languages.** Menus, buttons, ScreenTips, dialogs and messages now come in Chinese (Simplified), Urdu, Roman Urdu, Punjabi (Shahmukhi), Japanese, Arabic, Swedish, Spanish, French and Portuguese (Brazil), as well as English. To switch, click the **A文** button on the status bar, or use **File → Options → Language → Interface language**, the command search (Alt+Q, *Change interface language*) or the first step of the Welcome screen. The interface changes right away; your documents, saved or not, stay exactly as they are, and they keep their own language. **Match the system language** follows your computer. Help pages are in English for now; native speakers can send corrections through the contact form.
+- **Right-to-left interface.** In Urdu, Punjabi and Arabic the whole window mirrors: ribbon, File pages, Options, menus, dialogs, panes and the status bar read from right to left, while your document keeps its own direction. Keyboard shortcuts, code and equations always read left to right. Urdu and Punjabi menus use the bundled Noto Naskh Arabic font, with Nastaliq for large headings.
+- **Numbers, dates and counts in your language.** Word, page and issue counts use the right singular and plural forms ("1 word", "3 words") and your language's digit grouping; dates in File → Info, Recover, Writing goals and the Add-in Store follow the interface language. In English, messages that used to say "1 words" or "1 fixes" now use the singular.
+- **Windows installer asks for your language.** Its first screen lists all 11 languages, each in its own script, starting with your Windows display language. The installer and Markooj both use your choice. The installer's own steps are translated into Chinese, Japanese, Arabic, Swedish, Spanish, French and Portuguese (Brazil); the "Choose extra features" step is translated into all 11 languages and reads right to left in Urdu, Punjabi and Arabic. For IT departments, `/LANGUAGE=` accepts the same 11 codes and skips the screen.
+- **Optional features.** Pandoc (more file formats), the DjVu tools and Python macros now download only when you want them. **File → Options → Features** lists each one with what it does, its download size and the space it takes, with **Install**, **Update**, **Remove** and **Cancel**. **Help → Features** and the command search (Alt+Q) open it too. Every download is checked against the checksum that came with Markooj before anything is installed, and Cancel keeps nothing.
+- **Install from file…** in File → Options → Features: on a computer without internet, download a feature file on another computer and install it from there.
+- **The Windows installer asks for your language first** (English, 中文(简体), اردو, Roman Urdu, پنجابی (Shahmukhi), 日本語, العربية, Svenska, Español, Français, Português (Brasil)), then which extra features you want, each with its size. Markooj downloads them in the background the first time it starts, with a progress card you can cancel. On macOS and Linux, the Welcome screen asks **Choose extra features** (or Skip). Silent installs accept `/LANGUAGE=` and `/FEATURES=`, for example `/S /LANGUAGE=ur /FEATURES=pandoc,python`.
+- **Python macros install on first use.** The first time you run a Python macro without Python, Markooj offers to install it and then runs the macro.
+- **View → Window, like Word:** New Window, Arrange All, Split, View Side by Side, Synchronous Scrolling, Reset Window Position and Switch Windows.
+  - **Split** (Ctrl+Alt+S) shows the document in two panes, side by side or one above the other, each with its own editing mode (for example Word next to Simple). Typing in one pane shows up in the other at once. Drag the divider to resize; double-click it for two equal panes; Esc on the divider closes the split.
+  - **View Side by Side** shows two open documents next to each other, both editable, with Swap and its own Save (Ctrl+S in that pane).
+  - **Synchronous Scrolling** keeps both panes at the same paragraph (in a split) or the same heading (for two documents), or at the same distance from the top.
+  - **New Window** opens the document in a second window, for example on a second screen. Both windows show the same text, and saving from either one saves the same file. If both change the same words at the same moment, the replaced text is kept in File → Recover. **Open in New Window…** opens another file in a window of its own, and Ctrl+F6 / Ctrl+Shift+F6 move between Markooj windows.
+- **View → Ruler** shows rulers above and beside the page in Word, Inline and Read modes, with margins and paragraph indents, in centimeters or inches (inches in the United States). They stay sharp at every zoom and work in dark mode and right-to-left documents.
+- **Guides,** as in Adobe Illustrator: drag from a ruler onto the page to add one, drag it back to remove it, double-click it to type an exact position. **View → Guides** and **Add a guide…** do the same from the keyboard, and **Clear guides** removes them all. Guides never print, export or enter your file, and can be remembered for each file.
+- **File → Options → Window and ruler.**
+- **Brackets and quotes close themselves** in Word, Inline and Simple mode. Type ( [ { or a quote and the closing one appears with the cursor between; type the closing one and the cursor steps over it; select text first and it gets wrapped; Backspace removes an empty pair. With smart quotes on, " gives “ ” and ' gives ‘ ’. In Simple and Inline mode `*`, `_`, backticks and `~~` close too (type ** for bold), and `$` closes for math while a price like $5 stays as typed. Each can be turned off in **File → Options → Typing and review**.
+- **Date and time dialog** (Insert → Date & time): a calendar, formats such as 27/11/2026, November 27, 2026, ISO or your own pattern, the day name if you want it, and Gregorian or Hijri dates with month names in English, Urdu or Arabic and a one-day adjustment for local moon sighting. **Alt+Shift+D** inserts today's date and **Alt+Shift+T** the time, in the format you used last, as in Word.
+- **Slash commands:** type /today, /time or /hijri and press Space or Enter; /date opens the date dialog. A small list shows the choices; Esc closes it.
+- **Multiple cursors in Simple mode:** Alt+click adds a cursor, Ctrl+Alt+Up and Ctrl+Alt+Down add one above or below, Ctrl+D selects the next match, Alt+F3 selects all matches, and Esc goes back to one cursor. Typing, deleting, moving and pasting happen at every cursor, and Ctrl+Z undoes it all at once.
+- **Home → Select all** and **Home → Replace** buttons.
+- **Better spelling suggestions:** the word you most likely meant now comes first. "calander" offers calendar before colander, "coreection" offers correction, "syncrounus" offers synchronous, and "monotonusity" offers monotony and monotonousness. Markooj weighs common slips (swapped letters, a missed double letter, one vowel for another, a neighboring key), how a word sounds and how common it is.
+- **Technical terms and place names** are no longer marked as misspelled: hydraulics, hydropower, river engineering and fluid mechanics terms (penstock, feedwater, tailrace, spillway, hydrograph, Manning, Froude …), engineering software and units, US states and places, the world's countries and major cities, and the provinces, cities, rivers, dams and barrages of Pakistan. Names keep their capital letters ("Lahore" is fine, "lahore" is marked). Turn the list off in File → Options → Writing, with **Review → Proofing → Technical terms**, or from the command search.
+- **"An" or "and"?** When "an" sits between two describing words ("black an white"), the card suggests "and" first and "a" second.
+- **Commas between describing words:** a gentle style hint for three or more describing words in a row, such as "a beautiful, engaging, modern, and surprising page".
+- **Varied explanations:** when the same mistake appears several times, each card words its message a little differently. The meaning, the fix and the Why? text stay the same.
+- **Paste tables from Word, Excel, Google Sheets and LibreOffice** in any mode, and they become real Markdown tables, with the header row, bold, italic, strikethrough, links, superscript, line breaks in cells and column alignment (numbers from Excel line up on the right). Office styling is left out. Pasting several cells into a table fills it from the cell with the cursor, like Excel.
+- **Copy tables to Word and Excel:** select cells (or the whole table) and press Ctrl+C, or click **Table Design → Copy for Word/Excel**. Word and Excel paste a real table with borders, and Excel gets every value in its own cell.
+- **File → Options → Tables:** turn Office table pasting and copying on or off, and choose what happens to merged cells.
+- **Numbered equations and pictures with captions inside table cells.** They are numbered in document order, listed in the Cross-reference dialog and kept in Word, PDF and web page exports. Insert → Equation in a cell writes the equation on one line so it fits, and Insert Caption on a picture in a cell captions the picture.
+- **Pictures from MarkText, Typora, Obsidian and other editors** now show in every mode, in print and PDF, and in exports: full Windows paths, backslashes, paths with spaces or %20, file:/// addresses, ~/ paths, paths relative to the document's folder, HTML `<img>` and Obsidian `![[picture.png]]`.
+- **"Find this picture: it was at …"** shows where a picture is missing, with **Locate…** and **Remove**. Locating one also fixes the other missing pictures in the same folder. **Insert → Find Missing Pictures** and a note in the status bar list them all.
+- **Type Urdu, Arabic, Persian and Punjabi without installing a keyboard.** Four built-in layouts: Urdu Phonetic (CRULP), the one most people use in Pakistan; Arabic (101); Persian (Standard, ISIRI 9147); and Punjabi Shahmukhi (Urdu Phonetic plus ݨ, ڵ, ݪ and ۓ). Keys are read by their place on the keyboard, so they work with any keyboard, in Word, Inline and Simple modes. If your computer already types these letters, Markooj leaves your keyboard alone.
+- **Switch keyboards in one click or one key:** the keyboard chip on the status bar (EN / اردو / عربي / فارسی / پنجابی), **Ctrl+Shift+K** (English and your last right-to-left keyboard), View → Keyboard, Alt+Q "keyboard", or File → Options → Language → Keyboard.
+- **On-screen keyboard** (View → On-screen): every key of the layout with its Shift and AltGr layers. Click a key to type it.
+- **Home → Aarab**, shown while you write Urdu, Arabic, Persian or Punjabi: **Remove Aarab** (the selection, or the whole document, with Undo), buttons for zabar, zer, pesh, shadd, jazm, tanween and khari zabar on the letter before the cursor (click again to take a mark off), **Hide Aarab** (Read mode without the marks; your file keeps them) and **From Word List** (adds aarab to words the language pack knows with only one reading). Ctrl+Alt+Shift shortcuts and KeyTips (Alt, H, D …) for all of them.
+- The Urdu and Punjabi word lists have aarab for 58 more very common words (in the next language pack release).
+- **Website:** a "Try it" section that switches a short sample document between Word, Inline, Simple and Read modes, with bold, italic, a table, an equation and a diagram; nothing you type leaves your browser. A Markdown lens over the headline, Markdown symbols that drift away from the mouse and turn into what they mean, a small card that types Markdown and shows the result, and a new 404 page whose `# 404` turns into a heading when you point at it.
+
+### Changed
+
+- **Markooj installs much smaller.** On Windows it takes about 360 MB instead of 730 MB, and the installer is about 120 MB instead of 178 MB. The Mac and Linux downloads leave Pandoc out too, so they are smaller as well. Markooj keeps only the Chromium language files for its interface languages and leaves out the WebGPU shader compiler it never uses.
+- **The Windows portable zip is the full offline copy:** Pandoc, the DjVu tools and Python macros are all included.
+- **When Pandoc or the DjVu tools are missing,** the messages, Check Tools and Save As say "Install … from File → Options → Features", with an Install button, instead of "Repair Markooj".
+- **Uninstalling Markooj on Windows** also removes the features it downloaded; updating keeps them.
+- **Ctrl+A selects only your document:** the Markdown in Simple mode, the page in Word and Read mode, or the preview after you click in it. The ribbon, outline and status bar are never selected, also with right-click → Select all.
+- **Paste as plain text** (Ctrl+Shift+V or Ctrl+Alt+V) reads the clipboard more reliably and works in every editing mode; Read mode tells you how to go back to editing.
+- In Simple mode, **Ctrl+Shift+D** now duplicates a line; Ctrl+D selects the next match.
+- **Commonly confused words** (affect/effect, then/than, your/you're, lose/loose, principal/principle, complement/compliment, advice/advise) are marked only when the words around them leave no doubt.
+- **A quieter passive-voice hint:** at most one per paragraph, and never for phrases such as "is marked as" or "is known as", or clauses such as "when the file is opened".
+- **Unit and key names stay as written:** MB, min and Ctrl are no longer "corrected" to megabytes, minutes or Control, and software names such as MATLAB and ANSYS are not treated as abbreviations to spell out.
+- **Word and LibreOffice exports** keep line breaks inside table cells and show the caption under a picture in a table cell.
+- **Mixed Urdu or Arabic and English is steadier:** a paragraph reads in the direction of its first real letter even when it starts with math or code; English links, bold words, code and math inside an Urdu paragraph (and Urdu inside English) stay together; lines broken with Shift+Enter each find their own direction; and Read mode keeps numbers and punctuation next to the words you put them with. Choosing a right-to-left keyboard in an empty paragraph moves the cursor to the right at once.
+- **Open, Save As and Choose a file dialogs** open over the window you are working in, and **F6** also stops at the second pane of a split.
+- **File → Options → Keyboard** is now called **Keyboard shortcuts**, so it is not mixed up with the typing keyboards in File → Options → Language → Keyboard.
+- **Website:** sections fade in as you scroll, cards and links get small hover motions and a soft light that follows the mouse, and every effect stays still when your system asks for reduced motion. KaTeX, Marked and Mermaid are kept on the site with their licenses and load only when "Try it" needs them. The "Open, convert and export" card says that Pandoc and the DjVu tools are optional features.
+
+### Fixed
+
+- With smart quotes on, typing “ now adds the closing ” right away, and pressing " again steps over it instead of adding a second “.
+- "effects" used as a plural noun was marked as a mistake for "affects".
+- Technical words such as penstock, feedwater and tailrace were marked as typos for "pen stock", "feed water" and "tail race".
+- Numbered equations written inside a line of text lost a "$" in Word, LaTeX and other Pandoc exports.
+- Pasting from Excel into Word mode could insert a picture of the cells instead of the table.
+- An Urdu paragraph that started with an equation or `code` was laid out left to right.
+- The installed copy no longer carries unused copies of libraries (extra builds of MathLive, pdf.js, pdf-lib and highlight.js, and parts of Mermaid already inside its bundled file).
+
 ## [1.1.1] - 2026-11-23
 
 A Welcome screen, a short What's new after each update, and messages that start with what you can do.
@@ -143,7 +216,8 @@ The first public release.
 - Works offline. The internet is used only to download language packs, for web pictures when you allow them, and for links you click.
 - Free and open source under the GNU Affero General Public License, version 3 or later.
 
-[Unreleased]: https://github.com/datakeen/markooj/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/datakeen/markooj/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/datakeen/markooj/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/datakeen/markooj/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/datakeen/markooj/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/datakeen/markooj/releases/tag/v1.0.0

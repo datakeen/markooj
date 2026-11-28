@@ -8,7 +8,8 @@
   const mk = app.mk || window.mk || {};
   const settings = app.settings;
   const toast = (m, o) => { try { app.ui.toast(m, o); } catch { console.log('[toast]', m); } };
-  const fmt = n => Number(n || 0).toLocaleString('en-US');
+  // numbers in the interface language (12,345 in English)
+  const fmt = n => (app.i18n?.number ? app.i18n.number(Number(n || 0)) : Number(n || 0).toLocaleString('en-US'));
   const raf = fn => requestAnimationFrame(fn);
   const reducedMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
@@ -125,7 +126,7 @@
     const goal = dailyGoal();
     if (log[k] >= Math.max(1, goal) && !met[k]) {
       met[k] = 1;
-      if (goal && was < goal) celebrate({ kind: 'daily', title: 'Daily goal reached', text: `${fmt(log[k])} words today${streak() > 1 ? ` · ${streak()}-day streak` : ''}. Well done.` });
+      if (goal && was < goal) celebrate({ kind: 'daily', title: app.t('Daily goal reached'), text: streak() > 1 ? app.tn('{count} words today · {days}-day streak. Well done.', log[k], { days: fmt(streak()) }) : app.tn('{count} words today. Well done.', log[k]) });
     }
     persist();
   }
@@ -138,7 +139,7 @@
       done[key] = dayKey();
       const keys = Object.keys(done); if (keys.length > 200) delete done[keys[0]];
       settings.set('goalsCelebrated', done);
-      celebrate({ kind: 'doc', title: 'Word target reached', text: `“${doc.title}” has ${fmt(now)} words. You hit your ${fmt(t)}-word target.` });
+      celebrate({ kind: 'doc', title: app.t('Word target reached'), text: app.tn('“{name}” has {count} words. You hit your {target}-word target.', now, { name: doc.title, target: fmt(t) }) });
     }
   }
   app.events.on('doc:opened', d => baseline(d));
@@ -154,6 +155,8 @@
     pending.set(doc.id, p);
   });
   app.events.on('settings:changed', ({ key } = {}) => { if (/^(dailyWordGoal|goalsStatus|goalsCelebrate)$/.test(key || '')) paint(); });
+  // the status button and the outline card are drawn here: draw them again in a new interface language
+  app.events.on('i18n:changed', () => paint());
 
   // ---------------------------------------------------------------- progress ring
   function ring(pct, { size = 16, stroke = 2.4, label = '' } = {}) {
@@ -182,10 +185,10 @@
     el.textContent = ''; el.style.display = show ? '' : 'none';
     if (!show) return;
     const pr = progress();
-    const tip = pr.kind === 'doc' ? `${fmt(pr.words)} of ${fmt(pr.target)} words (${Math.round(pr.pct * 100)}%)`
-      : pr.kind === 'daily' ? `${fmt(pr.words)} of ${fmt(pr.target)} words today` : `${fmt(pr.words)} words written today`;
+    const tip = pr.kind === 'doc' ? app.tn('{words} of {count} words ({percent}%)', pr.target, { words: fmt(pr.words), percent: Math.round(pr.pct * 100) })
+      : pr.kind === 'daily' ? app.tn('{words} of {count} words today', pr.target, { words: fmt(pr.words) }) : app.tn('{count} words written today', pr.words);
     const st = streak();
-    const b = h('button', { class: 'sb mkg-sb', type: 'button', 'data-tip': 'Writing goals', 'data-tip-d': `${tip}${st ? ` · ${st}-day streak` : ''}. Click to set goals or start a sprint.`, 'aria-label': 'Writing goals: ' + tip,
+    const b = h('button', { class: 'sb mkg-sb', type: 'button', 'data-tip': app.t('Writing goals'), 'data-tip-d': st ? app.tn('{tip} · {count}-day streak. Click to set goals or start a sprint.', st, { tip }) : app.t('{tip}. Click to set goals or start a sprint.', { tip }), 'aria-label': app.t('Writing goals: {tip}', { tip }),
       'data-pct': String(Math.round(pr.pct * 100)), 'data-kind': pr.kind, html: ring(pr.pct) });
     if (pr.kind !== 'none') b.append(h('span', { class: 'mkg-sb-t' }, pr.kind === 'doc' ? `${Math.min(999, Math.round(pr.pct * 100))}%` : `${fmt(pr.words)}/${fmt(pr.target)}`));
     if (st > 1 && !sprint) b.append(h('span', { class: 'mkg-streak', html: `${flame(12)}<span>${st}</span>` }));
@@ -193,8 +196,8 @@
     el.append(b);
     if (sprint) {
       const left = Math.max(0, sprint.end - Date.now()), m = Math.floor(left / 60000), s = Math.floor(left / 1000) % 60;
-      const sp = h('button', { class: 'sb mkg-sprint', type: 'button', 'data-tip': 'Sprint', 'data-tip-d': 'Time left and words written in this sprint. Click to stop it early.', 'aria-label': 'Stop the sprint',
-        html: icon('mkg-timer') }, h('span', { class: 'mkg-sp-time' }, `${m}:${pad(s)}`), h('span', { class: 'mkg-sp-words' }, `${fmt(Math.max(0, sprint.words))} words`));
+      const sp = h('button', { class: 'sb mkg-sprint', type: 'button', 'data-tip': app.t('Sprint'), 'data-tip-d': app.t('Time left and words written in this sprint. Click to stop it early.'), 'aria-label': app.t('Stop the sprint'),
+        html: icon('mkg-timer') }, h('span', { class: 'mkg-sp-time' }, `${m}:${pad(s)}`), h('span', { class: 'mkg-sp-words' }, app.tn('{count} words', Math.max(0, sprint.words))));
       sp.addEventListener('click', () => stopSprint({ early: true }));
       el.append(sp);
     }
@@ -211,9 +214,9 @@
     const box = h('div', { class: 'mkg-card' });
     if (g) box.append(h('div', { class: 'mkg-card-ring', 'data-pct': String(Math.round(pct * 100)), html: ring(pct, { size: 38, stroke: 3.5, label: `${Math.min(999, Math.round(pct * 100))}%` }) }));
     const lines = h('div', { class: 'mkg-card-t' },
-      h('div', null, h('b', null, fmt(today())), g ? ` of ${fmt(g)} words today` : ' words today'),
-      st ? h('div', { class: 'mkg-card-s', html: `${flame(12)}<span>${st}-day streak</span>` } ) : null);
-    const more = h('button', { class: 'oitem mkg-link', type: 'button', text: sprint ? 'Sprint running…' : 'Goals and sprints…' });
+      h('div', { html: g ? app.th('<b>{words}</b> of {count} words today', { words: fmt(today()), count: g }) : app.th('<b>{count}</b> words today', { count: today() }) }),
+      st ? h('div', { class: 'mkg-card-s', html: `${flame(12)}<span>${app.th('{count}-day streak', { count: st })}</span>` } ) : null);
+    const more = h('button', { class: 'oitem mkg-link', type: 'button', text: sprint ? app.t('Sprint running…') : app.t('Goals and sprints…') });
     more.addEventListener('click', () => openPanel(more));
     lines.append(more);
     box.append(lines);
@@ -238,7 +241,7 @@
     clearInterval(sprintTick);
     sprintTick = setInterval(() => { if (sprint && Date.now() >= sprint.end) stopSprint(); else paintStatus(); }, 1000);
     document.body.classList.add('mk-sprinting');
-    if (!quiet) toast(`${minutes}-minute sprint started. Just write. Your words are counted in the status bar.`);
+    if (!quiet) toast(app.tn('{count}-minute sprint started. Just write. Your words are counted in the status bar.', minutes));
     app.events.emit('goals:sprint', { state: 'start', minutes });
     paint();
     return sprint;
@@ -255,8 +258,8 @@
     const best = Math.max(0, ...hist.slice(0, -1).map(x => x.words || 0));
     const summary = { minutes: s.minutes, ran: mins, words, early, best: words > best && hist.length > 1 };
     if (!quiet) {
-      if (early) toast(`Sprint stopped: ${fmt(words)} words in ${mins} minute${mins === 1 ? '' : 's'}.`);
-      else celebrate({ kind: 'sprint', title: 'Sprint done', text: `${fmt(words)} words in ${s.minutes} minutes${summary.best ? ' — your best sprint yet' : ''}.`, quietIfZero: !words });
+      if (early) toast(app.tn('Sprint stopped: {words} words in {count} minutes.', mins, { words: fmt(words) }));
+      else celebrate({ kind: 'sprint', title: app.t('Sprint done'), text: summary.best ? app.tn('{words} words in {count} minutes — your best sprint yet.', s.minutes, { words: fmt(words) }) : app.tn('{words} words in {count} minutes.', s.minutes, { words: fmt(words) }), quietIfZero: !words });
     }
     app.events.emit('goals:sprint', { state: 'stop', ...summary });
     paint();
@@ -268,13 +271,13 @@
   function celebrate({ kind, title, text, quietIfZero } = {}) {
     lastCelebration = { kind, title, text, at: Date.now() };
     app.events.emit('goals:reached', lastCelebration);
-    if (settings.get('goalsCelebrate', true) === false || quietIfZero) { toast(`${title}. ${text}`); return; }
+    if (settings.get('goalsCelebrate', true) === false || quietIfZero) { toast(app.t('{title}. {text}', { title, text })); return; }
     document.querySelector('.mkg-cele')?.remove();
     const motion = !reducedMotion();
     const el = h('div', { class: 'mkg-cele' + (motion ? ' anim' : ''), role: 'status', 'aria-live': 'polite' },
       h('div', { class: 'mkg-cele-ring', html: ring(1, { size: 44, stroke: 3.5 }) + '<svg class="mkg-cele-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12.5l3.2 3.2L17 9"/></svg>' }),
       h('div', { class: 'mkg-cele-t' }, h('b', null, title), h('span', null, text)),
-      h('button', { class: 'mkg-cele-x', type: 'button', 'aria-label': 'Close', html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>', onclick: () => close() }));
+      h('button', { class: 'mkg-cele-x', type: 'button', 'aria-label': app.t('Close'), html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>', onclick: () => close() }));
     if (motion) for (let k = 0; k < 14; k++) {
       const dot = h('i', { class: 'mkg-spark' });
       dot.style.setProperty('--x', `${Math.round((Math.random() - 0.5) * 260)}px`);
@@ -294,7 +297,7 @@
 
   // ---------------------------------------------------------------- goals panel (popover from the status bar / ribbon)
   async function setDailyGoal() {
-    const v = await app.ui.prompt('Daily writing goal', 'How many words do you want to write each day? Leave empty for none.', String(dailyGoal() || ''));
+    const v = await app.ui.prompt(app.t('Daily writing goal'), app.t('How many words do you want to write each day? Leave empty for none.'), String(dailyGoal() || ''));
     if (v == null) return;
     const n = parseInt(String(v).replace(/[,\s]/g, ''), 10);
     settings.set('dailyWordGoal', n > 0 ? n : 0);
@@ -308,17 +311,17 @@
       btnLabel ? h('button', { class: 'mkg-btn', type: 'button', 'data-tip': tip || btnLabel, onclick: () => { close(); fn(); } }, btnLabel) : null);
     const wrap = h('div', { class: 'mkg-panel' },
       h('div', { class: 'mkg-head' }, h('div', { html: ring(pr.pct, { size: 46, stroke: 4, label: pr.kind === 'none' ? '' : `${Math.min(999, Math.round(pr.pct * 100))}%` }) }),
-        h('div', null, h('b', null, 'Writing goals'), h('span', null, pr.kind === 'doc' ? `${fmt(pr.words)} of ${fmt(pr.target)} words in this document` : pr.kind === 'daily' ? `${fmt(pr.words)} of ${fmt(pr.target)} words today` : 'Set a goal to see your progress here.'))),
-      row('This document', t ? `${fmt(docWords)} / ${fmt(t)}` : (doc?.kind === 'markdown' ? `${fmt(docWords)} words` : '—'), doc?.kind === 'markdown' && !doc.readOnly ? (t ? 'Change' : 'Set target') : null, () => app.commands.run('view.wordTarget'), 'Saved in the document as word-target'),
-      row('Today', g ? `${fmt(today())} / ${fmt(g)}` : `${fmt(today())} words`, g ? 'Change' : 'Set goal', setDailyGoal, 'A goal for every day'),
-      row('Streak', st ? h('span', { class: 'mkg-streak big', html: `${flame(14)}<span>${st} day${st === 1 ? '' : 's'}</span>` }) : 'Write today to start one', null),
+        h('div', null, h('b', null, app.t('Writing goals')), h('span', null, pr.kind === 'doc' ? app.tn('{words} of {count} words in this document', pr.target, { words: fmt(pr.words) }) : pr.kind === 'daily' ? app.tn('{words} of {count} words today', pr.target, { words: fmt(pr.words) }) : app.t('Set a goal to see your progress here.')))),
+      row(app.t('This document'), t ? `${fmt(docWords)} / ${fmt(t)}` : (doc?.kind === 'markdown' ? app.tn('{count} words', docWords) : '—'), doc?.kind === 'markdown' && !doc.readOnly ? (t ? app.t('Change') : app.t('Set target')) : null, () => app.commands.run('view.wordTarget'), app.t('Saved in the document as word-target')),
+      row(app.t('Today'), g ? `${fmt(today())} / ${fmt(g)}` : app.tn('{count} words', today()), g ? app.t('Change') : app.t('Set goal'), setDailyGoal, app.t('A goal for every day')),
+      row(app.t('Streak'), st ? h('span', { class: 'mkg-streak big', html: `${flame(14)}<span>${app.th('{count} days', { count: st })}</span>` }) : app.t('Write today to start one'), null),
       h('div', { class: 'mkg-sep' }),
-      h('div', { class: 'mkg-sub' }, sprint ? 'Sprint running' : 'Writing sprint'),
+      h('div', { class: 'mkg-sub' }, sprint ? app.t('Sprint running') : app.t('Writing sprint')),
       sprint
-        ? h('div', { class: 'mkg-sprint-row' }, h('span', null, `${fmt(Math.max(0, sprint.words))} words so far`), h('button', { class: 'mkg-btn danger', type: 'button', onclick: () => { close(); stopSprint({ early: true }); } }, 'Stop sprint'))
-        : h('div', { class: 'mkg-sprint-row' }, [15, 25, 45].map(m => h('button', { class: 'mkg-btn' + (m === sprintLen() ? ' primary' : ''), type: 'button', 'data-tip': `Write for ${m} minutes`, 'data-tip-d': 'A timer runs in the status bar and counts the words you write.', onclick: () => { close(); startSprint(m); } }, `${m} min`))),
-      h('label', { class: 'mkg-check' }, (() => { const c = h('input', { type: 'checkbox' }); c.checked = settings.get('goalsCelebrate', true) !== false; c.addEventListener('change', () => settings.set('goalsCelebrate', c.checked)); return c; })(), 'Celebrate when I reach a goal'),
-      h('label', { class: 'mkg-check' }, (() => { const c = h('input', { type: 'checkbox' }); c.checked = !!settings.get('typewriter', false); c.addEventListener('change', () => setTypewriter(c.checked)); return c; })(), 'Typewriter scrolling (keep the line I type in the middle)'));
+        ? h('div', { class: 'mkg-sprint-row' }, h('span', null, app.tn('{count} words so far', Math.max(0, sprint.words))), h('button', { class: 'mkg-btn danger', type: 'button', onclick: () => { close(); stopSprint({ early: true }); } }, app.t('Stop sprint')))
+        : h('div', { class: 'mkg-sprint-row' }, [15, 25, 45].map(m => h('button', { class: 'mkg-btn' + (m === sprintLen() ? ' primary' : ''), type: 'button', 'data-tip': app.tn('Write for {count} minutes', m), 'data-tip-d': app.t('A timer runs in the status bar and counts the words you write.'), onclick: () => { close(); startSprint(m); } }, app.tn('{count} min', m)))),
+      h('label', { class: 'mkg-check' }, (() => { const c = h('input', { type: 'checkbox' }); c.checked = settings.get('goalsCelebrate', true) !== false; c.addEventListener('change', () => settings.set('goalsCelebrate', c.checked)); return c; })(), app.t('Celebrate when I reach a goal')),
+      h('label', { class: 'mkg-check' }, (() => { const c = h('input', { type: 'checkbox' }); c.checked = !!settings.get('typewriter', false); c.addEventListener('change', () => setTypewriter(c.checked)); return c; })(), app.t('Typewriter scrolling (keep the line I type in the middle)')));
     return wrap;
   }
   let panel = null;
@@ -330,7 +333,7 @@
       return panel;
     }
     const body = panelContent(() => {});
-    app.ui.dialog({ title: 'Writing goals', body, buttons: [{ label: 'Done', value: true, primary: true }] });
+    app.ui.dialog({ title: app.t('Writing goals'), body, buttons: [{ label: app.t('Done'), value: true, primary: true }] });
     return null;
   }
 
@@ -395,55 +398,61 @@
     if (!on) { padded.forEach(el => el.classList.remove('mkg-tw-pad')); padded.clear(); }
     else queueCenter();
     app.events.emit('ribbon:changed');
-    if (!quiet) toast(on ? 'Typewriter scrolling on: the line you type stays in the middle.' : 'Typewriter scrolling off.');
+    if (!quiet) toast(on ? app.t('Typewriter scrolling on: the line you type stays in the middle.') : app.t('Typewriter scrolling off.'));
     return !!on;
   }
 
   // ---------------------------------------------------------------- commands, ribbon, options
   const C = (id, def) => app.commands.register(id, { category: 'View', ...def });
-  C('goals.open', { label: 'Writing goals…', description: 'Set a word target for this document or a daily goal, see your streak and start a sprint.', icon: 'mkg-target', run: () => openPanel() });
-  C('goals.dailyGoal', { label: 'Set daily writing goal…', description: 'How many words you want to write each day. Reaching it keeps your streak going.', icon: 'mkg-target', run: () => setDailyGoal() });
-  C('goals.sprint', { label: 'Writing sprint…', description: 'Write for 15, 25 or 45 minutes. A timer in the status bar counts the words you write.', icon: 'mkg-timer',
+  C('goals.open', { label: app.tm('Writing goals…'), description: app.tm('Set a word target for this document or a daily goal, see your streak and start a sprint.'), icon: 'mkg-target', run: () => openPanel() });
+  C('goals.dailyGoal', { label: app.tm('Set daily writing goal…'), description: app.tm('How many words you want to write each day. Reaching it keeps your streak going.'), icon: 'mkg-target', run: () => setDailyGoal() });
+  C('goals.sprint', { label: app.tm('Writing sprint…'), description: app.tm('Write for 15, 25 or 45 minutes. A timer in the status bar counts the words you write.'), icon: 'mkg-timer',
     isActive: () => !!sprint, run: args => { const m = args?.minutes ?? args?.value; if (m) return startSprint(m); if (sprint) return stopSprint({ early: true }); sprintMenu(); } });
-  for (const m of [15, 25, 45]) C('goals.sprint' + m, { label: `Start a ${m}-minute sprint`, description: `Write for ${m} minutes. The status bar shows the time left and the words you write.`, icon: 'mkg-timer', run: () => startSprint(m) });
-  C('goals.stopSprint', { label: 'Stop sprint', description: 'Stop the writing sprint now and see how many words you wrote.', icon: 'mkg-timer', isEnabled: () => !!sprint, run: () => stopSprint({ early: true }) });
-  C('view.typewriter', { label: 'Typewriter scrolling', description: 'Keep the line you are typing in the middle of the screen, like a typewriter. Works in every mode.', icon: 'mkg-typewriter', isActive: () => !!settings.get('typewriter', false), run: () => setTypewriter() });
+  // one fixed label per length, so the ribbon, the command search and ScreenTips translate them like any other label
+  const SPRINTS = {
+    15: [app.tm('Start a 15-minute sprint'), app.tm('Write for 15 minutes. The status bar shows the time left and the words you write.')],
+    25: [app.tm('Start a 25-minute sprint'), app.tm('Write for 25 minutes. The status bar shows the time left and the words you write.')],
+    45: [app.tm('Start a 45-minute sprint'), app.tm('Write for 45 minutes. The status bar shows the time left and the words you write.')],
+  };
+  for (const m of [15, 25, 45]) C('goals.sprint' + m, { label: SPRINTS[m][0], description: SPRINTS[m][1], icon: 'mkg-timer', run: () => startSprint(m) });
+  C('goals.stopSprint', { label: app.tm('Stop sprint'), description: app.tm('Stop the writing sprint now and see how many words you wrote.'), icon: 'mkg-timer', isEnabled: () => !!sprint, run: () => stopSprint({ early: true }) });
+  C('view.typewriter', { label: app.tm('Typewriter scrolling'), description: app.tm('Keep the line you are typing in the middle of the screen, like a typewriter. Works in every mode.'), icon: 'mkg-typewriter', isActive: () => !!settings.get('typewriter', false), run: () => setTypewriter() });
   function sprintMenu() {
     const anchor = document.querySelector('[data-tip-cmd="goals.sprint"]') || statusEl?.querySelector('.mkg-sb');
     if (anchor && anchor.offsetParent && typeof app.ui.popover === 'function') {
       let p = null; const close = () => p?.close?.();
-      const box = h('div', { class: 'mkg-panel mkg-menu' }, h('div', { class: 'mkg-sub' }, 'Start a writing sprint'),
-        h('div', { class: 'mkg-sprint-row' }, [15, 25, 45].map(m => h('button', { class: 'mkg-btn' + (m === sprintLen() ? ' primary' : ''), type: 'button', onclick: () => { close(); startSprint(m); } }, `${m} min`))),
-        h('p', { class: 'mkg-hint' }, 'A timer runs in the status bar and counts the words you write.'));
+      const box = h('div', { class: 'mkg-panel mkg-menu' }, h('div', { class: 'mkg-sub' }, app.t('Start a writing sprint')),
+        h('div', { class: 'mkg-sprint-row' }, [15, 25, 45].map(m => h('button', { class: 'mkg-btn' + (m === sprintLen() ? ' primary' : ''), type: 'button', onclick: () => { close(); startSprint(m); } }, app.tn('{count} min', m)))),
+        h('p', { class: 'mkg-hint' }, app.t('A timer runs in the status bar and counts the words you write.')));
       p = app.ui.popover(anchor, box, { placement: 'bottom' });
       return;
     }
     startSprint(sprintLen());
   }
-  app.ribbon.addGroup('view', { id: 'goals-writing', label: 'Writing', order: 15, items: [
-    { type: 'big', command: 'view.typewriter', label: 'Typewriter', icon: 'mkg-typewriter' },
-    { type: 'big', command: 'goals.open', label: 'Goals', icon: 'mkg-target' },
-    { type: 'big', command: 'goals.sprint', label: 'Sprint', icon: 'mkg-timer' },
+  app.ribbon.addGroup('view', { id: 'goals-writing', label: app.tm('Writing@@ribbon group'), order: 15, items: [
+    { type: 'big', command: 'view.typewriter', label: app.tm('Typewriter'), icon: 'mkg-typewriter' },
+    { type: 'big', command: 'goals.open', label: app.tm('Goals'), icon: 'mkg-target' },
+    { type: 'big', command: 'goals.sprint', label: app.tm('Sprint'), icon: 'mkg-timer' },
   ] });
   try {
-    app.tooltips?.register?.('view.typewriter', { title: 'Typewriter scrolling', description: 'Keep the line you are typing in the middle of the screen, so your eyes stay in one place.' });
-    app.tooltips?.register?.('goals.open', { title: 'Writing goals', description: 'A word target for this document, a daily goal and your streak. The ring in the status bar shows your progress.' });
-    app.tooltips?.register?.('goals.sprint', { title: 'Writing sprint', description: 'Write for 15, 25 or 45 minutes without stopping. The status bar counts the time and your words.' });
+    app.tooltips?.register?.('view.typewriter', { title: app.tm('Typewriter scrolling'), description: app.tm('Keep the line you are typing in the middle of the screen, so your eyes stay in one place.') });
+    app.tooltips?.register?.('goals.open', { title: app.tm('Writing goals'), description: app.tm('A word target for this document, a daily goal and your streak. The ring in the status bar shows your progress.') });
+    app.tooltips?.register?.('goals.sprint', { title: app.tm('Writing sprint'), description: app.tm('Write for 15, 25 or 45 minutes without stopping. The status bar counts the time and your words.') });
   } catch {}
 
   app.options?.addSection?.({
-    id: 'goals', label: 'Writing goals', order: 75,
+    id: 'goals', label: app.tm('Writing goals'), order: 75,
     render(el) {
       el.textContent = '';
-      const goal = h('input', { class: 'mkg-input', type: 'number', min: '0', max: '100000', step: '50', value: String(dailyGoal() || ''), placeholder: 'None', 'aria-label': 'Daily goal in words' });
+      const goal = h('input', { class: 'mkg-input', type: 'number', min: '0', max: '100000', step: '50', value: String(dailyGoal() || ''), placeholder: app.t('None'), 'aria-label': app.t('Daily goal in words') });
       goal.addEventListener('change', () => { const n = Math.max(0, Math.round(Number(goal.value) || 0)); goal.value = n || ''; settings.set('dailyWordGoal', n); });
       const cb = (key, def, label, fn) => { const c = h('input', { type: 'checkbox' }); c.checked = settings.get(key, def) !== false && !!settings.get(key, def); c.addEventListener('change', () => (fn ? fn(c.checked) : settings.set(key, c.checked))); return h('label', { class: 'mkg-check' }, c, label); };
       el.append(h('div', { class: 'mkg-opts' },
-        h('div', { class: 'mkg-opt-row' }, h('span', null, 'Daily goal'), goal, h('span', { class: 'mkg-hint' }, 'words a day (empty for none)')),
-        h('p', { class: 'mkg-hint' }, 'A word target for one document is set from the outline’s Document card or View → Goals, and is saved in the document as word-target.'),
-        cb('goalsStatus', true, 'Show the goal ring in the status bar'),
-        cb('goalsCelebrate', true, 'Celebrate when I reach a goal (stays still when the system asks for reduced motion)'),
-        cb('typewriter', false, 'Typewriter scrolling: keep the line I type in the middle of the screen', v => setTypewriter(v))));
+        h('div', { class: 'mkg-opt-row' }, h('span', null, app.t('Daily goal')), goal, h('span', { class: 'mkg-hint' }, app.t('words a day (empty for none)'))),
+        h('p', { class: 'mkg-hint' }, app.t('A word target for one document is set from the outline’s Document card or View → Goals, and is saved in the document as word-target.')),
+        cb('goalsStatus', true, app.t('Show the goal ring in the status bar')),
+        cb('goalsCelebrate', true, app.t('Celebrate when I reach a goal (stays still when the system asks for reduced motion)')),
+        cb('typewriter', false, app.t('Typewriter scrolling: keep the line I type in the middle of the screen'), v => setTypewriter(v))));
     },
   });
 

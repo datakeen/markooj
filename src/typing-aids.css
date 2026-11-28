@@ -1,0 +1,43 @@
+/* Markooj — typing aids: slash command hint, multiple cursors, and chrome that Ctrl+A / drag never selects. */
+
+/* ---- the window's own interface is not text to select (dialogs, toasts, the page and the source stay selectable) */
+.titlebar, .ribbon, .slimbar, .mk-slim, .dtabs, .vtabs, .outline, .status, .bs-nav, .keytip-layer, .mk-pv-toggle, .mk-read-edit, .focus-exit, .drop-hint {
+  -webkit-user-select: none; user-select: none;
+}
+.titlebar input, .ribbon input, .ribbon textarea, .ribbon [contenteditable="true"], .status input, .outline input, .dtabs input, .vtabs input {
+  -webkit-user-select: text; user-select: text;
+}
+/* the line numbers of Simple mode are drawn, not text */
+.mk-src-mirror .ln::before { -webkit-user-select: none; user-select: none; }
+
+/* ---- slash commands (/today, /date, /time, /hijri) */
+.mk-slash {
+  position: fixed; z-index: 1050; min-width: 240px; max-width: 360px; padding: 5px;
+  background: var(--chrome-solid, #fbfbfd); color: var(--text, #1d1d1f); border-radius: 10px;
+  box-shadow: var(--pop-shadow, 0 12px 40px rgba(0,0,0,.16), 0 0 0 .5px rgba(0,0,0,.08));
+  font: 12.5px/1.35 var(--font, system-ui); animation: mkSlashIn .16s var(--ease, ease-out);
+  -webkit-user-select: none; user-select: none;
+}
+@keyframes mkSlashIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.mk-slash-it {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; width: 100%;
+  padding: 6px 9px; border: 0; border-radius: 7px; background: none; color: inherit; font: inherit; text-align: start;
+}
+.mk-slash-it b { font: 600 12.5px var(--mono, monospace); color: var(--accent, #0a66ff); grid-row: 1 / span 2; align-self: center; }
+.mk-slash-it span { color: var(--text, #1d1d1f); }
+.mk-slash-it small { color: var(--text-3, #a1a1a6); font-size: 11.5px; unicode-bidi: plaintext; }
+.mk-slash-it.on, .mk-slash-it:hover { background: var(--accent, #0a66ff); }
+.mk-slash-it.on b, .mk-slash-it.on span, .mk-slash-it.on small, .mk-slash-it:hover b, .mk-slash-it:hover span, .mk-slash-it:hover small { color: #fff; }
+.mk-slash-foot { padding: 4px 9px 2px; color: var(--text-3, #a1a1a6); font-size: 11px; border-top: .5px solid var(--line-2, rgba(0,0,0,.12)); margin-top: 3px; }
+@media (prefers-reduced-motion: reduce) { .mk-slash { animation: none; } }
+
+/* ---- multiple cursors in Simple mode: drawn between the highlighted mirror and the (transparent) textarea */
+.mk-mc-layer { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.mk-mc-sel { position: absolute; background: var(--accent-ring, rgba(10,102,255,.28)); border-radius: 2px; }
+.mk-mc-caret { position: absolute; width: 2px; margin-left: -1px; background: var(--accent, #0a66ff); border-radius: 1px; animation: mkMcBlink 1.06s steps(1) infinite; }
+@keyframes mkMcBlink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mk-mc-caret { animation: none; } }
+.mk-src.mk-mc-on .mk-src-mirror .ln.cur { background: none; }
+
+/* ---- File → Options: the typing aid switches sit inside the Typing and review card */
+.mk-ta-opts { display: contents; }

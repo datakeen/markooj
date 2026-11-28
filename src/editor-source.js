@@ -12,6 +12,9 @@
     if (!el) { el = document.createElement('style'); el.id = id; document.head.appendChild(el); }
     el.textContent = css;
   };
+  // Interface words that CSS draws itself (content:), in the interface language: set as custom properties on <html>.
+  const cssWords = () => { try { document.documentElement.style.setProperty('--mk-t-page-break', JSON.stringify(app.t('Page break'))); } catch {} };
+  cssWords(); app.events.on('i18n:changed', cssWords);
   E.esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // Front matter: same rules as preload's splitFrontMatter so data-line numbers line up.
@@ -277,7 +280,7 @@
 .mk-page .mk-front{margin-bottom:22px}
 .mk-page .mk-abstract{font-size:14px;padding:14px 16px;border-radius:10px;background:var(--accent-soft);border-left:3px solid var(--accent);margin:16px 0 0}
 .mk-page .page-break{position:relative;height:22px;margin:18px 0;border-top:1px dashed var(--line-2);break-after:page;page-break-after:always}
-.mk-page .page-break::after{content:"Page break";position:absolute;left:50%;top:-9px;transform:translateX(-50%);font:10.5px var(--font);letter-spacing:.04em;color:var(--text-3);background:var(--surface,#fff);padding:0 8px}
+.mk-page .page-break::after{content:var(--mk-t-page-break,"Page break");position:absolute;left:50%;top:-9px;transform:translateX(-50%);font:10.5px var(--font);letter-spacing:.04em;color:var(--text-3);background:var(--surface,#fff);padding:0 8px}
 :root[data-theme="dark"] .mk-page .page-break::after{background:#1e1e20}
 .mk-page .footnotes{font-size:13px;color:var(--text-2)}
 .mk-page .footnotes-sep{margin-top:30px}
@@ -402,7 +405,7 @@
       const inner = document.createElement('div'); inner.className = 'mk-src-inner';
       mirror = document.createElement('div'); mirror.className = 'mk-src-mirror'; mirror.setAttribute('aria-hidden', 'true');
       ta = document.createElement('textarea'); ta.className = 'mk-src-ta'; ta.spellcheck = false;
-      ta.setAttribute('autocapitalize', 'off'); ta.setAttribute('autocomplete', 'off'); ta.setAttribute('aria-label', 'Markdown source');
+      ta.setAttribute('autocapitalize', 'off'); ta.setAttribute('autocomplete', 'off'); ta.setAttribute('aria-label', app.t('Markdown source'));
       ta.setAttribute('wrap', 'soft');
       inner.append(mirror, ta); srcPane.appendChild(inner);
       pvPane = document.createElement('div'); pvPane.className = 'mk-preview';
@@ -412,11 +415,11 @@
       if (hasShellSlim) {
         // the shell's slim bar has no preview switch: keep a small one in the corner
         const tog = document.createElement('button'); tog.type = 'button'; tog.className = 'mk-pv-toggle mk-pv-float';
-        tog.title = 'Show or hide the live preview';
-        const label = () => { if (root) tog.textContent = root.classList.contains('no-preview') ? 'Show preview' : 'Hide preview'; };
+        const label = () => { tog.title = app.t('Show or hide the live preview'); if (root) tog.textContent = root.classList.contains('no-preview') ? app.t('Show preview') : app.t('Hide preview'); };
         tog.addEventListener('mousedown', e => e.preventDefault());
         tog.addEventListener('click', () => { adapter.togglePreview(); label(); });
         offs.push(app.events.on('settings:changed', ({ key }) => { if (key === 'simplePreview') label(); }));
+        app.events.on('i18n:changed', label); // build() runs once per editor; mount's offs are cleared on unmount
         root.appendChild(tog); label();
       }
 
@@ -452,24 +455,29 @@
       const bar = document.createElement('div'); bar.className = 'mk-slim';
       const ic = n => `<svg class="i"><use href="#${n}"/></svg>`;
       const items = [
-        ['format.bold', '<b>B</b>', 'Bold (Ctrl+B)'], ['format.italic', '<i>I</i>', 'Italic (Ctrl+I)'], ['format.strike', '<s>S</s>', 'Strikethrough'], 'sep',
-        ['format.style', '<span style="font:700 12px var(--font)">H1</span>', 'Heading 1', { value: 'h1' }], ['format.style', '<span style="font:700 12px var(--font)">H2</span>', 'Heading 2', { value: 'h2' }], 'sep',
-        ['list.bullet', ic('ul'), 'Bullets'], ['list.number', ic('ol'), 'Numbering'], ['list.task', ic('task'), 'Checklist'], ['para.quote', ic('quote'), 'Quote'], 'sep',
-        ['insert.link', ic('link'), 'Link (Ctrl+K)'], ['insert.image', ic('image'), 'Picture'], ['insert.table', ic('table'), 'Table'], ['insert.code', ic('code'), 'Code'], ['insert.equation', ic('sigma'), 'Equation (Alt+=)'], ['insert.citation', ic('cite'), 'Citation'],
+        ['format.bold', '<b>B</b>', app.tm('Bold (Ctrl+B)')], ['format.italic', '<i>I</i>', app.tm('Italic (Ctrl+I)')], ['format.strike', '<s>S</s>', app.tm('Strikethrough')], 'sep',
+        ['format.style', '<span style="font:700 12px var(--font)">H1</span>', app.tm('Heading 1'), { value: 'h1' }], ['format.style', '<span style="font:700 12px var(--font)">H2</span>', app.tm('Heading 2'), { value: 'h2' }], 'sep',
+        ['list.bullet', ic('ul'), app.tm('Bullets')], ['list.number', ic('ol'), app.tm('Numbering')], ['list.task', ic('task'), app.tm('Checklist')], ['para.quote', ic('quote'), app.tm('Quote')], 'sep',
+        ['insert.link', ic('link'), app.tm('Link (Ctrl+K)')], ['insert.image', ic('image'), app.tm('Picture')], ['insert.table', ic('table'), app.tm('Table')], ['insert.code', ic('code'), app.tm('Code')], ['insert.equation', ic('sigma'), app.tm('Equation (Alt+=)')], ['insert.citation', ic('cite'), app.tm('Citation')],
       ];
       for (const it of items) {
         if (it === 'sep') { const s = document.createElement('span'); s.className = 'sep'; bar.appendChild(s); continue; }
         const [cmd, html, title, args] = it;
-        const b = document.createElement('button'); b.type = 'button'; b.className = 'ib'; b.innerHTML = html; b.title = title; b.setAttribute('aria-label', title);
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'ib'; b.innerHTML = html; b.dataset.tkey = title; b.title = app.t(title); b.setAttribute('aria-label', app.t(title));
         b.dataset.cmd = cmd; if (args) b.dataset.args = JSON.stringify(args);
         b.addEventListener('mousedown', e => e.preventDefault());
         b.addEventListener('click', () => app.commands.run(cmd, args));
         bar.appendChild(b);
       }
       const note = document.createElement('span'); note.className = 'note';
-      note.innerHTML = '<span>Markdown source · live preview</span>';
-      const tog = document.createElement('button'); tog.type = 'button'; tog.className = 'mk-pv-toggle'; tog.title = 'Show or hide the live preview';
-      const label = () => { if (root) tog.textContent = root.classList.contains('no-preview') ? 'Show preview' : 'Hide preview'; };
+      const noteText = document.createElement('span'); note.appendChild(noteText);
+      const tog = document.createElement('button'); tog.type = 'button'; tog.className = 'mk-pv-toggle';
+      const label = () => {
+        noteText.textContent = app.t('Markdown source · live preview'); tog.title = app.t('Show or hide the live preview');
+        bar.querySelectorAll('[data-tkey]').forEach(b => { b.title = app.t(b.dataset.tkey); b.setAttribute('aria-label', app.t(b.dataset.tkey)); });
+        if (root) tog.textContent = root.classList.contains('no-preview') ? app.t('Show preview') : app.t('Hide preview');
+      };
+      app.events.on('i18n:changed', label); // build() runs once per editor; mount's offs are cleared on unmount
       tog.addEventListener('click', () => { adapter.togglePreview(); label(); });
       note.appendChild(tog); bar.appendChild(note);
       setTimeout(label, 0);
@@ -565,7 +573,8 @@
       if (app.typing?.runKey?.(e, { mode: 'simple', adapter, element: ta, inTable: false })) return;
       const mod = e.ctrlKey || e.metaKey, k = e.key;
       // source-editor keys first (they only make sense here)
-      if (mod && !e.altKey && !e.shiftKey && e.code === 'KeyD') { e.preventDefault(); e.stopPropagation(); return duplicateLines(); }
+      // Ctrl+D is Select next match (multiple cursors, src/multicursor.js); duplicating the line is Ctrl+Shift+D
+      if (mod && !e.altKey && e.shiftKey && e.code === 'KeyD') { e.preventDefault(); e.stopPropagation(); return duplicateLines(); }
       if (mod && !e.altKey && !e.shiftKey && e.code === 'Slash') { e.preventDefault(); e.stopPropagation(); return toggleComment(); }
       if (e.altKey && !mod && !e.shiftKey && (k === 'ArrowUp' || k === 'ArrowDown')) { e.preventDefault(); e.stopPropagation(); return moveLines(k === 'ArrowUp' ? -1 : 1); }
       if (E.dispatchShortcut(e)) return;
@@ -582,6 +591,7 @@
     }
 
     function typeChar(ch) {
+      if (app.typingAids?.decide) return false; // src/typing-aids.js pairs in every mode (and can be turned off)
       const v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
       const prev = v[s - 1] || '', next = v[en] || '';
       if (s !== en && PAIRS[ch]) {
@@ -612,7 +622,7 @@
     }
     function pairBackspace() {
       const v = ta.value, s = ta.selectionStart;
-      if (s !== ta.selectionEnd || s === 0) return false;
+      if (s !== ta.selectionEnd || s === 0 || app.typingAids?.decide) return false;
       const prev = v[s - 1], next = v[s];
       if (PAIRS[prev] && PAIRS[prev] === next) {
         if ((prev === '*' || prev === '$') && v[s - 2] === prev && v[s + 1] === prev) { replace(s - 2, s + 2, '', s - 2); return true; }
@@ -1035,7 +1045,7 @@
   app.editors.register('simple', simple);
 
   app.commands.register('view.togglePreview', {
-    label: 'Show or hide the live preview (Simple mode)', icon: 'side',
+    label: app.tm('Show or hide the live preview (Simple mode)'), icon: 'side',
     run: () => { if (app.mode !== 'simple') app.setMode('simple'); (app.editors.get('simple'))?.togglePreview?.(); },
     isActive: () => app.settings.get('simplePreview', true) !== false,
   });

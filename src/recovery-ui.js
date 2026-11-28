@@ -107,28 +107,29 @@ select.rui-in{padding-right:6px}
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
   function fmtSize(n) {
     if (n == null) return '—';
-    if (n < 1024) return `${n} bytes`;
-    if (n < 1048576) return `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`;
-    return `${(n / 1048576).toFixed(1)} MB`;
+    if (n < 1024) return app.tn('{count} bytes', n);
+    if (n < 1048576) return app.t('{size} KB', { size: num(+(n / 1024).toFixed(n < 10240 ? 1 : 0)) });
+    return app.t('{size} MB', { size: num(+(n / 1048576).toFixed(1)) });
   }
-  const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' });
-  const dayFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
-  const fullFmt = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  // dates and numbers in the interface language (en-US for English, as before)
+  const num = (n, o) => (app.i18n?.number ? app.i18n.number(n, o) : Number(n).toLocaleString('en-US', o));
+  const fmtDate = (d, o) => (app.i18n?.date ? app.i18n.date(d, o) : new Intl.DateTimeFormat('en-US', o).format(d));
+  const timeOf = d => fmtDate(d, { hour: 'numeric', minute: '2-digit' });
   function relTime(ms) {
     if (!ms) return '—';
     const d = Date.now() - ms, m = Math.round(d / 60000);
-    if (d < 45000) return 'just now';
-    if (m < 60) return `${m} minute${m === 1 ? '' : 's'} ago`;
+    if (d < 45000) return app.t('just now');
+    if (m < 60) return app.tn('{count} minutes ago', m);
     const hrs = Math.round(m / 60);
     const then = new Date(ms), now = new Date();
-    if (then.toDateString() === now.toDateString()) return hrs < 6 ? `${hrs} hour${hrs === 1 ? '' : 's'} ago` : `today at ${timeFmt.format(then)}`;
+    if (then.toDateString() === now.toDateString()) return hrs < 6 ? app.tn('{count} hours ago', hrs) : app.t('today at {time}', { time: timeOf(then) });
     const y = new Date(now); y.setDate(now.getDate() - 1);
-    if (then.toDateString() === y.toDateString()) return `yesterday at ${timeFmt.format(then)}`;
+    if (then.toDateString() === y.toDateString()) return app.t('yesterday at {time}', { time: timeOf(then) });
     const dd = Math.floor(d / 864e5);
-    if (dd < 7) return `${dd} days ago`;
-    return `${dayFmt.format(then)} at ${timeFmt.format(then)}`;
+    if (dd < 7) return app.tn('{count} days ago', dd);
+    return app.t('{date} at {time}', { date: fmtDate(then, { month: 'short', day: 'numeric' }), time: timeOf(then) });
   }
-  const fullDate = ms => (ms ? fullFmt.format(new Date(ms)) : '—');
+  const fullDate = ms => (ms ? fmtDate(new Date(ms), { dateStyle: 'medium', timeStyle: 'short' }) : '—');
   const baseName = p => String(p || '').split(/[\\/]/).pop();
   const fm = () => mk.frontMatter || null;
   function bodyOf(text) { try { return fm() ? fm().parse(text).body : text; } catch { return text; } }
@@ -153,7 +154,7 @@ select.rui-in{padding-right:6px}
     function draw() {
       wrap.querySelectorAll('.rui-chip').forEach(c => c.remove());
       list.forEach((v, i) => {
-        const c = h(`<span class="rui-chip">${esc(v)}<button type="button" title="Remove ${esc(v)}" aria-label="Remove ${esc(v)}">${icon('x')}</button></span>`);
+        const c = h(`<span class="rui-chip">${esc(v)}<button type="button" title="${app.th('Remove {name}', { name: v })}" aria-label="${app.th('Remove {name}', { name: v })}">${icon('x')}</button></span>`);
         c.querySelector('button').addEventListener('click', e => { e.stopPropagation(); list.splice(i, 1); draw(); emit(); input.focus(); });
         wrap.insertBefore(c, input);
       });
@@ -180,7 +181,7 @@ select.rui-in{padding-right:6px}
   // ---------- File → Info ----------
   const KNOWN = ['title', 'subtitle', 'author', 'date', 'subject', 'keywords', 'abstract', 'lang', 'bibliography'];
   const ALIASES = { authors: 'author', tags: 'keywords', language: 'lang', description: null };
-  const LANGS = [['en-US', 'English (United States)'], ['en-GB', 'English (United Kingdom)'], ['de-DE', 'German'], ['fr-FR', 'French'], ['es-ES', 'Spanish'], ['it-IT', 'Italian'], ['pt-BR', 'Portuguese (Brazil)'], ['nl-NL', 'Dutch'], ['ru-RU', 'Russian'], ['tr-TR', 'Turkish'], ['ar', 'Arabic'], ['ur-PK', 'Urdu'], ['hi-IN', 'Hindi'], ['zh-CN', 'Chinese (Simplified)'], ['ja-JP', 'Japanese'], ['ko-KR', 'Korean']];
+  const LANGS = [['en-US', app.tm('English (United States)')], ['en-GB', app.tm('English (United Kingdom)')], ['de-DE', app.tm('German')], ['fr-FR', app.tm('French')], ['es-ES', app.tm('Spanish')], ['it-IT', app.tm('Italian')], ['pt-BR', app.tm('Portuguese (Brazil)')], ['nl-NL', app.tm('Dutch')], ['ru-RU', app.tm('Russian')], ['tr-TR', app.tm('Turkish')], ['ar', app.tm('Arabic')], ['ur-PK', app.tm('Urdu')], ['hi-IN', app.tm('Hindi')], ['zh-CN', app.tm('Chinese (Simplified)')], ['ja-JP', app.tm('Japanese')], ['ko-KR', app.tm('Korean')]];
   const scalar = v => v == null || ['string', 'number', 'boolean'].includes(typeof v);
   const asText = v => (v == null ? '' : Array.isArray(v) ? v.map(asText).join(', ') : typeof v === 'object' ? String(v.name || v.literal || '') : String(v));
   const asList = v => (v == null || v === '' ? [] : Array.isArray(v) ? v.map(asText).filter(Boolean) : String(v).split(/;|,(?![^(]*\))/).map(s => s.trim()).filter(Boolean));
@@ -193,9 +194,9 @@ select.rui-in{padding-right:6px}
   async function renderInfo(el, docArg) {
     const doc = docArg || app.docs.active();
     el.innerHTML = '';
-    const root = h(`<div class="rui rui-info"><h2>Info</h2><p class="rui-sub">Document properties are saved inside the file, at the top, where Pandoc, Quarto and journals can read them.</p></div>`);
+    const root = h(`<div class="rui rui-info"><h2>${app.th('Info')}</h2><p class="rui-sub">${app.th('Document properties are saved inside the file, at the top, where Pandoc, Quarto and journals can read them.')}</p></div>`);
     el.appendChild(root);
-    if (!doc) { root.appendChild(h(`<div class="rui-empty">${icon('info')}<b>No document is open</b>Open or create a document to see its properties.</div>`)); return; }
+    if (!doc) { root.appendChild(h(`<div class="rui-empty">${icon('info')}<b>${app.th('No document is open')}</b>${app.th('Open or create a document to see its properties.')}</div>`)); return; }
 
     const grid = h(`<div class="rui-grid"><div class="rui-left"></div><div class="rui-right"></div></div>`);
     root.appendChild(grid);
@@ -208,42 +209,42 @@ select.rui-in{padding-right:6px}
     const val = f => meta[K(f)];
 
     // --- properties form ---
-    const card = h(`<section class="rui-card" aria-label="Document properties"><div class="rui-sec">${icon('info')} Properties</div></section>`);
+    const card = h(`<section class="rui-card" aria-label="${app.th('Document properties')}"><div class="rui-sec">${icon('info')} ${app.th('Properties')}</div></section>`);
     left.appendChild(card);
     if (!editable) {
-      card.appendChild(h(`<p class="rui-note">${doc.kind === 'pdf' || doc.kind === 'djvu' ? `This ${doc.kind.toUpperCase()} file is shown read-only. To edit its text, use “Edit as text”, then set properties on the new document.` : 'To change these properties, use “Edit as text” to make an editable copy. This document is read-only.'}</p>`));
+      card.appendChild(h(`<p class="rui-note">${doc.kind === 'pdf' || doc.kind === 'djvu' ? app.th('This {type} file is shown read-only. To edit its text, use “Edit as text”, then set properties on the new document.', { type: doc.kind.toUpperCase() }) : app.th('To change these properties, use “Edit as text” to make an editable copy. This document is read-only.')}</p>`));
     }
     const ro = editable ? '' : ' readonly';
     const dateVal = asText(val('date'));
     const isoDate = !dateVal || /^\d{4}-\d{2}-\d{2}$/.test(dateVal);
     const form = h(`<form class="rui-form" autocomplete="off">
-      <div class="rui-f full"><label class="rui-lbl" for="rui-title">Title</label><input class="rui-in" id="rui-title" name="title" value="${esc(asText(val('title')))}" placeholder="Add a title"${ro}></div>
-      <div class="rui-f full"><label class="rui-lbl" for="rui-subtitle">Subtitle</label><input class="rui-in" id="rui-subtitle" name="subtitle" value="${esc(asText(val('subtitle')))}" placeholder="Optional"${ro}></div>
-      <div class="rui-f full" data-chips="author"><span class="rui-lbl">Author(s)</span></div>
-      <div class="rui-f"><label class="rui-lbl" for="rui-date">Date</label><div class="rui-row"><input class="rui-in" id="rui-date" name="date" type="${isoDate ? 'date' : 'text'}" value="${esc(dateVal)}"${ro}>${editable ? `<button type="button" class="rui-btn ghost" data-act="today" title="Use today’s date">Today</button>` : ''}</div></div>
-      <div class="rui-f"><label class="rui-lbl" for="rui-lang">Language</label><input class="rui-in" id="rui-lang" name="lang" list="rui-langs" value="${esc(asText(val('lang')))}" placeholder="en-US"${ro}><datalist id="rui-langs">${LANGS.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</datalist></div>
-      <div class="rui-f full"><label class="rui-lbl" for="rui-subject">Subject</label><input class="rui-in" id="rui-subject" name="subject" value="${esc(asText(val('subject')))}" placeholder="What the document is about"${ro}></div>
-      <div class="rui-f full" data-chips="keywords"><span class="rui-lbl">Keywords</span></div>
-      <div class="rui-f full"><label class="rui-lbl" for="rui-abstract">Abstract</label><textarea class="rui-in" id="rui-abstract" name="abstract" rows="4" placeholder="A short summary of the document"${ro}>${esc(asText(val('abstract')))}</textarea></div>
-      <div class="rui-f full"><label class="rui-lbl" for="rui-bib">Bibliography file</label><div class="rui-row"><input class="rui-in" id="rui-bib" name="bibliography" value="${esc(asText(val('bibliography')))}" placeholder="references.bib"${ro}>${editable ? `<button type="button" class="rui-btn" data-act="bib">Browse…</button>` : ''}</div><span class="rui-hint">BibTeX (.bib), CSL JSON or YAML. Used by References → Cite and by exports.</span></div>
+      <div class="rui-f full"><label class="rui-lbl" for="rui-title">${app.th('Title')}</label><input class="rui-in" id="rui-title" name="title" value="${esc(asText(val('title')))}" placeholder="${app.th('Add a title')}"${ro}></div>
+      <div class="rui-f full"><label class="rui-lbl" for="rui-subtitle">${app.th('Subtitle')}</label><input class="rui-in" id="rui-subtitle" name="subtitle" value="${esc(asText(val('subtitle')))}" placeholder="${app.th('Optional')}"${ro}></div>
+      <div class="rui-f full" data-chips="author"><span class="rui-lbl">${app.th('Author(s)')}</span></div>
+      <div class="rui-f"><label class="rui-lbl" for="rui-date">${app.th('Date')}</label><div class="rui-row"><input class="rui-in" id="rui-date" name="date" type="${isoDate ? 'date' : 'text'}" value="${esc(dateVal)}"${ro}>${editable ? `<button type="button" class="rui-btn ghost" data-act="today" title="${app.th('Use today’s date')}">${app.th('Today')}</button>` : ''}</div></div>
+      <div class="rui-f"><label class="rui-lbl" for="rui-lang">${app.th('Language')}</label><input class="rui-in" id="rui-lang" name="lang" list="rui-langs" value="${esc(asText(val('lang')))}" placeholder="en-US"${ro}><datalist id="rui-langs">${LANGS.map(([v, l]) => `<option value="${v}">${app.th(l)}</option>`).join('')}</datalist></div>
+      <div class="rui-f full"><label class="rui-lbl" for="rui-subject">${app.th('Subject')}</label><input class="rui-in" id="rui-subject" name="subject" value="${esc(asText(val('subject')))}" placeholder="${app.th('What the document is about')}"${ro}></div>
+      <div class="rui-f full" data-chips="keywords"><span class="rui-lbl">${app.th('Keywords')}</span></div>
+      <div class="rui-f full"><label class="rui-lbl" for="rui-abstract">${app.th('Abstract')}</label><textarea class="rui-in" id="rui-abstract" name="abstract" rows="4" placeholder="${app.th('A short summary of the document')}"${ro}>${esc(asText(val('abstract')))}</textarea></div>
+      <div class="rui-f full"><label class="rui-lbl" for="rui-bib">${app.th('Bibliography file')}</label><div class="rui-row"><input class="rui-in" id="rui-bib" name="bibliography" value="${esc(asText(val('bibliography')))}" placeholder="references.bib"${ro}>${editable ? `<button type="button" class="rui-btn" data-act="bib">${app.th('Browse…')}</button>` : ''}</div><span class="rui-hint">${app.th('BibTeX (.bib), CSL JSON or YAML. Used by References → Cite and by exports.')}</span></div>
     </form>`);
     card.appendChild(form);
     const F = n => form.querySelector('[name="' + n + '"]');
     const chips = {};
     for (const slot of form.querySelectorAll('[data-chips]')) {
       const f = slot.getAttribute('data-chips');
-      const c = chipInput(asList(val(f)), f === 'author' ? 'Type a name, then press Enter' : 'Type a keyword, then press Enter', f === 'author' ? 'Authors' : 'Keywords');
+      const c = chipInput(asList(val(f)), f === 'author' ? app.t('Type a name, then press Enter') : app.t('Type a keyword, then press Enter'), f === 'author' ? app.t('Authors') : app.t('Keywords'));
       if (!editable) c.querySelectorAll('input,button').forEach(x => { x.disabled = true; });
       chips[f] = c; slot.appendChild(c);
     }
     // custom fields
     const knownKeys = new Set(KNOWN.map(K));
     const customs = Object.keys(meta).filter(k => !knownKeys.has(k));
-    const customSec = h(`<div><div class="rui-sec">More properties</div><div class="rui-kvs"></div>${editable ? `<button type="button" class="rui-btn ghost" data-act="add">${icon('plus')} Add a property</button>` : ''}</div>`);
+    const customSec = h(`<div><div class="rui-sec">${app.th('More properties')}</div><div class="rui-kvs"></div>${editable ? `<button type="button" class="rui-btn ghost" data-act="add">${icon('plus')} ${app.th('Add a property')}</button>` : ''}</div>`);
     card.appendChild(customSec);
     const kvs = customSec.querySelector('.rui-kvs');
     function addRow(key = '', value = '', complex = false) {
-      const row = h(`<div class="rui-kv"><input class="rui-in" data-k placeholder="Name" aria-label="Property name" value="${esc(key)}"${ro || (complex ? ' readonly' : '')}><input class="rui-in" data-v placeholder="Value" aria-label="Property value" value="${esc(value)}"${ro || (complex ? ' readonly title="This value has several parts. Edit it in Simple mode."' : '')}>${editable ? `<button type="button" class="rui-btn ghost icon" title="Remove property" aria-label="Remove property">${icon('x')}</button>` : '<span></span>'}</div>`);
+      const row = h(`<div class="rui-kv"><input class="rui-in" data-k placeholder="${app.th('Name@@property')}" aria-label="${app.th('Property name')}" value="${esc(key)}"${ro || (complex ? ' readonly' : '')}><input class="rui-in" data-v placeholder="${app.th('Value')}" aria-label="${app.th('Property value')}" value="${esc(value)}"${ro || (complex ? ` readonly title="${app.th('This value has several parts. Edit it in Simple mode.')}"` : '')}>${editable ? `<button type="button" class="rui-btn ghost icon" title="${app.th('Remove property')}" aria-label="${app.th('Remove property')}">${icon('x')}</button>` : '<span></span>'}</div>`);
       row.dataset.orig = key; if (complex) row.dataset.complex = '1';
       const rm = row.querySelector('button');
       if (rm) rm.addEventListener('click', () => { row.remove(); markDirty(); });
@@ -255,15 +256,15 @@ select.rui-in{padding-right:6px}
       if (scalar(v)) addRow(k, v == null ? '' : String(v));
       else addRow(k, JSON.stringify(v), true);
     }
-    if (!customs.length && !editable) kvs.appendChild(h(`<p class="rui-hint">None.</p>`));
+    if (!customs.length && !editable) kvs.appendChild(h(`<p class="rui-hint">${app.th('None.')}</p>`));
 
     let bar = null;
     if (editable) {
-      bar = h(`<div class="rui-bar"><button type="button" class="rui-btn primary" data-act="save" title="Save properties (Ctrl+Enter)">${icon('check')} Save properties</button><button type="button" class="rui-btn" data-act="revert">Undo changes</button><span class="rui-state" aria-live="polite"></span></div>`);
+      bar = h(`<div class="rui-bar"><button type="button" class="rui-btn primary" data-act="save" title="${app.th('Save properties (Ctrl+Enter)')}">${icon('check')} ${app.th('Save properties')}</button><button type="button" class="rui-btn" data-act="revert">${app.th('Undo changes')}</button><span class="rui-state" aria-live="polite"></span></div>`);
       card.appendChild(bar);
     }
     const state = bar && bar.querySelector('.rui-state');
-    function markDirty() { if (state) { state.textContent = 'Changes not saved yet'; state.classList.add('dirty'); } }
+    function markDirty() { if (state) { state.textContent = app.t('Changes not saved yet'); state.classList.add('dirty'); } }
     form.addEventListener('input', markDirty);
     customSec.addEventListener('input', markDirty);
 
@@ -298,11 +299,11 @@ select.rui-in{padding-right:6px}
     }
     async function save() {
       const d = app.docs.get ? app.docs.get(doc.id) || doc : doc;
-      if (!fm()) { toast('Restart Markooj, then save the properties again. The front matter tools did not load this time.', { kind: 'error' }); return false; }
+      if (!fm()) { toast(app.t('Restart Markooj, then save the properties again. The front matter tools did not load this time.'), { kind: 'error' }); return false; }
       const text = fm().write(d.text || '', collect());
       d.setText(text, 'info');
-      if (state) { state.textContent = 'Saved in the document'; state.classList.remove('dirty'); }
-      toast('Document properties saved. Save the document to keep them.');
+      if (state) { state.textContent = app.t('Saved in the document'); state.classList.remove('dirty'); }
+      toast(app.t('Document properties saved. Save the document to keep them.'));
       await renderInfo(el, d);
       return true;
     }
@@ -313,7 +314,7 @@ select.rui-in{padding-right:6px}
       form.querySelector('[data-act=today]').addEventListener('click', () => { const d = new Date(); F('date').type = 'date'; F('date').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; markDirty(); });
       form.querySelector('[data-act=bib]').addEventListener('click', async () => {
         try {
-          const p = await invoke('pick-file', [{ name: 'Bibliography', extensions: ['bib', 'json', 'yaml', 'yml'] }, { name: 'All files', extensions: ['*'] }]);
+          const p = await invoke('pick-file', [{ name: app.t('Bibliography'), extensions: ['bib', 'json', 'yaml', 'yml'] }, { name: app.t('All files'), extensions: ['*'] }]);
           if (!p) return;
           let rel = p;
           if (doc.path) {
@@ -321,7 +322,7 @@ select.rui-in{padding-right:6px}
             if (p.toLowerCase().startsWith(dir.toLowerCase() + '\\') || p.toLowerCase().startsWith(dir.toLowerCase() + '/')) rel = p.slice(dir.length + 1).replace(/\\/g, '/');
           }
           F('bibliography').value = rel; markDirty();
-        } catch (e) { app.ui.fail(e, { lead: 'Type the bibliography file name into the box instead, or try Browse again.' }); }
+        } catch (e) { app.ui.fail(e, { lead: app.t('Type the bibliography file name into the box instead, or try Browse again.') }); }
       });
       root.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); save(); } });
       form.addEventListener('submit', e => { e.preventDefault(); save(); });
@@ -329,27 +330,28 @@ select.rui-in{padding-right:6px}
     root._collect = collect; root._save = save;
 
     // --- file card ---
-    const fileCard = h(`<section class="rui-card" aria-label="File"><div class="rui-sec">${icon('doc')} File</div></section>`);
+    const fileCard = h(`<section class="rui-card" aria-label="${app.th('File@@info card')}"><div class="rui-sec">${icon('doc')} ${app.th('File@@info card')}</div></section>`);
     right.appendChild(fileCard);
     if (doc.path) {
-      const p = h(`<div><div class="rui-path">${esc(doc.path)}</div><div class="rui-row" style="margin-bottom:14px"><button type="button" class="rui-btn" data-act="reveal">${icon('open')} Show in folder</button></div></div>`);
-      p.querySelector('[data-act=reveal]').addEventListener('click', () => invoke('reveal', doc.path).catch(e => app.ui.fail(e, { lead: 'Check that the file is still there. Copy its path to find it.', hideReason: true, actions: [{ label: 'Copy path', run: () => app.ui.copyText?.(doc.path, 'Path copied') }] })));
+      const p = h(`<div><div class="rui-path">${esc(doc.path)}</div><div class="rui-row" style="margin-bottom:14px"><button type="button" class="rui-btn" data-act="reveal">${icon('open')} ${app.th('Show in folder')}</button></div></div>`);
+      p.querySelector('[data-act=reveal]').addEventListener('click', () => invoke('reveal', doc.path).catch(e => app.ui.fail(e, { lead: app.t('Check that the file is still there. Copy its path to find it.'), hideReason: true, actions: [{ label: app.t('Copy path'), run: () => app.ui.copyText?.(doc.path, app.t('Path copied')) }] })));
       fileCard.appendChild(p);
     } else {
-      const p = h(`<div><div class="rui-path">Not saved yet.</div><div class="rui-row" style="margin-bottom:14px"><button type="button" class="rui-btn primary" data-act="saveas">${icon('save')} Save…</button></div></div>`);
-      p.querySelector('[data-act=saveas]').addEventListener('click', async () => { try { app.backstage.close(); await app.docs.save(doc); } catch (e) { app.ui.fail(e, { lead: 'Try saving again, or choose another folder.', retry: () => app.docs.save(doc) }); } });
+      const p = h(`<div><div class="rui-path">${app.th('Not saved yet.')}</div><div class="rui-row" style="margin-bottom:14px"><button type="button" class="rui-btn primary" data-act="saveas">${icon('save')} ${app.th('Save…')}</button></div></div>`);
+      p.querySelector('[data-act=saveas]').addEventListener('click', async () => { try { app.backstage.close(); await app.docs.save(doc); } catch (e) { app.ui.fail(e, { lead: app.t('Try saving again, or choose another folder.'), retry: () => app.docs.save(doc) }); } });
       fileCard.appendChild(p);
     }
     const c = countWords(doc.text || '');
     const flavor = doc.flavor || (mk.detectFlavor ? mk.detectFlavor(doc.text || '') : { name: 'Markdown', features: [] });
+    app.tm('LaTeX math'); // preload's detectFlavor feature names are translated when drawn (wikilinks, footnotes, callouts: shell.json)
     const dl = h(`<dl class="rui-dl">
-      <dt>Size</dt><dd data-f="size">—</dd><dt>Created</dt><dd data-f="created">—</dd><dt>Modified</dt><dd data-f="modified">—</dd>
-      <dt>Type</dt><dd>${esc((doc.ext || 'md').toUpperCase())}${doc.convertedFrom ? ` <span class="rui-hint">(converted, save as Markdown to keep edits)</span>` : ''}</dd>
-      ${doc.kind === 'markdown' ? `<dt>Flavor</dt><dd><span class="rui-tag blue">${esc(flavor.name)}</span></dd>
-      <dt>Features</dt><dd><div class="rui-tags">${(flavor.features || []).length ? flavor.features.map(f => `<span class="rui-tag">${esc(f)}</span>`).join('') : '<span class="rui-hint">Plain Markdown</span>'}</div></dd>
-      <dt>Words</dt><dd>${c.words.toLocaleString('en-US')}</dd><dt>Characters</dt><dd>${c.chars.toLocaleString('en-US')}</dd><dt>Reading</dt><dd>about ${c.minutes} min</dd>` : ''}
-      ${doc.pages ? `<dt>Pages</dt><dd>${esc(doc.pages)}</dd>` : ''}
-      ${doc.dirty ? `<dt>Status</dt><dd><span class="rui-tag crash">Unsaved changes</span></dd>` : ''}
+      <dt>${app.th('Size')}</dt><dd data-f="size">—</dd><dt>${app.th('Created')}</dt><dd data-f="created">—</dd><dt>${app.th('Modified')}</dt><dd data-f="modified">—</dd>
+      <dt>${app.th('Type')}</dt><dd>${esc((doc.ext || 'md').toUpperCase())}${doc.convertedFrom ? ` <span class="rui-hint">${app.th('(converted, save as Markdown to keep edits)')}</span>` : ''}</dd>
+      ${doc.kind === 'markdown' ? `<dt>${app.th('Flavor')}</dt><dd><span class="rui-tag blue">${esc(flavor.name)}</span></dd>
+      <dt>${app.th('Features@@markdown')}</dt><dd><div class="rui-tags">${(flavor.features || []).length ? flavor.features.map(f => `<span class="rui-tag">${esc(app.t(f))}</span>`).join('') : `<span class="rui-hint">${app.th('Plain Markdown')}</span>`}</div></dd>
+      <dt>${app.th('Words')}</dt><dd>${esc(num(c.words))}</dd><dt>${app.th('Characters')}</dt><dd>${esc(num(c.chars))}</dd><dt>${app.th('Reading')}</dt><dd>${app.th('about {count} min', { count: c.minutes })}</dd>` : ''}
+      ${doc.pages ? `<dt>${app.th('Pages')}</dt><dd>${esc(doc.pages)}</dd>` : ''}
+      ${doc.dirty ? `<dt>${app.th('Status')}</dt><dd><span class="rui-tag crash">${app.th('Unsaved changes')}</span></dd>` : ''}
     </dl>`);
     fileCard.appendChild(dl);
     if (doc.path) {
@@ -359,7 +361,7 @@ select.rui-in{padding-right:6px}
           dl.querySelector('[data-f=size]').textContent = fmtSize(info.size);
           dl.querySelector('[data-f=created]').textContent = fullDate(info.created);
           dl.querySelector('[data-f=modified]').textContent = fullDate(info.modified);
-        } else dl.querySelector('[data-f=size]').textContent = 'Save to write it again (the file is no longer on disk)';
+        } else dl.querySelector('[data-f=size]').textContent = app.t('Save to write it again (the file is no longer on disk)');
       } catch {}
     } else {
       dl.querySelector('[data-f=size]').textContent = fmtSize(new Blob([doc.text || '']).size);
@@ -375,7 +377,7 @@ select.rui-in{padding-right:6px}
     const a2 = A.slice(s, A.length - e), b2 = B.slice(s, B.length - e);
     const out = [];
     const ctx = n => A.slice(Math.max(0, s - n), s);
-    if (s > 3) out.push({ t: 'gap', s: `${s - 3} unchanged lines` });
+    if (s > 3) out.push({ t: 'gap', s: app.tn('{count} unchanged lines', s - 3) });
     ctx(3).forEach(l => out.push({ t: 'same', s: l }));
     const n = a2.length, m = b2.length;
     if (n * m > 4e6) { a2.forEach(l => out.push({ t: 'del', s: l })); b2.forEach(l => out.push({ t: 'add', s: l })); }
@@ -392,7 +394,7 @@ select.rui-in{padding-right:6px}
       while (j < m) out.push({ t: 'add', s: b2[j++] });
     }
     A.slice(A.length - e, A.length - e + 3).forEach(l => out.push({ t: 'same', s: l }));
-    if (e > 3) out.push({ t: 'gap', s: `${e - 3} unchanged lines` });
+    if (e > 3) out.push({ t: 'gap', s: app.tn('{count} unchanged lines', e - 3) });
     return out;
   }
 
@@ -407,13 +409,13 @@ select.rui-in{padding-right:6px}
 
   async function openEntry(e) {
     const full = await invoke('recovery-get', e.docId);
-    if (!full) { toast('Pick another item in File → Recover. This one was already removed (recovered text is kept for a limited time).', { kind: 'warn' }); return null; }
+    if (!full) { toast(app.t('Pick another item in File → Recover. This one was already removed (recovered text is kept for a limited time).'), { kind: 'warn' }); return null; }
     const existing = full.path && app.docs.list().find(d => d.path && d.path.toLowerCase() === full.path.toLowerCase());
     if (existing) {
-      const v = await app.ui.dialog({ title: `“${existing.title}” is already open`, body: 'Replace its text with the recovered text, or open the recovered text as a separate copy?', buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Open as copy', value: 'copy' }, { label: 'Replace text', value: 'replace', primary: true }] });
-      if (v === 'replace') { existing.setText(full.text, 'recover'); app.docs.activate(existing.id); app.backstage.close(); toast(`Recovered text placed in “${existing.title}”. Save to keep it.`); return existing; }
+      const v = await app.ui.dialog({ title: app.t('“{name}” is already open', { name: existing.title }), body: app.t('Replace its text with the recovered text, or open the recovered text as a separate copy?'), buttons: [{ label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Open as copy'), value: 'copy' }, { label: app.t('Replace text'), value: 'replace', primary: true }] });
+      if (v === 'replace') { existing.setText(full.text, 'recover'); app.docs.activate(existing.id); app.backstage.close(); toast(app.t('Recovered text placed in “{name}”. Save to keep it.', { name: existing.title })); return existing; }
       if (v !== 'copy') return null;
-      const d = app.docs.create({ text: full.text, title: `${full.title} (recovered)`, recoveryId: full.docId });
+      const d = app.docs.create({ text: full.text, title: app.t('{name} (recovered)', { name: full.title }), recoveryId: full.docId });
       d.dirty = true; app.events.emit('doc:changed', { doc: d, origin: 'recover' });
       app.backstage.close(); return d;
     }
@@ -425,36 +427,36 @@ select.rui-in{padding-right:6px}
       doc = app.docs.create({ path: full.path, text: disk, title: full.title, recoveryId: full.docId });
       doc.setText(full.text, 'recover');
     } else {
-      doc = app.docs.create({ text: full.text, title: full.title || 'Recovered', recoveryId: full.docId });
+      doc = app.docs.create({ text: full.text, title: full.title || app.t('Recovered'), recoveryId: full.docId });
       doc.dirty = true; app.events.emit('doc:changed', { doc, origin: 'recover' });
     }
     app.backstage.close();
-    toast(`Recovered “${doc.title}”. Save it to keep it.`);
+    toast(app.t('Recovered “{name}”. Save it to keep it.', { name: doc.title }));
     return doc;
   }
 
   async function compareEntry(e) {
     const full = await invoke('recovery-get', e.docId);
     let disk = '';
-    try { disk = await invoke('read-text', full.path); } catch (err) { app.ui.fail(err, { lead: 'Click Open to get the recovered text back. Compare needs the original file, which Markooj can’t read right now.', hideReason: true, actions: [{ label: 'Open', run: () => openEntry(e) }] }); return; }
+    try { disk = await invoke('read-text', full.path); } catch (err) { app.ui.fail(err, { lead: app.t('Click Open to get the recovered text back. Compare needs the original file, which Markooj can’t read right now.'), hideReason: true, actions: [{ label: app.t('Open@@verb'), run: () => openEntry(e) }] }); return; }
     const rows = diffLines(disk, full.text || '');
     const changed = rows.filter(r => r.t === 'add' || r.t === 'del').length;
-    const body = h(`<div><div class="rui-legend"><span class="l-del">Only in the file on disk</span><span class="l-add">Only in the recovered text</span></div><div class="rui-diff" role="region" aria-label="Differences" tabindex="0"></div></div>`);
+    const body = h(`<div><div class="rui-legend"><span class="l-del">${app.th('Only in the file on disk')}</span><span class="l-add">${app.th('Only in the recovered text')}</span></div><div class="rui-diff" role="region" aria-label="${app.th('Differences')}" tabindex="0"></div></div>`);
     const box = body.querySelector('.rui-diff');
-    if (!changed) box.appendChild(h(`<div class="gap">The recovered text is the same as the file on disk.</div>`));
+    if (!changed) box.appendChild(h(`<div class="gap">${app.th('The recovered text is the same as the file on disk.')}</div>`));
     else for (const r of rows.slice(0, 4000)) { const d = document.createElement('div'); d.className = r.t; d.textContent = r.s || ' '; box.appendChild(d); }
-    const v = await app.ui.dialog({ title: `Compare “${full.title}”`, body, buttons: [{ label: 'Close', value: 'close' }, { label: 'Open recovered text', value: 'open', primary: true }] });
+    const v = await app.ui.dialog({ title: app.t('Compare “{name}”', { name: full.title }), body, buttons: [{ label: app.t('Close'), value: 'close' }, { label: app.t('Open recovered text'), value: 'open', primary: true }] });
     if (v === 'open') openEntry(e);
   }
 
   async function renderRecover(el) {
     el.innerHTML = '';
-    const root = h(`<div class="rui rui-recover"><h2>Recover</h2><p class="rui-sub">Text you closed without saving, or that was open when Markooj stopped, is kept here for ${days()} days.</p>
+    const root = h(`<div class="rui rui-recover"><h2>${app.th('Recover')}</h2><p class="rui-sub">${app.th('Text you closed without saving, or that was open when Markooj stopped, is kept here for {count} days.', { count: days() })}</p>
       <div class="rui-row" style="margin-bottom:18px;flex-wrap:wrap">
-        <button type="button" class="rui-btn" data-act="folder">${icon('open')} Open recovery folder</button>
-        <button type="button" class="rui-btn ghost" data-act="options">${icon('gear')} Kept for ${days()} days — change in Options</button>
+        <button type="button" class="rui-btn" data-act="folder">${icon('open')} ${app.th('Open recovery folder')}</button>
+        <button type="button" class="rui-btn ghost" data-act="options">${icon('gear')} ${app.th('Kept for {count} days — change in Options', { count: days() })}</button>
         <span style="flex:1"></span>
-        <button type="button" class="rui-btn ghost danger" data-act="clear" disabled>${icon('x')} Delete all</button>
+        <button type="button" class="rui-btn ghost danger" data-act="clear" disabled>${icon('x')} ${app.th('Delete all')}</button>
       </div><div class="rui-list" role="list"></div></div>`);
     el.appendChild(root);
     root.querySelector('[data-act=folder]').addEventListener('click', openFolder);
@@ -464,35 +466,35 @@ select.rui-in{padding-right:6px}
     const clear = root.querySelector('[data-act=clear]');
     clear.disabled = !entries.length;
     clear.addEventListener('click', async () => {
-      if (!(await app.ui.confirm('Delete all recovered text?', `${entries.length} item${entries.length === 1 ? '' : 's'} will be deleted. This cannot be undone.`, { ok: 'Delete All', danger: true }))) return;
+      if (!(await app.ui.confirm(app.t('Delete all recovered text?'), app.tn('{count} items will be deleted. This cannot be undone.', entries.length), { ok: app.t('Delete All'), danger: true }))) return;
       for (const e of entries) await invoke('recovery-delete', e.docId).catch(() => {});
       crashedCount = 0; app.status.refresh?.();
-      toast('Recovered text deleted.');
+      toast(app.t('Recovered text deleted.'));
       renderRecover(el);
     });
     if (!entries.length) {
-      listEl.replaceWith(h(`<div class="rui-empty">${icon('check')}<b>Nothing to recover</b>When you close a document without saving, its text shows up here.</div>`));
+      listEl.replaceWith(h(`<div class="rui-empty">${icon('check')}<b>${app.th('Nothing to recover')}</b>${app.th('When you close a document without saving, its text shows up here.')}</div>`));
       return root;
     }
     entries.forEach((e, i) => {
       const ext = (e.path ? (e.path.split('.').pop() || 'md') : 'md').slice(0, 4).toUpperCase();
-      const status = e.crashed ? '<span class="rui-tag crash">Markooj stopped unexpectedly</span>' : e.closedAt ? '<span class="rui-tag">Closed without saving</span>' : '<span class="rui-tag">Not saved</span>';
+      const status = e.crashed ? `<span class="rui-tag crash">${app.th('Markooj stopped unexpectedly')}</span>` : e.closedAt ? `<span class="rui-tag">${app.th('Closed without saving')}</span>` : `<span class="rui-tag">${app.th('Not saved')}</span>`;
       const item = h(`<article class="rui-item" role="listitem" tabindex="0" style="animation-delay:${Math.min(i, 8) * 30}ms" aria-label="${esc(e.title)}">
         <span class="rui-badge">${esc(ext)}</span>
-        <div><h4>${esc(e.title || 'Untitled')} ${status}</h4>
-          <div class="rui-meta">${e.path ? esc(e.path) : 'Never saved'}${e.path && !e.exists ? ' (file no longer there)' : ''}</div>
-          <div class="rui-meta" title="${esc(fullDate(e.savedAt))}">Last change ${esc(relTime(e.savedAt))}${e.closedAt ? ` · closed ${esc(relTime(e.closedAt))}` : ''} · ${esc(fmtSize(e.size))}</div>
+        <div><h4>${esc(e.title || app.t('Untitled'))} ${status}</h4>
+          <div class="rui-meta">${e.path ? esc(e.path) : app.th('Never saved')}${e.path && !e.exists ? ` ${app.th('(file no longer there)')}` : ''}</div>
+          <div class="rui-meta" title="${esc(fullDate(e.savedAt))}">${app.th('Last change {when}', { when: relTime(e.savedAt) })}${e.closedAt ? ` · ${app.th('closed {when}', { when: relTime(e.closedAt) })}` : ''} · ${esc(fmtSize(e.size))}</div>
           ${e.preview ? `<div class="rui-prev">${esc(e.preview)}</div>` : ''}
         </div>
         <div class="rui-actions">
-          ${e.path && e.exists && isMarkdownPath(e.path) ? `<button type="button" class="rui-btn ghost" data-act="compare" title="Compare with the file on disk">Compare</button>` : ''}
-          <button type="button" class="rui-btn ghost icon" data-act="delete" title="Delete this recovered text" aria-label="Delete">${icon('x')}</button>
-          <button type="button" class="rui-btn primary" data-act="open">Open</button>
+          ${e.path && e.exists && isMarkdownPath(e.path) ? `<button type="button" class="rui-btn ghost" data-act="compare" title="${app.th('Compare with the file on disk')}">${app.th('Compare')}</button>` : ''}
+          <button type="button" class="rui-btn ghost icon" data-act="delete" title="${app.th('Delete this recovered text')}" aria-label="${app.th('Delete')}">${icon('x')}</button>
+          <button type="button" class="rui-btn primary" data-act="open">${app.th('Open@@verb')}</button>
         </div></article>`);
-      item.querySelector('[data-act=open]').addEventListener('click', () => openEntry(e).catch(err => app.ui.fail(err, { lead: 'Try Open again. The recovered text is still kept.', retry: () => openEntry(e) })));
-      item.querySelector('[data-act=compare]')?.addEventListener('click', () => compareEntry(e).catch(err => app.ui.fail(err, { lead: 'Click Open to get the recovered text back.', actions: [{ label: 'Open', run: () => openEntry(e) }] })));
+      item.querySelector('[data-act=open]').addEventListener('click', () => openEntry(e).catch(err => app.ui.fail(err, { lead: app.t('Try Open again. The recovered text is still kept.'), retry: () => openEntry(e) })));
+      item.querySelector('[data-act=compare]')?.addEventListener('click', () => compareEntry(e).catch(err => app.ui.fail(err, { lead: app.t('Click Open to get the recovered text back.'), actions: [{ label: app.t('Open@@verb'), run: () => openEntry(e) }] })));
       item.querySelector('[data-act=delete]').addEventListener('click', async () => {
-        if (!(await app.ui.confirm('Delete this recovered text?', `“${e.title}” will be deleted from the recovery store. This cannot be undone.`, { ok: 'Delete', danger: true }))) return;
+        if (!(await app.ui.confirm(app.t('Delete this recovered text?'), app.t('“{name}” will be deleted from the recovery store. This cannot be undone.', { name: e.title }), { ok: app.t('Delete'), danger: true }))) return;
         await invoke('recovery-delete', e.docId).catch(() => {});
         item.style.transition = 'opacity .2s, transform .2s'; item.style.opacity = '0'; item.style.transform = 'scale(.98)';
         setTimeout(() => renderRecover(el), 200);
@@ -510,7 +512,7 @@ select.rui-in{padding-right:6px}
 
   async function openFolder() {
     try { const dir = await invoke('recovery-dir'); await invoke('open-folder', dir); }
-    catch (e) { app.ui.fail(e, { lead: 'Use File → Recover to open recovered text. The folder didn’t open this time.', hideReason: true, retry: () => openFolder() }); }
+    catch (e) { app.ui.fail(e, { lead: app.t('Use File → Recover to open recovered text. The folder didn’t open this time.'), hideReason: true, retry: () => openFolder() }); }
   }
 
   // ---------- Options → Recovery ----------
@@ -519,15 +521,15 @@ select.rui-in{padding-right:6px}
     const opts = [...new Set([7, 14, 30, 90, cur])].sort((a, b) => a - b);
     el.innerHTML = '';
     const root = h(`<div class="rui"><div class="rui-opt">
-      <label class="rui-lbl" for="rui-days" style="font-size:13px;color:var(--text)">Keep unsaved text for</label>
-      <select class="rui-in" id="rui-days">${opts.map(d => `<option value="${d}"${d === cur ? ' selected' : ''}>${d} days</option>`).join('')}</select>
-      <button type="button" class="rui-btn" data-act="folder">${icon('open')} Open recovery folder</button>
-      <button type="button" class="rui-btn ghost" data-act="recover">See recovered documents</button>
-    </div><p class="rui-hint" style="margin:8px 0 0">Markooj keeps a copy of every unsaved document, also after a crash. Copies are kept at least 7 days.</p></div>`);
+      <label class="rui-lbl" for="rui-days" style="font-size:13px;color:var(--text)">${app.th('Keep unsaved text for')}</label>
+      <select class="rui-in" id="rui-days">${opts.map(d => `<option value="${d}"${d === cur ? ' selected' : ''}>${app.th('{count} days', { count: d })}</option>`).join('')}</select>
+      <button type="button" class="rui-btn" data-act="folder">${icon('open')} ${app.th('Open recovery folder')}</button>
+      <button type="button" class="rui-btn ghost" data-act="recover">${app.th('See recovered documents')}</button>
+    </div><p class="rui-hint" style="margin:8px 0 0">${app.th('Markooj keeps a copy of every unsaved document, also after a crash. Copies are kept at least {count} days.', { count: 7 })}</p></div>`);
     root.querySelector('#rui-days').addEventListener('change', ev => {
       const n = Math.max(7, Number(ev.target.value) || 7);
       app.settings.set('recoveryDays', n);
-      toast(`Unsaved text is now kept for ${n} days.`);
+      toast(app.tn('Unsaved text is now kept for {count} days.', n));
     });
     root.querySelector('[data-act=folder]').addEventListener('click', openFolder);
     root.querySelector('[data-act=recover]').addEventListener('click', () => app.backstage.open('recover'));
@@ -536,15 +538,15 @@ select.rui-in{padding-right:6px}
   }
 
   // ---------- registration ----------
-  app.backstage.addPage({ id: 'info', label: 'Info', icon: 'info', order: 70, render: el => renderInfo(el) });
-  app.backstage.addPage({ id: 'recover', label: 'Recover', icon: 'undo', order: 75, render: el => renderRecover(el) });
-  app.options.addSection({ id: 'recovery', label: 'Recovery', order: 60, render: renderOptions });
+  app.backstage.addPage({ id: 'info', label: app.tm('Info'), icon: 'info', order: 70, render: el => renderInfo(el) });
+  app.backstage.addPage({ id: 'recover', label: app.tm('Recover'), icon: 'undo', order: 75, render: el => renderRecover(el) });
+  app.options.addSection({ id: 'recovery', label: app.tm('Recovery'), order: 60, render: renderOptions });
 
-  app.commands.register('file.info', { label: 'Document properties (Info)', icon: 'info', run: () => app.backstage.open('info') });
-  app.commands.register('file.recover', { label: 'Recover unsaved documents', icon: 'undo', run: () => app.backstage.open('recover') });
-  app.commands.register('file.openRecoveryFolder', { label: 'Open recovery folder', icon: 'open', run: openFolder });
+  app.commands.register('file.info', { label: app.tm('Document properties (Info)'), icon: 'info', run: () => app.backstage.open('info') });
+  app.commands.register('file.recover', { label: app.tm('Recover unsaved documents'), icon: 'undo', run: () => app.backstage.open('recover') });
+  app.commands.register('file.openRecoveryFolder', { label: app.tm('Open recovery folder'), icon: 'open', run: openFolder });
   app.commands.register('file.revealInFolder', {
-    label: 'Show file in folder', icon: 'open',
+    label: app.tm('Show file in folder'), icon: 'open',
     isEnabled: () => !!app.docs.active()?.path,
     run: () => { const d = app.docs.active(); if (d?.path) return invoke('reveal', d.path); },
   });
@@ -556,7 +558,7 @@ select.rui-in{padding-right:6px}
       el.innerHTML = '';
       el.hidden = !crashedCount;
       if (!crashedCount) return;
-      const b = h(`<button type="button" class="rui-pill" title="Open File → Recover">${icon('undo')} ${crashedCount} recovered</button>`);
+      const b = h(`<button type="button" class="rui-pill" title="${app.th('Open File → Recover')}">${icon('undo')} ${app.th('{count} recovered', { count: crashedCount })}</button>`);
       b.addEventListener('click', () => app.backstage.open('recover'));
       el.appendChild(b);
     },
@@ -572,8 +574,8 @@ select.rui-in{padding-right:6px}
     if (!crashed.length) return;
     crashedCount = crashed.length;
     app.status.refresh?.();
-    toast(crashed.length === 1 ? `Open File → Recover to get back your unsaved text from “${crashed[0].title}”.` : `Open File → Recover to get back unsaved text from ${crashed.length} documents.`,
-      { kind: 'info', timeout: 12000, actions: [{ label: 'Open Recover', run: () => app.backstage.open('recover') }] });
+    toast(crashed.length === 1 ? app.t('Open File → Recover to get back your unsaved text from “{name}”.', { name: crashed[0].title }) : app.tn('Open File → Recover to get back unsaved text from {count} documents.', crashed.length),
+      { kind: 'info', timeout: 12000, actions: [{ label: app.t('Open Recover'), run: () => app.backstage.open('recover') }] });
     for (const e of crashed) invoke('recovery-mark-closed', e.docId, { crashed: true }).catch(() => {});
   }
   app.events.on('ready', () => setTimeout(checkCrashed, 600));
@@ -612,7 +614,10 @@ select.rui-in{padding-right:6px}
     A('pandoc' in t && 'ddjvu' in t && 'bundled' in t, 'tools shape');
     // the bundled tools (vendor/<platform>) must be found when they were fetched
     const info = await invoke('app-info');
-    if (info.platform === 'win32') {
+    // since 1.2 the installer is slim: only the full copy (portable zip, or a dev checkout after fetch-tools) carries the bundle;
+    // a slim copy gets the tools from File → Options → Features
+    const health = await invoke('tools-health').catch(() => null);
+    if (info.platform === 'win32' && health && health.bundleExpected) {
       A(t.pandoc && t.pdf2djvu && t.ddjvu && t.djvutxt, 'bundled Pandoc, pdf2djvu, ddjvu and djvutxt resolve: ' + JSON.stringify(t));
       A(t.bundled === true, 'tools come from the bundle, not PATH');
     }

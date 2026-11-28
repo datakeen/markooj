@@ -21,7 +21,8 @@ const PURIFY_CFG = {
   ALLOW_DATA_ATTR: true, ALLOW_ARIA_ATTR: true,
   SAFE_FOR_XML: false, // keeps Mermaid sources like "A --> B" in data-src and <!-- comment: … --> nodes
   SANITIZE_DOM: false, // heading ids such as "title" or "contents" must survive for the table of contents
-  ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|file|data|blob|markooj):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  // [a-z]:[\\/] keeps Windows paths such as C:/Users/…/image.png (MarkText, Typora) and C:\pics\x.png
+  ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|file|data|blob|markooj):|[a-z]:[\\/]|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
 };
 if (purify) {
   purify.addHook('afterSanitizeAttributes', node => {
@@ -347,6 +348,20 @@ function wikiPlugin(md) {
     state.pos = q + 2; return true;
   });
   md.renderer.rules.wikilink = (t, i) => `<a class="mk-wiki" href="${md.utils.escapeHtml(t[i].meta.target)}.md">${md.utils.escapeHtml(t[i].meta.label)}</a>`;
+  // Obsidian picture embeds ![[photo.png]], ![[photo.png|300]] (src/pictures.js finds the file in the vault's usual folders)
+  md.inline.ruler.before('wikilink', 'wiki_embed', (state, silent) => {
+    const s = state.src, p = state.pos;
+    if (!s.startsWith('![[', p)) return false;
+    const q = s.indexOf(']]', p + 3); if (q < 0) return false;
+    const [target, opt] = s.slice(p + 3, q).split('|');
+    if (!/\.(png|jpe?g|gif|webp|avif|bmp|ico|svg)$/i.test((target || '').trim())) return false;
+    if (!silent) { const t = state.push('wiki_embed', '', 0); t.meta = { target: target.trim(), opt: (opt || '').trim(), raw: s.slice(p, q + 2) }; }
+    state.pos = q + 2; return true;
+  });
+  md.renderer.rules.wiki_embed = (t, i) => {
+    const m = t[i].meta, esc = md.utils.escapeHtml, w = /^(\d+)(?:x(\d+))?$/.exec(m.opt);
+    return `<img class="mk-wiki-embed" src="${esc(encodeURI(m.target))}" alt="${w ? '' : esc(m.opt)}"${w ? ` width="${w[1]}"${w[2] ? ` height="${w[2]}"` : ''}` : ''} data-raw="${esc(m.raw)}">`;
+  };
 }
 // Pandoc citations: [@key], [@a; @b, p. 5], [see @key, chap. 3; also @lee2019, p. 5], [-@key], and narrative @key.
 const CITE_KEY_SRC = '[\\w][\\w:.#$%&\\-+?<>~/]*';
@@ -618,6 +633,27 @@ function mdxPlaceholders(body) {
   return out.join('\n');
 }
 
+// Pictures written by other editors (MarkText, Typora, Zettlr …): a path with spaces and no <…>, or a file:/// URL.
+// Only what is drawn changes (same line count); the document keeps the path exactly as typed.
+function picturePaths(body) {
+  if (!/!\[/.test(body)) return body;
+  let fence = null;
+  return body.split('\n').map(l => {
+    const f = /^\s{0,3}(`{3,}|~{3,})/.exec(l);
+    if (fence) { if (f && f[1][0] === fence[0] && f[1].length >= fence.length) fence = null; return l; }
+    if (f) { fence = f[1]; return l; }
+    if (!/!\[/.test(l)) return l;
+    return l.replace(/(!\[(?:[^[\]\n]|\[[^\]\n]*\])*\]\()([^()<>\n]*?)(\s+"[^"\n]*")?\)/g, (m, head, dest, title, off) => {
+      if ((l.slice(0, off).match(/`/g) || []).length % 2) return m; // inside `code`
+      const was = dest.trim();
+      let d = was.replace(/^file:\/\/(?:localhost)?\/?(?=[A-Za-z]:[\\/])/i, '').replace(/^file:\/\/(?:localhost)?(?=\/)/i, '');
+      if (/^[A-Za-z]:\\/.test(d)) d = d.replace(/\\/g, '/'); // C:\pics\x.png (a backslash would be read as an escape)
+      if (d === was && !/\s/.test(d)) return m;
+      return `${head}<${d}>${title || ''})`;
+    });
+  }).join('\n');
+}
+
 function render(text, opts = {}) {
   const fm = splitFrontMatter(text);
   // one macro copy per render: \gdef in one equation is visible to later ones, never leaks into the caller's object
@@ -626,6 +662,7 @@ function render(text, opts = {}) {
   // R Markdown / Quarto chunks ```{r} → ```r
   body = body.replace(/^```\{(\w+)[^}]*\}/gm, '```$1');
   body = mdxPlaceholders(body);
+  body = picturePaths(body);
   let html = callouts(md.render(body, env)) + bibliography(env);
   let head = '';
   const esc = md.utils.escapeHtml, m = fm.meta;
@@ -659,7 +696,7 @@ function xrefScan(text) {
   const off = (fm.raw.match(/\n/g) || []).length;
   let toks = [];
   const env = {};
-  try { toks = md.parse(fm.body.replace(/^```\{(\w+)[^}]*\}/gm, '```$1'), env); } catch (e) { console.error('xref scan failed', e); }
+  try { toks = md.parse(picturePaths(fm.body.replace(/^```\{(\w+)[^}]*\}/gm, '```$1')), env); } catch (e) { console.error('xref scan failed', e); }
   const items = [];
   const L = map => (map ? map[0] + off : null);
   for (let i = 0; i < toks.length; i++) {
@@ -678,6 +715,8 @@ function xrefScan(text) {
       let j = i + 1; while (j < toks.length && toks[j].type !== 'inline' && toks[j].type !== 'footnote_close') j++;
       if (label != null) items.push({ kind: 'fn', label: String(label), text: toks[j] && toks[j].type === 'inline' ? inlineText(toks[j].children) : '', line: null });
     } else if (t.type === 'inline' && t.children) {
+      // table cells: markdown-it puts the line on the row (tr_open), not on the cell
+      if (!t.map) for (let k = i - 1; k >= 0 && k > i - 400; k--) { if (toks[k].type === 'tr_open') { t.map = toks[k].map; break; } if (toks[k].type === 'table_open') break; }
       let imgIndex = 0;
       for (const c of t.children) {
         if (c.type === 'math' && c.meta && c.meta.display) {
@@ -889,6 +928,7 @@ function makeTurndown(prefs = {}) {
   });
   td.addRule('front', { filter: n => n.classList && (n.classList.contains('mk-front') || n.classList.contains('mk-bibliography')), replacement: () => '' });
   td.addRule('wiki', { filter: n => n.nodeName === 'A' && n.classList.contains('mk-wiki'), replacement: (c, n) => { const t = n.getAttribute('href').replace(/\.md$/, ''); return t === c ? `[[${t}]]` : `[[${t}|${c}]]`; } });
+  td.addRule('wikiEmbed', { filter: n => n.nodeName === 'IMG' && n.classList.contains('mk-wiki-embed') && n.hasAttribute('data-raw'), replacement: (_c, n) => n.getAttribute('data-raw') });
   td.addRule('mark', { filter: ['mark'], replacement: c => `==${c}==` });
   td.addRule('del', { filter: ['del', 's', 'strike'], replacement: c => `~~${c}~~` });
   td.addRule('sub', { filter: ['sub'], replacement: c => `~${c}~` });
@@ -1094,6 +1134,8 @@ contextBridge.exposeInMainWorld('mk', {
   // spelling for the writing module (nspell; Chromium's checker kept as misspelled/suggestions)
   spell: spellApi,
   platform: process.platform,
+  // the user's home folder, for pictures written as ~/Pictures/x.png (src/core.js assetUrl, src/pictures.js)
+  homeDir: (() => { try { return require('os').homedir(); } catch { return ''; } })(),
   versions: { electron: process.versions.electron, chrome: process.versions.chrome },
   invoke: (ch, ...a) => ipcRenderer.invoke(ch, ...a).catch(e => { throw takeErrorInfo(e); }),
   // {message, actions:[{id, label, url?, text?, tool?, path?}], details, code, tool} for an error from invoke, or null
@@ -1102,5 +1144,10 @@ contextBridge.exposeInMainWorld('mk', {
   copyText: text => ipcRenderer.invoke('clipboard-write', String(text ?? '')),
   // Electron 32+ has no File.path: dropped files get their real path here
   pathForFile: f => { try { return webUtils.getPathForFile(f) || null; } catch { return null; } },
+  // interface translations (src/i18n.js, main-i18n.js): synchronous, so the first paint is already in the chosen language
+  i18n: {
+    boot: () => { try { return ipcRenderer.sendSync('i18n-boot'); } catch (e) { return { error: String(e && e.message || e) }; } },
+    catalog: code => { try { return ipcRenderer.sendSync('i18n-catalog', String(code || '')); } catch (e) { return { error: String(e && e.message || e) }; } },
+  },
   on: (ch, fn) => { const h = (_e, ...a) => fn(...a); ipcRenderer.on(ch, h); return () => ipcRenderer.removeListener(ch, h); },
 });

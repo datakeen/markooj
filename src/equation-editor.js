@@ -200,65 +200,65 @@
   const fn = (n) => T(`\\${n}\\left(#0\\right)`, `\\${n}`, n[0].toUpperCase() + n.slice(1), n);
   const UNIT = (u, show, name) => T(/^\\%|^\^/.test(u) ? u : '\\,' + u, show || u, name);
   const PALETTES = [
-    { id: 'basic', label: 'Basic', items: [
-      T('\\frac{#0}{#?}', '\\frac{a}{b}', 'Fraction', '/'), T('#@^{#?}', 'x^{2}', 'Superscript', '^'), T('#@_{#?}', 'x_{i}', 'Subscript', '_'),
-      T('#@_{#?}^{#?}', 'x_{i}^{2}', 'Subscript and superscript'), T('\\sqrt{#0}', '\\sqrt{x}', 'Square root', 'sqrt'), T('\\sqrt[#?]{#0}', '\\sqrt[n]{x}', 'Root'),
-      T('\\frac{\\mathrm{d}#?}{\\mathrm{d}#?}', '\\frac{dy}{dx}', 'Derivative'), T('\\frac{\\partial #?}{\\partial #?}', '\\frac{\\partial f}{\\partial x}', 'Partial derivative'),
-      T('\\binom{#?}{#?}', '\\binom{n}{k}', 'Binomial'), T('\\left|#0\\right|', '|x|', 'Absolute value'), T('\\overline{#0}', '\\overline{x}', 'Mean (bar)'),
-      T('e^{#?}', 'e^{x}', 'Exponential'), T('\\log_{#?}\\left(#0\\right)', '\\log_{b}x', 'Logarithm'), fn('ln'), fn('log'), fn('exp'),
-      fn('sin'), fn('cos'), fn('tan'), T('#@\\times10^{#?}', 'a{\\times}10^{n}', 'Scientific notation'), T('\\text{#0}', '\\text{abc}', 'Text'),
-      T('#@^{\\prime}', "f'", 'Prime'), T('\\boxed{#0}', '\\boxed{x}', 'Box'), T('#@^{\\circ}', 'x^{\\circ}', 'Degrees'),
+    { id: 'basic', label: app.tm('Basic'), items: [
+      T('\\frac{#0}{#?}', '\\frac{a}{b}', app.tm('Fraction'), '/'), T('#@^{#?}', 'x^{2}', app.tm('Superscript'), '^'), T('#@_{#?}', 'x_{i}', app.tm('Subscript'), '_'),
+      T('#@_{#?}^{#?}', 'x_{i}^{2}', app.tm('Subscript and superscript')), T('\\sqrt{#0}', '\\sqrt{x}', app.tm('Square root'), 'sqrt'), T('\\sqrt[#?]{#0}', '\\sqrt[n]{x}', app.tm('Root')),
+      T('\\frac{\\mathrm{d}#?}{\\mathrm{d}#?}', '\\frac{dy}{dx}', app.tm('Derivative')), T('\\frac{\\partial #?}{\\partial #?}', '\\frac{\\partial f}{\\partial x}', app.tm('Partial derivative')),
+      T('\\binom{#?}{#?}', '\\binom{n}{k}', app.tm('Binomial')), T('\\left|#0\\right|', '|x|', app.tm('Absolute value')), T('\\overline{#0}', '\\overline{x}', app.tm('Mean (bar)')),
+      T('e^{#?}', 'e^{x}', app.tm('Exponential')), T('\\log_{#?}\\left(#0\\right)', '\\log_{b}x', app.tm('Logarithm')), fn('ln'), fn('log'), fn('exp'),
+      fn('sin'), fn('cos'), fn('tan'), T('#@\\times10^{#?}', 'a{\\times}10^{n}', app.tm('Scientific notation')), T('\\text{#0}', '\\text{abc}', app.tm('Text')),
+      T('#@^{\\prime}', "f'", app.tm('Prime')), T('\\boxed{#0}', '\\boxed{x}', app.tm('Box')), T('#@^{\\circ}', 'x^{\\circ}', app.tm('Degrees')),
     ] },
-    { id: 'big', label: 'Big operators', items: [
-      T('\\sum_{#?}^{#?}#0', '\\sum_{i=1}^{n}', 'Sum with limits', 'sum'), T('\\sum_{#?}#0', '\\sum_{i}', 'Sum'), T('\\prod_{#?}^{#?}#0', '\\prod_{i=1}^{n}', 'Product', 'prod'),
-      T('\\int_{#?}^{#?}#0\\,\\mathrm{d}#?', '\\int_{a}^{b} f\\,dx', 'Definite integral', 'int'), T('\\int #0\\,\\mathrm{d}#?', '\\int f\\,dx', 'Integral'),
-      T('\\iint_{#?}#0\\,\\mathrm{d}A', '\\iint_{D}', 'Double integral'), T('\\iiint_{#?}#0\\,\\mathrm{d}V', '\\iiint_{V}', 'Triple integral'), T('\\oint_{#?}#0', '\\oint_{C}', 'Contour integral'),
-      T('\\lim_{#?\\to #?}#0', '\\lim_{x\\to 0}', 'Limit', 'lim'), T('\\lim_{#?\\to\\infty}#0', '\\lim_{n\\to\\infty}', 'Limit to infinity'),
-      T('\\bigcup_{#?}^{#?}#0', '\\bigcup_{i=1}^{n}', 'Union'), T('\\bigcap_{#?}^{#?}#0', '\\bigcap_{i=1}^{n}', 'Intersection'),
-      T('\\max_{#?}#0', '\\max_{x}', 'Maximum'), T('\\min_{#?}#0', '\\min_{x}', 'Minimum'), T('\\sup_{#?}#0', '\\sup_{x}', 'Supremum'), T('\\inf_{#?}#0', '\\inf_{x}', 'Infimum'),
-      T('\\operatorname*{arg\\,min}_{#?}#0', '\\operatorname*{arg\\,min}_{x}', 'Arg min'), T('\\coprod_{#?}^{#?}#0', '\\coprod_{i}', 'Coproduct'),
+    { id: 'big', label: app.tm('Big operators'), items: [
+      T('\\sum_{#?}^{#?}#0', '\\sum_{i=1}^{n}', app.tm('Sum with limits'), 'sum'), T('\\sum_{#?}#0', '\\sum_{i}', app.tm('Sum')), T('\\prod_{#?}^{#?}#0', '\\prod_{i=1}^{n}', app.tm('Product'), 'prod'),
+      T('\\int_{#?}^{#?}#0\\,\\mathrm{d}#?', '\\int_{a}^{b} f\\,dx', app.tm('Definite integral'), 'int'), T('\\int #0\\,\\mathrm{d}#?', '\\int f\\,dx', app.tm('Integral')),
+      T('\\iint_{#?}#0\\,\\mathrm{d}A', '\\iint_{D}', app.tm('Double integral')), T('\\iiint_{#?}#0\\,\\mathrm{d}V', '\\iiint_{V}', app.tm('Triple integral')), T('\\oint_{#?}#0', '\\oint_{C}', app.tm('Contour integral')),
+      T('\\lim_{#?\\to #?}#0', '\\lim_{x\\to 0}', app.tm('Limit'), 'lim'), T('\\lim_{#?\\to\\infty}#0', '\\lim_{n\\to\\infty}', app.tm('Limit to infinity')),
+      T('\\bigcup_{#?}^{#?}#0', '\\bigcup_{i=1}^{n}', app.tm('Union')), T('\\bigcap_{#?}^{#?}#0', '\\bigcap_{i=1}^{n}', app.tm('Intersection')),
+      T('\\max_{#?}#0', '\\max_{x}', app.tm('Maximum')), T('\\min_{#?}#0', '\\min_{x}', app.tm('Minimum')), T('\\sup_{#?}#0', '\\sup_{x}', app.tm('Supremum')), T('\\inf_{#?}#0', '\\inf_{x}', app.tm('Infimum')),
+      T('\\operatorname*{arg\\,min}_{#?}#0', '\\operatorname*{arg\\,min}_{x}', app.tm('Arg min')), T('\\coprod_{#?}^{#?}#0', '\\coprod_{i}', app.tm('Coproduct')),
     ] },
-    { id: 'brackets', label: 'Brackets', items: [
-      T('\\left(#0\\right)', '\\left(x\\right)', 'Parentheses that grow'), T('\\left[#0\\right]', '\\left[x\\right]', 'Square brackets that grow'),
-      T('\\left\\{#0\\right\\}', '\\left\\{x\\right\\}', 'Braces that grow'), T('\\left|#0\\right|', '\\left|x\\right|', 'Bars that grow'),
-      T('\\left\\|#0\\right\\|', '\\left\\|x\\right\\|', 'Norm'), T('\\left\\langle #0\\right\\rangle', '\\left\\langle x\\right\\rangle', 'Angle brackets'),
-      T('\\left\\lfloor #0\\right\\rfloor', '\\lfloor x\\rfloor', 'Floor'), T('\\left\\lceil #0\\right\\rceil', '\\lceil x\\rceil', 'Ceiling'),
-      T('\\left.#0\\right|_{#?}', '\\left.f\\right|_{a}', 'Evaluated at'), T('\\left[#0\\right)', '\\left[a,b\\right)', 'Half-open interval'),
-      T('\\left(#0\\right]', '\\left(a,b\\right]', 'Half-open interval'), T('\\underbrace{#0}_{#?}', '\\underbrace{a+b}_{n}', 'Brace below'),
-      T('\\overbrace{#0}^{#?}', '\\overbrace{a+b}^{n}', 'Brace above'),
+    { id: 'brackets', label: app.tm('Brackets'), items: [
+      T('\\left(#0\\right)', '\\left(x\\right)', app.tm('Parentheses that grow')), T('\\left[#0\\right]', '\\left[x\\right]', app.tm('Square brackets that grow')),
+      T('\\left\\{#0\\right\\}', '\\left\\{x\\right\\}', app.tm('Braces that grow')), T('\\left|#0\\right|', '\\left|x\\right|', app.tm('Bars that grow')),
+      T('\\left\\|#0\\right\\|', '\\left\\|x\\right\\|', app.tm('Norm')), T('\\left\\langle #0\\right\\rangle', '\\left\\langle x\\right\\rangle', app.tm('Angle brackets')),
+      T('\\left\\lfloor #0\\right\\rfloor', '\\lfloor x\\rfloor', app.tm('Floor')), T('\\left\\lceil #0\\right\\rceil', '\\lceil x\\rceil', app.tm('Ceiling')),
+      T('\\left.#0\\right|_{#?}', '\\left.f\\right|_{a}', app.tm('Evaluated at')), T('\\left[#0\\right)', '\\left[a,b\\right)', app.tm('Half-open interval')),
+      T('\\left(#0\\right]', '\\left(a,b\\right]', app.tm('Half-open interval')), T('\\underbrace{#0}_{#?}', '\\underbrace{a+b}_{n}', app.tm('Brace below')),
+      T('\\overbrace{#0}^{#?}', '\\overbrace{a+b}^{n}', app.tm('Brace above')),
     ] },
-    { id: 'matrix', label: 'Matrix', custom: 'matrix' },
-    { id: 'accents', label: 'Accents', items: [
-      T('\\hat{#0}', '\\hat{x}', 'Hat'), T('\\bar{#0}', '\\bar{x}', 'Bar'), T('\\overline{#0}', '\\overline{AB}', 'Line over'), T('\\underline{#0}', '\\underline{x}', 'Line under'),
-      T('\\vec{#0}', '\\vec{v}', 'Vector arrow'), T('\\overrightarrow{#0}', '\\overrightarrow{AB}', 'Long arrow over'), T('\\dot{#0}', '\\dot{x}', 'Dot (time derivative)'),
-      T('\\ddot{#0}', '\\ddot{x}', 'Double dot'), T('\\tilde{#0}', '\\tilde{x}', 'Tilde'), T('\\widehat{#0}', '\\widehat{xy}', 'Wide hat'), T('\\widetilde{#0}', '\\widetilde{xy}', 'Wide tilde'),
-      T('\\mathbf{#0}', '\\mathbf{x}', 'Bold'), T('\\boldsymbol{#0}', '\\boldsymbol{\\sigma}', 'Bold symbol'), T('\\mathrm{#0}', '\\mathrm{x}', 'Upright'),
-      T('\\mathbb{#0}', '\\mathbb{R}', 'Blackboard bold'), T('\\mathcal{#0}', '\\mathcal{L}', 'Calligraphic'), T('\\mathit{#0}', '\\mathit{x}', 'Italic'),
+    { id: 'matrix', label: app.tm('Matrix'), custom: 'matrix' },
+    { id: 'accents', label: app.tm('Accents'), items: [
+      T('\\hat{#0}', '\\hat{x}', app.tm('Hat')), T('\\bar{#0}', '\\bar{x}', app.tm('Bar')), T('\\overline{#0}', '\\overline{AB}', app.tm('Line over')), T('\\underline{#0}', '\\underline{x}', app.tm('Line under')),
+      T('\\vec{#0}', '\\vec{v}', app.tm('Vector arrow')), T('\\overrightarrow{#0}', '\\overrightarrow{AB}', app.tm('Long arrow over')), T('\\dot{#0}', '\\dot{x}', app.tm('Dot (time derivative)')),
+      T('\\ddot{#0}', '\\ddot{x}', app.tm('Double dot')), T('\\tilde{#0}', '\\tilde{x}', app.tm('Tilde')), T('\\widehat{#0}', '\\widehat{xy}', app.tm('Wide hat')), T('\\widetilde{#0}', '\\widetilde{xy}', app.tm('Wide tilde')),
+      T('\\mathbf{#0}', '\\mathbf{x}', app.tm('Bold')), T('\\boldsymbol{#0}', '\\boldsymbol{\\sigma}', app.tm('Bold symbol')), T('\\mathrm{#0}', '\\mathrm{x}', app.tm('Upright')),
+      T('\\mathbb{#0}', '\\mathbb{R}', app.tm('Blackboard bold')), T('\\mathcal{#0}', '\\mathcal{L}', app.tm('Calligraphic')), T('\\mathit{#0}', '\\mathit{x}', app.tm('Italic')),
     ] },
-    { id: 'greek', label: 'Greek', items: S('\\alpha \\beta \\gamma \\delta \\epsilon \\varepsilon \\zeta \\eta \\theta \\vartheta \\iota \\kappa \\lambda \\mu \\nu \\xi \\pi \\rho \\varrho \\sigma \\tau \\upsilon \\phi \\varphi \\chi \\psi \\omega \\Gamma \\Delta \\Theta \\Lambda \\Xi \\Pi \\Sigma \\Upsilon \\Phi \\Psi \\Omega') },
-    { id: 'symbols', label: 'Symbols', items: [
+    { id: 'greek', label: app.tm('Greek'), items: S('\\alpha \\beta \\gamma \\delta \\epsilon \\varepsilon \\zeta \\eta \\theta \\vartheta \\iota \\kappa \\lambda \\mu \\nu \\xi \\pi \\rho \\varrho \\sigma \\tau \\upsilon \\phi \\varphi \\chi \\psi \\omega \\Gamma \\Delta \\Theta \\Lambda \\Xi \\Pi \\Sigma \\Upsilon \\Phi \\Psi \\Omega') },
+    { id: 'symbols', label: app.tm('Symbols'), items: [
       ...S('+ - \\pm \\mp \\times \\div \\cdot \\ast \\star \\circ \\bullet \\nabla \\partial \\infty \\cap \\cup \\setminus \\oplus \\otimes \\forall \\exists \\neg \\land \\lor \\emptyset \\hbar \\ell \\Re \\Im \\aleph \\dots \\cdots \\vdots \\ddots \\%'),
       ...S('= \\neq \\approx \\sim \\simeq \\cong \\equiv \\propto < > \\le \\ge \\ll \\gg \\in \\notin \\ni \\subset \\supset \\subseteq \\supseteq \\perp \\parallel \\mid \\doteq \\prec \\succ'),
     ] },
-    { id: 'arrows', label: 'Arrows', items: S('\\to \\leftarrow \\rightarrow \\Rightarrow \\Leftarrow \\leftrightarrow \\Leftrightarrow \\mapsto \\uparrow \\downarrow \\updownarrow \\nearrow \\searrow \\nwarrow \\swarrow \\longrightarrow \\longleftarrow \\Longrightarrow \\implies \\iff \\rightleftharpoons \\hookrightarrow \\leadsto') },
-    { id: 'units', label: 'Units', items: [
-      T('\\,\\mathrm{#?}', '\\square\\,\\mathrm{unit}', 'Any unit'), UNIT('\\mathrm{m}', 0, 'meter'), UNIT('\\mathrm{cm}', 0, 'centimeter'), UNIT('\\mathrm{mm}', 0, 'millimeter'),
-      UNIT('\\mu\\mathrm{m}', 0, 'micrometer'), UNIT('\\mathrm{km}', 0, 'kilometer'), UNIT('\\mathrm{s}', 0, 'second'), UNIT('\\mathrm{min}', 0, 'minute'), UNIT('\\mathrm{h}', 0, 'hour'),
-      UNIT('\\mathrm{kg}', 0, 'kilogram'), UNIT('\\mathrm{g}', 0, 'gram'), UNIT('\\mathrm{N}', 0, 'newton'), UNIT('\\mathrm{Pa}', 0, 'pascal'), UNIT('\\mathrm{kPa}', 0, 'kilopascal'),
-      UNIT('\\mathrm{J}', 0, 'joule'), UNIT('\\mathrm{W}', 0, 'watt'), UNIT('\\mathrm{K}', 0, 'kelvin'), UNIT('^{\\circ}\\mathrm{C}', '^{\\circ}\\mathrm{C}', 'degree Celsius'),
-      UNIT('\\mathrm{mol}', 0, 'mole'), UNIT('\\mathrm{Hz}', 0, 'hertz'), UNIT('\\mathrm{V}', 0, 'volt'), UNIT('\\mathrm{A}', 0, 'ampere'), UNIT('\\Omega', 0, 'ohm'), UNIT('\\mathrm{L}', 0, 'liter'),
-      UNIT('\\mathrm{m/s}', 0, 'meter per second'), UNIT('\\mathrm{m/s^{2}}', 0, 'meter per second squared'), UNIT('\\mathrm{m^{2}}', 0, 'square meter'), UNIT('\\mathrm{m^{3}}', 0, 'cubic meter'),
-      UNIT('\\mathrm{m^{3}/s}', 0, 'cubic meter per second'), UNIT('\\mathrm{kg/m^{3}}', 0, 'kilogram per cubic meter'), UNIT('\\%', '\\%', 'percent'),
+    { id: 'arrows', label: app.tm('Arrows'), items: S('\\to \\leftarrow \\rightarrow \\Rightarrow \\Leftarrow \\leftrightarrow \\Leftrightarrow \\mapsto \\uparrow \\downarrow \\updownarrow \\nearrow \\searrow \\nwarrow \\swarrow \\longrightarrow \\longleftarrow \\Longrightarrow \\implies \\iff \\rightleftharpoons \\hookrightarrow \\leadsto') },
+    { id: 'units', label: app.tm('Units'), items: [
+      T('\\,\\mathrm{#?}', '\\square\\,\\mathrm{unit}', app.tm('Any unit')), UNIT('\\mathrm{m}', 0, app.tm('meter')), UNIT('\\mathrm{cm}', 0, app.tm('centimeter')), UNIT('\\mathrm{mm}', 0, app.tm('millimeter')),
+      UNIT('\\mu\\mathrm{m}', 0, app.tm('micrometer')), UNIT('\\mathrm{km}', 0, app.tm('kilometer')), UNIT('\\mathrm{s}', 0, app.tm('second')), UNIT('\\mathrm{min}', 0, app.tm('minute')), UNIT('\\mathrm{h}', 0, app.tm('hour')),
+      UNIT('\\mathrm{kg}', 0, app.tm('kilogram')), UNIT('\\mathrm{g}', 0, app.tm('gram')), UNIT('\\mathrm{N}', 0, app.tm('newton')), UNIT('\\mathrm{Pa}', 0, app.tm('pascal')), UNIT('\\mathrm{kPa}', 0, app.tm('kilopascal')),
+      UNIT('\\mathrm{J}', 0, app.tm('joule')), UNIT('\\mathrm{W}', 0, app.tm('watt')), UNIT('\\mathrm{K}', 0, app.tm('kelvin')), UNIT('^{\\circ}\\mathrm{C}', '^{\\circ}\\mathrm{C}', app.tm('degree Celsius')),
+      UNIT('\\mathrm{mol}', 0, app.tm('mole')), UNIT('\\mathrm{Hz}', 0, app.tm('hertz')), UNIT('\\mathrm{V}', 0, app.tm('volt')), UNIT('\\mathrm{A}', 0, app.tm('ampere')), UNIT('\\Omega', 0, app.tm('ohm')), UNIT('\\mathrm{L}', 0, app.tm('liter')),
+      UNIT('\\mathrm{m/s}', 0, app.tm('meter per second')), UNIT('\\mathrm{m/s^{2}}', 0, app.tm('meter per second squared')), UNIT('\\mathrm{m^{2}}', 0, app.tm('square meter')), UNIT('\\mathrm{m^{3}}', 0, app.tm('cubic meter')),
+      UNIT('\\mathrm{m^{3}/s}', 0, app.tm('cubic meter per second')), UNIT('\\mathrm{kg/m^{3}}', 0, app.tm('kilogram per cubic meter')), UNIT('\\%', '\\%', app.tm('percent')),
     ] },
-    { id: 'recent', label: 'Recent', custom: 'recent' },
+    { id: 'recent', label: app.tm('Recent'), custom: 'recent' },
   ];
-  const MATRIX_KINDS = [['pmatrix', '\\left(\\,\\right)', 'Parentheses'], ['bmatrix', '\\left[\\,\\right]', 'Square brackets'], ['vmatrix', '\\left|\\,\\right|', 'Determinant'],
-    ['Vmatrix', '\\left\\|\\,\\right\\|', 'Norm'], ['Bmatrix', '\\left\\{\\,\\right\\}', 'Braces'], ['matrix', '\\square', 'No brackets']];
+  const MATRIX_KINDS = [['pmatrix', '\\left(\\,\\right)', app.tm('Parentheses')], ['bmatrix', '\\left[\\,\\right]', app.tm('Square brackets')], ['vmatrix', '\\left|\\,\\right|', app.tm('Determinant')],
+    ['Vmatrix', '\\left\\|\\,\\right\\|', app.tm('Norm')], ['Bmatrix', '\\left\\{\\,\\right\\}', app.tm('Braces')], ['matrix', '\\square', app.tm('No brackets')]];
   function matrixTpl(r, c, kind) {
     const row = Array(c).fill('#?').join(' & ');
     return `\\begin{${kind}}${Array(r).fill(row).join('\\\\')}\\end{${kind}}`;
   }
-  const HELP = [['/', 'fraction'], ['^', 'power'], ['_', 'index'], ['sqrt', '√'], ['alpha', 'α'], ['sum', '∑'], ['int', '∫'], ['->', '→'], ['<=', '≤'], ['!=', '≠'], ['Tab', 'next box']];
+  const HELP = [['/', app.tm('fraction')], ['^', app.tm('power')], ['_', app.tm('index')], ['sqrt', '√'], ['alpha', 'α'], ['sum', '∑'], ['int', '∫'], ['->', '→'], ['<=', '≤'], ['!=', '≠'], ['Tab', app.tm('next box')]];
 
   // icons (mock style: 24px grid, stroke)
   const IC = {
@@ -322,53 +322,53 @@
 
     // --- skeleton
     const scrim = el('div', { class: 'mkeq-scrim' });
-    const box = el('div', { class: 'mkeq', role: 'dialog', 'aria-modal': 'true', 'aria-label': editing ? 'Edit equation' : 'Insert equation', 'data-mk-keys': 'own' });
+    const box = el('div', { class: 'mkeq', role: 'dialog', 'aria-modal': 'true', 'aria-label': editing ? app.t('Edit equation') : app.t('Insert equation'), 'data-mk-keys': 'own' });
     const head = el('div', { class: 'mkeq-head' });
-    const h3 = el('h3', { text: editing ? 'Edit equation' : 'Insert equation' });
-    const seg = el('div', { class: 'mkeq-seg', role: 'radiogroup', 'aria-label': 'Placement' });
+    const h3 = el('h3', { text: editing ? app.t('Edit equation') : app.t('Insert equation') });
+    const seg = el('div', { class: 'mkeq-seg', role: 'radiogroup', 'aria-label': app.t('Placement') });
     const thumb = el('span', { class: 'thumb' });
-    const bInline = el('button', { type: 'button', role: 'radio', title: 'Inline: inside the line of text (Alt+D switches)', text: 'Inline' });
-    const bDisplay = el('button', { type: 'button', role: 'radio', title: 'Display: on its own line, centered, can be numbered (Alt+D switches)', text: 'Display' });
+    const bInline = el('button', { type: 'button', role: 'radio', title: app.t('Inline: inside the line of text (Alt+D switches)'), text: app.t('Inline') });
+    const bDisplay = el('button', { type: 'button', role: 'radio', title: app.t('Display: on its own line, centered, can be numbered (Alt+D switches)'), text: app.t('Display') });
     seg.append(thumb, bInline, bDisplay);
-    const bFav = el('button', { type: 'button', class: 'mkeq-ghost', title: 'Add to favorites (Alt+F)', 'aria-label': 'Add to favorites', 'aria-pressed': 'false' }, svg('star'));
-    const bKb = el('button', { type: 'button', class: 'mkeq-ghost', title: 'Math keyboard on screen (Alt+K)', 'aria-label': 'Math keyboard', 'aria-pressed': 'false' }, svg('kb') + '<span class="lbl">Keyboard</span>');
-    const bHelp = el('button', { type: 'button', class: 'mkeq-ghost', title: 'Typing shortcuts (Alt+H)', 'aria-label': 'Typing shortcuts', 'aria-pressed': 'false' }, svg('help'));
+    const bFav = el('button', { type: 'button', class: 'mkeq-ghost', title: app.t('Add to favorites (Alt+F)'), 'aria-label': app.t('Add to favorites'), 'aria-pressed': 'false' }, svg('star'));
+    const bKb = el('button', { type: 'button', class: 'mkeq-ghost', title: app.t('Math keyboard on screen (Alt+K)'), 'aria-label': app.t('Math keyboard'), 'aria-pressed': 'false' }, svg('kb') + `<span class="lbl">${app.th('Keyboard')}</span>`);
+    const bHelp = el('button', { type: 'button', class: 'mkeq-ghost', title: app.t('Typing shortcuts (Alt+H)'), 'aria-label': app.t('Typing shortcuts'), 'aria-pressed': 'false' }, svg('help'));
     head.append(h3, bFav, bHelp, bKb, seg);
 
-    const tabs = el('div', { class: 'mkeq-tabs', role: 'tablist', 'aria-label': 'Equation palettes' });
+    const tabs = el('div', { class: 'mkeq-tabs', role: 'tablist', 'aria-label': app.t('Equation palettes') });
     const ink = el('span', { class: 'ink' });
-    const tabBtns = PALETTES.map((p, i) => el('button', { type: 'button', class: 'mkeq-tab', role: 'tab', 'data-id': p.id, title: `${p.label} (Alt+${i === 9 ? 0 : i + 1})`, text: p.label, tabindex: '-1' }));
+    const tabBtns = PALETTES.map((p, i) => el('button', { type: 'button', class: 'mkeq-tab', role: 'tab', 'data-id': p.id, title: app.t('{palette} (Alt+{key})', { palette: app.t(p.label), key: i === 9 ? 0 : i + 1 }), text: app.t(p.label), tabindex: '-1' }));
     tabs.append(...tabBtns, ink);
     const pal = el('div', { class: 'mkeq-pal', role: 'tabpanel' });
 
     const body = el('div', { class: 'mkeq-body' });
     const stage = el('div', { class: 'mkeq-stage' });
-    const fieldHost = el('div', { class: 'mkeq-field' }, '<div class="loading" aria-label="Loading the visual editor"></div>');
-    const num = el('div', { class: 'mkeq-num', 'aria-live': 'polite', title: 'The number updates by itself when equations move' });
+    const fieldHost = el('div', { class: 'mkeq-field' }, `<div class="loading" aria-label="${app.th('Loading the visual editor')}"></div>`);
+    const num = el('div', { class: 'mkeq-num', 'aria-live': 'polite', title: app.t('The number updates by itself when equations move') });
     stage.append(fieldHost, num);
-    const help = el('div', { class: 'mkeq-help', 'aria-label': 'Typing shortcuts' }, HELP.map(([k, v]) => `<span><kbd>${esc(k)}</kbd>${esc(v)}</span>`).join(''));
+    const help = el('div', { class: 'mkeq-help', 'aria-label': app.t('Typing shortcuts') }, HELP.map(([k, v]) => `<span><kbd>${esc(k)}</kbd>${esc(app.t(v))}</span>`).join(''));
     const texWrap = el('div', { class: 'mkeq-tex' });
-    const texCap = el('label', { class: 'cap', for: 'mkeq-latex' }, 'LaTeX <span class="sync">Synced with the equation above</span>');
-    const ta = el('textarea', { id: 'mkeq-latex', spellcheck: 'false', rows: '2', 'aria-label': 'LaTeX source (Alt+T)', placeholder: 'Or type LaTeX here, for example \\frac{a}{b}' });
+    const texCap = el('label', { class: 'cap', for: 'mkeq-latex' }, `LaTeX <span class="sync">${app.th('Synced with the equation above')}</span>`);
+    const ta = el('textarea', { id: 'mkeq-latex', spellcheck: 'false', rows: '2', 'aria-label': app.t('LaTeX source (Alt+T)'), placeholder: app.t('Or type LaTeX here, for example \\frac{a}{b}') });
     ta.value = mig.tex; taRef = ta;
     texWrap.append(texCap, ta);
     const msg = el('div', { class: 'mkeq-msg', role: 'status' });
     const optsRow = el('div', { class: 'mkeq-opts' });
     const swL = el('label', { class: 'mkeq-switchl' });
-    const sw = el('button', { type: 'button', class: 'mkeq-switch', role: 'switch', 'aria-checked': 'false', title: 'Give this equation a number (Alt+N)', 'aria-label': 'Numbered' });
-    swL.append(sw, document.createTextNode('Numbered'));
-    const labWrap = el('span', { class: 'lab', text: 'Label' });
-    const labBox = el('span', { class: 'mkeq-label', title: 'Name used to refer to this equation, for example “See Eq. (1)” (Alt+L)' }, '<span class="pre">eq:</span>');
-    const labIn = el('input', { type: 'text', spellcheck: 'false', 'aria-label': 'Label (Alt+L)', placeholder: 'shields' });
+    const sw = el('button', { type: 'button', class: 'mkeq-switch', role: 'switch', 'aria-checked': 'false', title: app.t('Give this equation a number (Alt+N)'), 'aria-label': app.t('Numbered') });
+    swL.append(sw, document.createTextNode(app.t('Numbered')));
+    const labWrap = el('span', { class: 'lab', text: app.t('Label') });
+    const labBox = el('span', { class: 'mkeq-label', title: app.t('Name used to refer to this equation, for example “See Eq. (1)” (Alt+L)') }, '<span class="pre">eq:</span>');
+    const labIn = el('input', { type: 'text', spellcheck: 'false', 'aria-label': app.t('Label (Alt+L)'), placeholder: app.t('shields@@example label') });
     labIn.value = label; labBox.appendChild(labIn);
     const note = el('span', { class: 'note' });
     optsRow.append(swL, labWrap, labBox, note);
     body.append(stage, help, texWrap, msg, optsRow);
 
     const foot = el('div', { class: 'mkeq-foot' });
-    const hint = el('span', { class: 'hint' }, '<kbd>Enter</kbd> to ' + (editing ? 'update' : 'insert') + ' · <kbd>Esc</kbd> to cancel · <kbd>Tab</kbd> next box · <kbd>Shift</kbd>+<kbd>Enter</kbd> new LaTeX line');
-    const bCancel = el('button', { type: 'button', class: 'mkeq-btn', text: 'Cancel' });
-    const bOk = el('button', { type: 'button', class: 'mkeq-btn primary', text: editing ? 'Update' : 'Insert' });
+    const hint = el('span', { class: 'hint' }, editing ? app.th('<kbd>Enter</kbd> to update · <kbd>Esc</kbd> to cancel · <kbd>Tab</kbd> next box · <kbd>Shift</kbd>+<kbd>Enter</kbd> new LaTeX line') : app.th('<kbd>Enter</kbd> to insert · <kbd>Esc</kbd> to cancel · <kbd>Tab</kbd> next box · <kbd>Shift</kbd>+<kbd>Enter</kbd> new LaTeX line'));
+    const bCancel = el('button', { type: 'button', class: 'mkeq-btn', text: app.t('Cancel') });
+    const bOk = el('button', { type: 'button', class: 'mkeq-btn primary', text: editing ? app.t('Update') : app.t('Insert@@verb') });
     foot.append(hint, bCancel, bOk);
     box.append(head, tabs, pal, body, foot);
 
@@ -386,9 +386,9 @@
     function setMsg(text, kind = '') { msg.textContent = text || ''; msg.className = 'mkeq-msg' + (kind ? ' ' + kind : ''); }
     function labelProblem() {
       if (!display || !numbered) return '';
-      if (!label) return autoNum() ? '' : 'Type a label, or turn Numbered off.';
-      if (!LABEL_RE.test(label)) return 'Use only letters, digits, “-”, “_” and “.” in the label.';
-      if (('eq:' + label) !== origFull && usedLabels(app.docs.active()?.text || '').has(label)) return `Pick a different label: another equation already uses eq:${label}.`;
+      if (!label) return autoNum() ? '' : app.t('Type a label, or turn Numbered off.');
+      if (!LABEL_RE.test(label)) return app.t('Use only letters, digits, “-”, “_” and “.” in the label.');
+      if (('eq:' + label) !== origFull && usedLabels(app.docs.active()?.text || '').has(label)) return app.t('Pick a different label: another equation already uses eq:{label}.', { label });
       return '';
     }
     function sync() {
@@ -402,16 +402,16 @@
       optsRow.classList.toggle('dim', !display);
       num.classList.toggle('on', shownNumber);
       num.textContent = shownNumber ? previewNumber(label, ctx) : '';
-      note.textContent = !display ? 'Only equations on their own line (Display) can be numbered.'
-        : numbered ? (label ? 'Refer to it with @eq:' + label : 'Numbered automatically. Add a label to refer to it.')
-        : (auto ? 'This equation will have no number.' : '');
+      note.textContent = !display ? app.t('Only equations on their own line (Display) can be numbered.')
+        : numbered ? (label ? app.t('Refer to it with @eq:{label}', { label }) : app.t('Numbered automatically. Add a label to refer to it.'))
+        : (auto ? app.t('This equation will have no number.') : '');
       const fav = favorites().includes(texNow());
-      bFav.classList.toggle('on', fav); bFav.setAttribute('aria-pressed', String(fav)); bFav.title = (fav ? 'Remove from favorites' : 'Add to favorites') + ' (Alt+F)';
+      bFav.classList.toggle('on', fav); bFav.setAttribute('aria-pressed', String(fav)); bFav.title = fav ? app.t('Remove from favorites (Alt+F)') : app.t('Add to favorites (Alt+F)');
       clearTimeout(msgTimer);
       msgTimer = setTimeout(() => {
         const lp = labelProblem(); if (lp) return setMsg(lp, 'warn');
-        const kp = katexProblem(texNow()); if (kp) return setMsg('Check the LaTeX: the page may not show this exactly. ' + kp, 'warn');
-        setMsg(mig.tag != null && numbered ? 'The old fixed number was replaced by automatic numbering.' : '');
+        const kp = katexProblem(texNow()); if (kp) return setMsg(app.t('Check the LaTeX: the page may not show this exactly. {problem}', { problem: kp }), 'warn');
+        setMsg(mig.tag != null && numbered ? app.t('The old fixed number was replaced by automatic numbering.') : '');
       }, 160);
     }
     const flash = (elx) => { elx.classList.remove('live'); void elx.offsetWidth; elx.classList.add('live'); clearTimeout(elx._t); elx._t = setTimeout(() => elx.classList.remove('live'), 700); };
@@ -466,14 +466,15 @@
     function fillPal() {
       const p = PALETTES.find(x => x.id === tabId) || PALETTES[0];
       tabBtns.forEach(b => { const on = b.dataset.id === p.id; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
-      pal.className = 'mkeq-pal'; pal.textContent = ''; pal.setAttribute('aria-label', p.label);
+      pal.className = 'mkeq-pal'; pal.textContent = ''; pal.setAttribute('aria-label', app.t(p.label));
       void pal.offsetWidth; // restart the fade
       if (p.custom === 'matrix') renderMatrix();
       else if (p.custom === 'recent') renderRecent();
       else {
         pal.classList.add(p.id === 'basic' || p.id === 'big' || p.id === 'brackets' || p.id === 'units' || p.id === 'accents' ? 'wide' : 'grid');
         for (const it of p.items) {
-          const b = el('button', { type: 'button', class: 'it', title: it.name + (it.keys ? ` (type ${it.keys})` : '') + (it.name !== it.show ? '\n' + it.show : ''), 'aria-label': it.name, tabindex: '-1' });
+          const nm = app.t(it.name);
+          const b = el('button', { type: 'button', class: 'it', title: (it.keys ? app.t('{name} (type {keys})', { name: nm, keys: it.keys }) : nm) + (it.name !== it.show ? '\n' + it.show : ''), 'aria-label': nm, tabindex: '-1' });
           b.innerHTML = katexHTML((pal.classList.contains('wide') && p.id !== 'units' ? '\\displaystyle ' : '') + it.show, false);
           b.addEventListener('mousedown', ev => ev.preventDefault()); // keep the caret in the field
           b.addEventListener('click', () => insertTpl(it.tpl));
@@ -486,11 +487,11 @@
     function renderMatrix() {
       let rows = settings.get('eqMxRows', 2), cols = settings.get('eqMxCols', 2), kind = settings.get('eqMxKind', 'pmatrix');
       const wrap = el('div', { class: 'mkeq-mx' });
-      const c1 = el('div', { class: 'mkeq-mxcol' }, '<span class="cap">Size</span>');
-      const grid = el('div', { class: 'mkeq-mxgrid', tabindex: '0', role: 'grid', 'aria-label': 'Matrix size. Arrow keys pick the size, Enter inserts' });
+      const c1 = el('div', { class: 'mkeq-mxcol' }, `<span class="cap">${app.th('Size')}</span>`);
+      const grid = el('div', { class: 'mkeq-mxgrid', tabindex: '0', role: 'grid', 'aria-label': app.t('Matrix size. Arrow keys pick the size, Enter inserts') });
       const size = el('div', { class: 'mkeq-mxsize' });
       const cells = [];
-      for (let r = 1; r <= 6; r++) for (let c = 1; c <= 6; c++) { const b = el('button', { type: 'button', tabindex: '-1', 'aria-label': `${r} by ${c}` }); b.dataset.r = r; b.dataset.c = c; cells.push(b); grid.appendChild(b); }
+      for (let r = 1; r <= 6; r++) for (let c = 1; c <= 6; c++) { const b = el('button', { type: 'button', tabindex: '-1', 'aria-label': app.t('{rows} by {columns}', { rows: r, columns: c }) }); b.dataset.r = r; b.dataset.c = c; cells.push(b); grid.appendChild(b); }
       const paint = (r, c) => { cells.forEach(b => b.classList.toggle('on', +b.dataset.r <= r && +b.dataset.c <= c)); size.textContent = `${r} × ${c}`; };
       const ins = (r, c) => { rows = r; cols = c; settings.set('eqMxRows', r); settings.set('eqMxCols', c); insertTpl(matrixTpl(r, c, kind)); };
       grid.addEventListener('mouseover', e => { const b = e.target.closest('button'); if (b) paint(+b.dataset.r, +b.dataset.c); });
@@ -504,37 +505,37 @@
       });
       paint(rows, cols);
       c1.append(grid, size);
-      const c2 = el('div', { class: 'mkeq-mxcol' }, '<span class="cap">Brackets</span>');
-      const br = el('div', { class: 'mkeq-mxbr', role: 'radiogroup', 'aria-label': 'Matrix brackets' });
+      const c2 = el('div', { class: 'mkeq-mxcol' }, `<span class="cap">${app.th('Brackets')}</span>`);
+      const br = el('div', { class: 'mkeq-mxbr', role: 'radiogroup', 'aria-label': app.t('Matrix brackets') });
       for (const [k, show, name] of MATRIX_KINDS) {
-        const b = el('button', { type: 'button', role: 'radio', title: name, 'aria-label': name, 'aria-checked': String(k === kind) }, katexHTML(show, false));
+        const b = el('button', { type: 'button', role: 'radio', title: app.t(name), 'aria-label': app.t(name), 'aria-checked': String(k === kind) }, katexHTML(show, false));
         b.classList.toggle('on', k === kind);
         b.addEventListener('mousedown', e => e.preventDefault());
         b.addEventListener('click', () => { kind = k; settings.set('eqMxKind', k); br.querySelectorAll('button').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); }); });
         br.appendChild(b);
       }
       c2.appendChild(br);
-      const c3 = el('div', { class: 'mkeq-mxcol' }, '<span class="cap">Structures and rows</span>');
+      const c3 = el('div', { class: 'mkeq-mxcol' }, `<span class="cap">${app.th('Structures and rows')}</span>`);
       const ops = el('div', { class: 'mkeq-mxops' });
       const chip = (text, title, run) => { const b = el('button', { type: 'button', class: 'mkeq-chip', title, text }); b.addEventListener('mousedown', e => e.preventDefault()); b.addEventListener('click', run); ops.appendChild(b); return b; };
-      chip('Cases', 'f(x) = { a if …, b otherwise', () => insertTpl('\\begin{cases}#? & \\text{if } #?\\\\ #? & \\text{otherwise}\\end{cases}'));
-      chip('Aligned lines', 'Several lines lined up at =', () => insertTpl('\\begin{aligned}#? &= #?\\\\ &= #?\\end{aligned}'));
-      const cmd = (c) => () => { if (!mf) return setMsg('Type & for a new column and \\ for a new row in the LaTeX box. The visual editor did not start this time.', 'warn'); mf.focus(); mf.executeCommand(c); onVisualInput(); };
-      chip('Add row', 'Add a row below the caret (Alt+Enter)', cmd('addRowAfter'));
-      chip('Add column', 'Add a column right of the caret', cmd('addColumnAfter'));
-      chip('Delete row', 'Delete the row with the caret', cmd('removeRow'));
-      chip('Delete column', 'Delete the column with the caret', cmd('removeColumn'));
+      chip(app.t('Cases'), 'f(x) = { a if …, b otherwise', () => insertTpl('\\begin{cases}#? & \\text{if } #?\\\\ #? & \\text{otherwise}\\end{cases}'));
+      chip(app.t('Aligned lines'), app.t('Several lines lined up at ='), () => insertTpl('\\begin{aligned}#? &= #?\\\\ &= #?\\end{aligned}'));
+      const cmd = (c) => () => { if (!mf) return setMsg(app.t('Type & for a new column and \\ for a new row in the LaTeX box. The visual editor did not start this time.'), 'warn'); mf.focus(); mf.executeCommand(c); onVisualInput(); };
+      chip(app.t('Add row'), app.t('Add a row below the caret (Alt+Enter)'), cmd('addRowAfter'));
+      chip(app.t('Add column'), app.t('Add a column right of the caret'), cmd('addColumnAfter'));
+      chip(app.t('Delete row'), app.t('Delete the row with the caret'), cmd('removeRow'));
+      chip(app.t('Delete column'), app.t('Delete the column with the caret'), cmd('removeColumn'));
       c3.appendChild(ops);
       wrap.append(c1, c2, c3); pal.appendChild(wrap);
     }
     function renderRecent() {
       const fav = favorites(), rec = recent().filter(x => !fav.includes(x));
-      if (!fav.length && !rec.length) { pal.appendChild(el('div', { class: 'mkeq-empty', text: 'Equations you insert show up here. Star one (Alt+F) to keep it at the top.' })); return; }
+      if (!fav.length && !rec.length) { pal.appendChild(el('div', { class: 'mkeq-empty', text: app.t('Equations you insert show up here. Star one (Alt+F) to keep it at the top.') })); return; }
       const list = el('div', { class: 'mkeq-recent' });
       for (const tex of [...fav, ...rec]) {
-        const b = el('div', { class: 'rc', role: 'button', tabindex: '-1', title: tex, 'aria-label': 'Insert ' + tex });
+        const b = el('div', { class: 'rc', role: 'button', tabindex: '-1', title: tex, 'aria-label': app.t('Insert {equation}', { equation: tex }) });
         b.innerHTML = katexHTML(tex, false);
-        const st = el('span', { class: 'star' + (fav.includes(tex) ? ' on' : ''), role: 'button', title: fav.includes(tex) ? 'Remove from favorites' : 'Add to favorites' }, svg('star'));
+        const st = el('span', { class: 'star' + (fav.includes(tex) ? ' on' : ''), role: 'button', title: fav.includes(tex) ? app.t('Remove from favorites') : app.t('Add to favorites') }, svg('star'));
         st.addEventListener('mousedown', e => e.preventDefault());
         st.addEventListener('click', e => { e.stopPropagation(); toggleFavorite(tex); fillPal(); sync(); });
         b.appendChild(st);
@@ -587,8 +588,8 @@
     });
     labIn.addEventListener('focus', () => { if (numbered && !labIn.value) setNumbered(true); });
     bFav.addEventListener('click', () => {
-      const t = texNow(); if (!t) { setMsg('Type an equation first, then star it.', 'warn'); return; }
-      const on = toggleFavorite(t); sync(); app.ui.toast?.(on ? 'Added to favorite equations' : 'Removed from favorite equations');
+      const t = texNow(); if (!t) { setMsg(app.t('Type an equation first, then star it.'), 'warn'); return; }
+      const on = toggleFavorite(t); sync(); app.ui.toast?.(on ? app.t('Added to favorite equations') : app.t('Removed from favorite equations'));
       if (tabId === 'recent') fillPal();
     });
     function toggleHelp(v) {
@@ -600,7 +601,7 @@
     const vk = () => window.mathVirtualKeyboard;
     function onKbGeometry() { const k = vk(); const h = k && k.visible ? Math.round(k.boundingRect?.height || 0) : 0; box.style.setProperty('--mkeq-kb', h + 'px'); box.classList.toggle('kb', h > 0); bKb.classList.toggle('on', h > 0); bKb.setAttribute('aria-pressed', String(h > 0)); }
     function toggleKeyboard() {
-      const k = vk(); if (!k || !mf) { setMsg('Type in the LaTeX box instead. The math keyboard needs the visual editor, which did not start this time.', 'warn'); return; }
+      const k = vk(); if (!k || !mf) { setMsg(app.t('Type in the LaTeX box instead. The math keyboard needs the visual editor, which did not start this time.'), 'warn'); return; }
       mf.focus();
       // MathLive's keyboard reads body[theme]; follow the app theme while it is open
       document.body.setAttribute('theme', document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
@@ -621,7 +622,7 @@
     function shake() { box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }
     function done() {
       const r = result();
-      if (!r.tex) { setMsg('Type an equation first, or press Esc to cancel.', 'err'); shake(); focusField(); return; }
+      if (!r.tex) { setMsg(app.t('Type an equation first, or press Esc to cancel.'), 'err'); shake(); focusField(); return; }
       const lp = labelProblem(); if (lp) { setMsg(lp, 'err'); shake(); labIn.focus(); labIn.select(); return; }
       r.markdown = markdown(r);
       remember(r.tex); settings.set('eqDisplay', display);
@@ -694,7 +695,7 @@
       if (closed) return;
       const MFE = m.MathfieldElement || window.MathfieldElement;
       mf = new MFE();
-      mf.setAttribute('aria-label', 'Equation (Alt+E)');
+      mf.setAttribute('aria-label', app.t('Equation (Alt+E)'));
       try { mf.mathVirtualKeyboardPolicy = 'manual'; } catch {}
       try { mf.smartFence = true; mf.smartSuperscript = true; } catch {}
       try { mf.popoverPolicy = 'auto'; mf.environmentPopoverPolicy = 'auto'; } catch {}
@@ -712,7 +713,7 @@
       console.warn('MathLive unavailable', err);
       if (closed) return;
       fieldHost.innerHTML = '<div class="fallback"></div>'; renderFallback();
-      setMsg('Type LaTeX below. The preview above updates as you type. (The visual editor didn’t start this time; reopen the dialog to try it again.)', 'warn');
+      setMsg(app.t('Type LaTeX below. The preview above updates as you type. (The visual editor didn’t start this time; reopen the dialog to try it again.)'), 'warn');
       target = 'latex'; ta.focus();
     });
 

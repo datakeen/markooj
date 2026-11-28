@@ -25,25 +25,33 @@
   const info = () => (infoP || (infoP = mk.invoke('app-info').catch(() => ({}))));
 
   // ---------- what the sheet shows ----------
-  // Feature cards: tour = a tour id from app.tours.list(); command = run this instead.
+  // Feature cards: tour = a tour id from app.tours.list(); command = run this instead. Title and text are English keys
+  // (app.tm); the sheet translates them each time it draws.
   const CARDS = [
-    { id: 'word', icon: 'ribbonicon', title: 'Writes like Word', text: 'The ribbon, Word’s shortcuts and Alt KeyTips. No code to learn: Markooj writes the Markdown for you.', tour: 'keys' },
-    { id: 'writing', icon: 'spell', title: 'Writing Assistant', text: 'Spelling, grammar and style, with a Why? that explains every suggestion.', tour: 'writing' },
-    { id: 'equations', icon: 'sigma', title: 'Equations and cross-references', text: 'Numbered equations, figures and tables, and references that update themselves.', tour: 'equations' },
-    { id: 'citations', icon: 'cite', title: 'Citations and bibliography', text: 'Cite from your Zotero, Mendeley or JabRef library (a .bib file). The bibliography builds itself.', tour: 'citations' },
-    { id: 'export', icon: 'export', title: 'Save as PDF, Word, LaTeX, EPUB', text: 'Share in the format people ask for. Your own file stays as it is.', tour: 'export' },
-    { id: 'modes', icon: 'eye', title: 'Four modes', text: 'Word, Inline, Simple and Read: one file, four ways to work on it.', tour: 'modes' },
-    { id: 'rtl', icon: 'lang', title: 'Urdu, Arabic and Punjabi', text: 'Right-to-left writing with matching fonts, plus spelling language packs.', tour: 'rtl' },
-    { id: 'addins', icon: 'store', title: 'Add-in store', text: 'Add buttons, tools and formats with one click. Turn them off any time.', command: 'addins.browse' },
+    { id: 'word', icon: 'ribbonicon', title: app.tm('Writes like Word'), text: app.tm('The ribbon, Word’s shortcuts and Alt KeyTips. No code to learn: Markooj writes the Markdown for you.'), tour: 'keys' },
+    { id: 'writing', icon: 'spell', title: app.tm('Writing Assistant'), text: app.tm('Spelling, grammar and style, with a Why? that explains every suggestion.'), tour: 'writing' },
+    { id: 'equations', icon: 'sigma', title: app.tm('Equations and cross-references'), text: app.tm('Numbered equations, figures and tables, and references that update themselves.'), tour: 'equations' },
+    { id: 'citations', icon: 'cite', title: app.tm('Citations and bibliography'), text: app.tm('Cite from your Zotero, Mendeley or JabRef library (a .bib file). The bibliography builds itself.'), tour: 'citations' },
+    { id: 'export', icon: 'export', title: app.tm('Save as PDF, Word, LaTeX, EPUB'), text: app.tm('Share in the format people ask for. Your own file stays as it is.'), tour: 'export' },
+    { id: 'modes', icon: 'eye', title: app.tm('Four modes'), text: app.tm('Word, Inline, Simple and Read: one file, four ways to work on it.'), tour: 'modes' },
+    { id: 'rtl', icon: 'lang', title: app.tm('Urdu, Arabic and Punjabi'), text: app.tm('Right-to-left writing with matching fonts, plus spelling language packs.'), tour: 'rtl' },
+    { id: 'addins', icon: 'store', title: app.tm('Add-in store'), text: app.tm('Add buttons, tools and formats with one click. Turn them off any time.'), command: 'addins.browse' },
   ];
   // What's new: 3 to 5 highlights per version (the full list is in Help → What's New, from CHANGELOG.md)
   const HIGHLIGHTS = {
     '1.1.1': [
-      { icon: 'sparkle', title: 'A Welcome screen', text: 'The main features, each with a short guided tour. Open it any time from Help → Welcome.' },
-      { icon: 'info', title: 'Messages that help', text: 'When something needs your attention, Markooj first says what you can do, often with a button that does it.' },
-      { icon: 'check', title: 'DjVu files open on Windows', text: 'Markooj now recognizes the official DjVuLibre tools, so DjVu files open as they should.' },
-      { icon: 'clock', title: 'A quieter start', text: 'Optional tools are mentioned when you use them, not each time Markooj starts.' },
-      { icon: 'cite', title: 'New tutorial: citations', text: 'Cite from your Zotero, Mendeley or .bib library in a guided tour, from the Welcome screen or Help → Tutorials.' },
+      { icon: 'sparkle', title: app.tm('A Welcome screen'), text: app.tm('The main features, each with a short guided tour. Open it any time from Help → Welcome.') },
+      { icon: 'info', title: app.tm('Messages that help'), text: app.tm('When something needs your attention, Markooj first says what you can do, often with a button that does it.') },
+      { icon: 'check', title: app.tm('DjVu files open on Windows'), text: app.tm('Markooj now recognizes the official DjVuLibre tools, so DjVu files open as they should.') },
+      { icon: 'clock', title: app.tm('A quieter start'), text: app.tm('Optional tools are mentioned when you use them, not each time Markooj starts.') },
+      { icon: 'cite', title: app.tm('New tutorial: citations'), text: app.tm('Cite from your Zotero, Mendeley or .bib library in a guided tour, from the Welcome screen or Help → Tutorials.') },
+    ],
+    '1.2.0': [
+      { icon: 'export', title: app.tm('A smaller Markooj'), text: app.tm('Pandoc, the DjVu tools and Python macros are now optional. Add them any time from File → Options → Features.') },
+      { icon: 'side', title: app.tm('Split, Side by Side and New Window'), text: app.tm('See two parts of a document, or two documents, at once from View → Window. View → Ruler adds rulers and guides.') },
+      { icon: 'keyboard', title: app.tm('Type Urdu, Arabic, Persian and Punjabi'), text: app.tm('Built-in keyboards (Ctrl+Shift+K), an on-screen keyboard and a Home → Aarab group.') },
+      { icon: 'table', title: app.tm('Tables with Word and Excel'), text: app.tm('Paste tables from Word, Excel and Google Sheets as real tables, and copy them back with Ctrl+C.') },
+      { icon: 'spell', title: app.tm('Smarter typing and spelling'), text: app.tm('Better spelling suggestions, technical terms and place names, brackets and quotes that close themselves, and a Date & time dialog.') },
     ],
   };
   const highlightsFor = v => HIGHLIGHTS[String(v || '').replace(/^v/, '').split('-')[0]] || null;
@@ -83,9 +91,10 @@
         const i = await info();
         if (!i.packaged && i.resourcesDir) { const sep = i.resourcesDir.includes('\\') ? '\\' : '/'; p = i.resourcesDir.replace(/[\\/]+$/, '') + sep + SAMPLE.file.split('/').join(sep); }
       }
-      if (!p) { app.ui.toast('To try Markooj on a sample, click File → New and pick Research paper.', { kind: 'info', timeout: 9000, actions: [{ label: 'Open File → New', run: () => app.backstage.open('new') }] }); return null; }
+      const noSample = () => app.ui.toast(app.t('To try Markooj on a sample, click File → New and pick Research paper.'), { kind: 'info', timeout: 9000, actions: [{ label: app.t('Open File → New'), run: () => app.backstage.open('new') }] });
+      if (!p) { noSample(); return null; }
       try { return await app.docs.open(p); }
-      catch (e) { app.ui.toast('To try Markooj on a sample, click File → New and pick Research paper.', { kind: 'info', timeout: 9000, actions: [{ label: 'Open File → New', run: () => app.backstage.open('new') }] }); console.warn('sample', e); return null; }
+      catch (e) { noSample(); console.warn('sample', e); return null; }
     },
   };
 
@@ -100,48 +109,48 @@
     const cards = CARDS.map((c, k) => `
       <li class="mkwel-card" data-card="${c.id}">
         <span class="mkwel-ic" aria-hidden="true">${icon(c.icon)}</span>
-        <span class="mkwel-ct"><b id="mkwel-c-${k}">${esc(c.title)}</b><small>${esc(c.text)}</small></span>
+        <span class="mkwel-ct"><b id="mkwel-c-${k}">${app.th(c.title)}</b><small>${app.th(c.text)}</small></span>
         <button type="button" class="mkwel-show" data-card="${c.id}" aria-describedby="mkwel-c-${k}"
-          data-tip="${c.tour ? 'Start the guided tour' : 'Open it'}" data-tip-d="${esc(c.tour ? 'A short tour on the real buttons, in a practice document. Esc ends it.' : 'Opens it now. You can come back here from Help → Welcome.')}">Show me</button>
+          data-tip="${c.tour ? app.th('Start the guided tour') : app.th('Open it')}" data-tip-d="${c.tour ? app.th('A short tour on the real buttons, in a practice document. Esc ends it.') : app.th('Opens it now. You can come back here from Help → Welcome.')}">${app.th('Show me')}</button>
       </li>`).join('');
     const mins = tourMinutes('getting-started');
     return `
       <header class="mkwel-head">
         <img class="mkwel-logo" src="../build/icon.png" alt="" width="52" height="52" draggable="false">
-        <div><h2 id="mkwel-title">Welcome to Markooj</h2>
-          <p class="mkwel-sub">Write the way you do in Word. Markooj keeps your work in plain text files (Markdown) that any program can open. It works offline, and your files stay yours.</p></div>
-        <button type="button" class="mkwel-x" aria-label="Close" data-tip="Close" data-tip-d="Back to your document. Open this again from Help → Welcome." data-key="Escape">${icon('x')}</button>
+        <div><h2 id="mkwel-title">${app.th('Welcome to Markooj')}</h2>
+          <p class="mkwel-sub">${app.th('Write the way you do in Word. Markooj keeps your work in plain text files (Markdown) that any program can open. It works offline, and your files stay yours.')}</p></div>
+        <button type="button" class="mkwel-x" aria-label="${app.th('Close')}" data-tip="${app.th('Close')}" data-tip-d="${app.th('Back to your document. Open this again from Help → Welcome.')}" data-key="Escape">${icon('x')}</button>
       </header>
       <div class="mkwel-body">
-        <ul class="mkwel-grid" role="list" aria-label="What Markooj can do">${cards}</ul>
+        <ul class="mkwel-grid" role="list" aria-label="${app.th('What Markooj can do')}">${cards}</ul>
       </div>
       <footer class="mkwel-foot">
-        <label class="mkwel-check"><input type="checkbox" class="mkwel-onstart"${showOnStart() ? ' checked' : ''}> Show this when Markooj starts</label>
+        <label class="mkwel-check"><input type="checkbox" class="mkwel-onstart"${showOnStart() ? ' checked' : ''}> ${app.th('Show this when Markooj starts')}</label>
         <span class="mkwel-grow"></span>
-        ${hasTour('getting-started') ? `<button type="button" class="btn mkwel-tour" data-tip="Take the tour" data-tip-d="The ribbon, the four modes and saving, on the real buttons. Esc ends it.">${icon('play')}Take the ${mins}-minute tour</button>` : ''}
-        <button type="button" class="btn mkwel-sample" hidden data-tip="Open a sample document" data-tip-d="A short research paper with equations, a figure, a table, citations and a diagram. Try anything; your own files are not touched.">${icon('doc')}Open a sample document</button>
-        <button type="button" class="btn primary mkwel-start">Start writing</button>
+        ${hasTour('getting-started') ? `<button type="button" class="btn mkwel-tour" data-tip="${app.th('Take the tour')}" data-tip-d="${app.th('The ribbon, the four modes and saving, on the real buttons. Esc ends it.')}">${icon('play')}${app.th('Take the {count}-minute tour', { count: mins })}</button>` : ''}
+        <button type="button" class="btn mkwel-sample" hidden data-tip="${app.th('Open a sample document')}" data-tip-d="${app.th('A short research paper with equations, a figure, a table, citations and a diagram. Try anything; your own files are not touched.')}">${icon('doc')}${app.th('Open a sample document')}</button>
+        <button type="button" class="btn primary mkwel-start">${app.th('Start writing')}</button>
       </footer>`;
   }
   function whatsNewHtml() {
     const v = app.version || '';
     const list = highlightsFor(v);
     const items = list ? list.map(x => `
-      <li class="mkwel-hl"><span class="mkwel-ic sm" aria-hidden="true">${icon(x.icon)}</span><span><b>${esc(x.title)}</b> ${esc(x.text)}</span></li>`).join('')
-      : '<li class="mkwel-hl"><span class="mkwel-ic sm" aria-hidden="true">' + icon('sparkle') + '</span><span>Markooj is up to date. See all changes for the details.</span></li>';
+      <li class="mkwel-hl"><span class="mkwel-ic sm" aria-hidden="true">${icon(x.icon)}</span><span><b>${app.th(x.title)}</b> ${app.th(x.text)}</span></li>`).join('')
+      : '<li class="mkwel-hl"><span class="mkwel-ic sm" aria-hidden="true">' + icon('sparkle') + '</span><span>' + app.th('Markooj is up to date. See all changes for the details.') + '</span></li>';
     return `
       <header class="mkwel-head">
         <img class="mkwel-logo" src="../build/icon.png" alt="" width="52" height="52" draggable="false">
-        <div><h2 id="mkwel-title">What’s new in ${esc(v)}</h2>
-          <p class="mkwel-sub">Markooj was updated. Your documents and settings are just as you left them.</p></div>
-        <button type="button" class="mkwel-x" aria-label="Close" data-tip="Close" data-tip-d="Back to your document. Help → What’s New has the full list." data-key="Escape">${icon('x')}</button>
+        <div><h2 id="mkwel-title">${app.th('What’s new in {version}', { version: v })}</h2>
+          <p class="mkwel-sub">${app.th('Markooj was updated. Your documents and settings are just as you left them.')}</p></div>
+        <button type="button" class="mkwel-x" aria-label="${app.th('Close')}" data-tip="${app.th('Close')}" data-tip-d="${app.th('Back to your document. Help → What’s New has the full list.')}" data-key="Escape">${icon('x')}</button>
       </header>
       <div class="mkwel-body"><ul class="mkwel-hls" role="list">${items}</ul></div>
       <footer class="mkwel-foot">
-        <button type="button" class="btn mkwel-all" data-tip="See all changes" data-tip-d="Every change in this version, from Help → What’s New.">See all changes</button>
+        <button type="button" class="btn mkwel-all" data-tip="${app.th('See all changes')}" data-tip-d="${app.th('Every change in this version, from Help → What’s New.')}">${app.th('See all changes')}</button>
         <span class="mkwel-grow"></span>
-        <button type="button" class="btn mkwel-full" data-tip="Show the full Welcome" data-tip-d="The main features of Markooj, each with a short guided tour.">${icon('sparkle')}Show the full Welcome</button>
-        <button type="button" class="btn primary mkwel-start">Continue</button>
+        <button type="button" class="btn mkwel-full" data-tip="${app.th('Show the full Welcome')}" data-tip-d="${app.th('The main features of Markooj, each with a short guided tour.')}">${icon('sparkle')}${app.th('Show the full Welcome')}</button>
+        <button type="button" class="btn primary mkwel-start">${app.th('Continue')}</button>
       </footer>`;
   }
 
@@ -162,7 +171,19 @@
     }
     $('.mkwel-onstart', s)?.addEventListener('change', e => app.settings.set('welcome.showOnStart', !!e.target.checked));
     for (const b of $$('.mkwel-show', s)) b.addEventListener('click', () => showMe(b.dataset.card));
+    // first run: the "Choose extra features" step (src/features.js; Pandoc, DjVu tools, Python macros with their sizes)
+    if (mode === 'welcome') { try { app.features?.welcomeStep?.(s); } catch (e) { console.warn('welcome features step', e); } }
+    // the interface language picker comes first (src/i18n.js); added here too, so a redraw keeps it
+    if (mode === 'welcome') { try { app.i18n?.welcomeStep?.(s); } catch (e) { console.warn('welcome language step', e); } }
   }
+  // the interface language changed while the sheet is open: draw it again in the new language
+  app.events.on('i18n:changed', () => {
+    if (!W) return;
+    const inPicker = !!W.sheet.querySelector('.mk-i18n-wel')?.contains(document.activeElement);
+    render(W.mode);
+    const back = inPicker && W.sheet.querySelector('.mk-i18n-wel select, .mk-i18n-wel button, .mk-i18n-wel input');
+    if (back) { try { back.focus({ preventScroll: true }); } catch {} } else focusFirst();
+  });
 
   function showMe(id) {
     const c = CARDS.find(x => x.id === id);
@@ -266,18 +287,18 @@
     render(el) {
       el.innerHTML = '';
       if (!chipMode) return;
-      const label = chipMode === 'whatsnew' ? `What’s new in ${app.version || ''}`.trim() : 'Welcome';
+      const label = chipMode === 'whatsnew' ? app.t('What’s new in {version}', { version: app.version || '' }).trim() : app.t('Welcome');
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'sb mkwel-chip';
       b.innerHTML = `${icon('sparkle')}<span>${esc(label)}</span>`;
       b.dataset.tip = label;
-      b.dataset.tipD = chipMode === 'whatsnew' ? 'See what changed in this version of Markooj.' : 'A quick look at what Markooj can do, with a short tour for each feature.';
+      b.dataset.tipD = chipMode === 'whatsnew' ? app.t('See what changed in this version of Markooj.') : app.t('A quick look at what Markooj can do, with a short tour for each feature.');
       b.addEventListener('click', () => { const m = chipMode; open(m); });
       const x = document.createElement('button');
       x.type = 'button'; x.className = 'sb mkwel-chip-x';
       x.innerHTML = icon('x');
-      x.setAttribute('aria-label', 'Hide ' + label);
-      x.dataset.tip = 'Hide'; x.dataset.tipD = 'You can open it any time from Help → Welcome.';
+      x.setAttribute('aria-label', app.t('Hide {name}', { name: label }));
+      x.dataset.tip = app.t('Hide'); x.dataset.tipD = app.t('You can open it any time from Help → Welcome.');
       x.addEventListener('click', () => { markSeen(); hideChip(); });
       el.append(b, x);
     },
@@ -311,6 +332,7 @@
     if (!o.test) {
       const i = await info();
       if (i.userDataFrom === 'smoke' || window.__mkSmokeStarted) return null;
+      if (app.windows?.isExtra) return null; // a second window (View → New Window) never shows Welcome again
     }
     const fresh = o.fresh ?? await firstRunP;
     const mode = decide({ fresh, seen: app.settings.get('welcome.seenVersion', null), version: app.version, showOnStart: showOnStart() });
@@ -335,9 +357,9 @@
   });
 
   // ---------- command ----------
-  const DESC = 'What Markooj can do, with a short guided tour for each feature, and what is new in this version.';
-  app.commands.register('help.welcome', { label: 'Welcome', icon: 'sparkle', category: 'Help', description: DESC, keywords: 'welcome start onboarding what’s new features tour', run: args => open(args?.mode || 'welcome', { markSeen: false }) });
-  try { app.tooltips?.register?.('help.welcome', { title: 'Welcome', description: DESC }); } catch {}
+  const DESC = app.tm('What Markooj can do, with a short guided tour for each feature, and what is new in this version.');
+  app.commands.register('help.welcome', { label: app.tm('Welcome'), icon: 'sparkle', category: 'Help', description: DESC, keywords: 'welcome start onboarding what’s new features tour', run: args => open(args?.mode || 'welcome', { markSeen: false }) });
+  try { app.tooltips?.register?.('help.welcome', { title: app.tm('Welcome'), description: DESC }); } catch {}
 
   app.welcome = {
     open, close, isOpen: () => !!W, mode: () => W?.mode || null, startup, decide, compareVersions,
@@ -565,7 +587,7 @@
       const shipped = String(i.resourcesDir || '').replace(/[\\/]+$/, '') + '/' + SAMPLE.file;
       A(d.path.replace(/\\/g, '/').toLowerCase() !== shipped.replace(/\\/g, '/').toLowerCase(), 'opened a copy, not the shipped sample: ' + d.path);
       try { await app.docs.close(d.id, { force: true }); } catch {}
-      if (!app.docs.list().length) app.docs.create({ title: 'Untitled' });
+      if (!app.docs.list().length) app.docs.create({ title: app.t('Untitled') });
     } finally { if (W) close('test'); await sleep(260); }
   });
 })();

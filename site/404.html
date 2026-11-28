@@ -2,33 +2,355 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- GitHub Pages shows this page for any missing address, at any depth, so every link starts from the site root -->
+<base href="/markooj/">
+<script>
+  // when the site is previewed from a plain local server, its root is "/"
+  (function () { if (!/^\/markooj(\/|$)/.test(location.pathname)) { var b = document.querySelector('base'); if (b) b.setAttribute('href', '/'); } })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Page not found · Markooj</title>
+<meta name="description" content="This page of the Markooj website does not exist. Go to the home page, download Markooj, or report the broken link.">
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="https://datakeen.github.io/markooj/favicon-32.png" sizes="32x32" type="image/png">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0c10" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
-  :root { --bg: #fff; --ink: #111318; --ink-2: #4a4f5a; --btn: #0a66ff; --btn-h: #0057e0; --ring: rgba(10,102,255,.35); color-scheme: light dark; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #0b0c10; --ink: #f2f4f8; --ink-2: #b4bac6; --btn: #1f6fff; --btn-h: #3a82ff; --ring: rgba(91,157,255,.5); } }
-  * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 32px 20px; background: var(--bg); color: var(--ink);
-    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
-    -webkit-font-smoothing: antialiased; text-align: center; }
-  main { max-width: 520px; }
-  img { border-radius: 14px; margin: 0 auto 28px; display: block; }
-  h1 { font-size: clamp(34px, 7vw, 52px); line-height: 1.08; letter-spacing: -.03em; margin: 0 0 14px; }
-  p { color: var(--ink-2); margin: 0 0 30px; }
-  a.btn { display: inline-block; background: var(--btn); color: #fff; text-decoration: none; font-weight: 600; padding: 13px 24px; border-radius: 999px; }
-  a.btn:hover { background: var(--btn-h); }
-  a:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; }
+  /* Markooj website 404 page. Copyright (C) 2026 Ahmed Bilal and contributors. AGPL-3.0-or-later. */
+  :root {
+    --bg: #ffffff; --bg-2: #f5f6f8; --card: #ffffff; --ink: #111318; --ink-2: #4a4f5a; --ink-3: #6b7280;
+    --line: rgba(17, 19, 24, .09); --line-2: rgba(17, 19, 24, .14);
+    --accent: #0a66ff; --accent-ink: #0a5ce6; --accent-2: #6a4dff; --accent-soft: rgba(10, 102, 255, .09); --ring: rgba(10, 102, 255, .35);
+    --btn: #0a66ff; --btn-h: #0057e0; --ghost: rgba(17, 19, 24, .06); --ghost-h: rgba(17, 19, 24, .1);
+    --glow-1: rgba(77, 148, 255, .18); --glow-2: rgba(150, 120, 255, .13);
+    --shadow: 0 0 0 1px rgba(17, 19, 24, .07), 0 2px 6px rgba(17, 19, 24, .04), 0 30px 70px -28px rgba(17, 30, 60, .32);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0c10; --bg-2: #121419; --card: #16181e; --ink: #f2f4f8; --ink-2: #b4bac6; --ink-3: #8d94a3;
+      --line: rgba(255, 255, 255, .08); --line-2: rgba(255, 255, 255, .14);
+      --accent: #5b9dff; --accent-ink: #7fb2ff; --accent-2: #a58fff; --accent-soft: rgba(61, 139, 255, .14); --ring: rgba(91, 157, 255, .5);
+      --btn: #1f6fff; --btn-h: #3a82ff; --ghost: rgba(255, 255, 255, .08); --ghost-h: rgba(255, 255, 255, .13);
+      --glow-1: rgba(61, 139, 255, .18); --glow-2: rgba(140, 100, 255, .13);
+      --shadow: 0 0 0 1px rgba(255, 255, 255, .09), 0 30px 70px -28px rgba(0, 0, 0, .75);
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 17px/1.55 var(--font); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    display: flex; flex-direction: column; overflow-x: hidden;
+  }
+  a { color: var(--accent-ink); }
+  :focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; border-radius: 8px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  /* a quiet field of Markdown symbols; near the pointer they turn into what they mean */
+  .field { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: radial-gradient(50% 45% at 25% 30%, var(--glow-1), transparent 70%), radial-gradient(45% 45% at 80% 75%, var(--glow-2), transparent 70%);
+  }
+
+  .top { position: relative; z-index: 2; width: min(100% - 32px, 1100px); margin: 0 auto; height: 64px; display: flex; align-items: center; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 650; text-decoration: none; letter-spacing: -.01em; }
+  .brand img { border-radius: 7px; }
+
+  main { position: relative; z-index: 1; flex: 1; display: grid; place-items: center; padding: 12px 16px 56px; }
+  main > div { width: min(100%, 640px); }
+  .doc { width: 100%; background: var(--card); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+  .doc-bar { position: relative; height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 14px; background: var(--bg-2); border-bottom: 1px solid var(--line); }
+  .doc-bar i { width: 11px; height: 11px; border-radius: 50%; background: var(--line-2); }
+  .doc-name { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+  .doc-body { padding: 30px clamp(22px, 6vw, 52px) 36px; }
+
+  .style-chip { display: grid; height: 22px; margin-bottom: 6px; font-size: 11.5px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+  .style-chip span { grid-area: 1 / 1; transition: opacity .3s ease; }
+  .style-chip .s-fmt { opacity: 0; color: var(--accent-ink); }
+  .is-fmt .style-chip .s-raw { opacity: 0; }
+  .is-fmt .style-chip .s-fmt { opacity: 1; }
+
+  /* the heading: Markdown at rest, a formatted heading when you point at it */
+  h1 { margin: 0; }
+  .nf {
+    height: clamp(112px, 26vw, 176px); display: flex; align-items: center; justify-content: flex-start;
+    font-family: var(--mono); font-weight: 500; font-size: clamp(56px, 13vw, 92px); line-height: 1; letter-spacing: -.02em;
+    color: var(--ink-2); cursor: default; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .nf-hash { display: inline-block; color: var(--accent-ink); margin-right: .5ch; transition: opacity .35s ease, transform .45s cubic-bezier(.2, .8, .2, 1); }
+  .nf-d { display: inline-block; transform-origin: 0 0; }
+  .is-fmt .nf { justify-content: center; font-family: var(--font-display); font-weight: 800; font-size: clamp(104px, 25vw, 172px); letter-spacing: -.06em; color: var(--ink); }
+  .is-fmt .nf-hash { width: 0; margin: 0; opacity: 0; transform: translateX(-.6em); }
+  .is-fmt .nf-d {
+    background: linear-gradient(165deg, var(--accent) 20%, var(--accent-2) 95%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .typed { min-height: 3.2em; margin: 6px 0 18px; font-size: 19px; line-height: 1.6; color: var(--ink); }
+  .caret { display: inline-block; width: 2px; height: 1.15em; margin-left: 2px; vertical-align: -.2em; background: var(--accent); animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .msg { margin: 0 0 8px; color: var(--ink-2); font-size: 16px; }
+  .asked { margin: 0 0 22px; color: var(--ink-3); font-size: 14px; overflow-wrap: anywhere; }
+  .asked code { font-family: var(--mono); font-size: .95em; background: var(--ghost); padding: .1em .4em; border-radius: 5px; color: var(--ink-2); }
+  .suggest { margin: -8px 0 22px; font-size: 16px; color: var(--ink-2); }
+  .suggest a { font-weight: 600; }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 999px; text-decoration: none;
+    font-weight: 600; font-size: 15px; line-height: 1; background: var(--ghost); color: var(--ink);
+    transition: background-color .2s ease, transform .2s ease;
+  }
+  .btn:hover { background: var(--ghost-h); transform: translateY(-1px); }
+  .btn:active { transform: scale(.98); }
+  .btn.primary { background: var(--btn); color: #fff; }
+  .btn.primary:hover { background: var(--btn-h); }
+  .btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .hint { margin: 18px 0 0; text-align: center; color: var(--ink-3); font-size: 13.5px; }
+
+  @media (max-width: 520px) {
+    .actions { flex-direction: column; }
+    .btn { justify-content: center; }
+    .typed { font-size: 17.5px; min-height: 4.8em; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .btn:hover { transform: none; }
+  }
 </style>
 </head>
 <body>
+<canvas class="field" aria-hidden="true"></canvas>
+<header class="top">
+  <a class="brand" href="./"><img src="img/logo-64.png" width="28" height="28" alt=""><span>Markooj</span></a>
+</header>
 <main>
-  <img src="https://datakeen.github.io/markooj/img/logo-64.png" width="56" height="56" alt="">
-  <h1>This page is not here.</h1>
-  <p>The link may be old, or the address may have a typo. Everything about Markooj is on the home page.</p>
-  <a class="btn" href="https://datakeen.github.io/markooj/">Go to the Markooj home page</a>
+  <div>
+    <article class="doc" id="doc" aria-labelledby="nf-title">
+      <div class="doc-bar" aria-hidden="true"><i></i><i></i><i></i><span class="doc-name">missing-page.md · Markooj</span></div>
+      <div class="doc-body">
+        <div class="style-chip" aria-hidden="true"><span class="s-raw">Markdown</span><span class="s-fmt">Heading 1</span></div>
+        <h1 class="nf" id="nf-title"><span class="sr-only">Page not found (error 404)</span><span class="nf-hash" aria-hidden="true">#</span><span class="nf-d" aria-hidden="true">4</span><span class="nf-d" aria-hidden="true">0</span><span class="nf-d" aria-hidden="true">4</span></h1>
+        <p class="typed"><span id="typed">This page is still being written.</span><span class="caret" aria-hidden="true"></span></p>
+        <p class="msg">The link may be old, or the address may have a typo. Start again from the home page, or tell us about the link so we can fix it.</p>
+        <p class="asked" id="asked" hidden></p>
+        <p class="suggest" id="suggest" hidden></p>
+        <div class="actions">
+          <a class="btn primary" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/></svg>Go to the home page</a>
+          <a class="btn" href="./#download"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>Download Markooj</a>
+          <a class="btn" href="https://github.com/datakeen/markooj/issues"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 14.5 14.5 9.5M10.5 6.5l1.8-1.8a4 4 0 0 1 5.7 5.7l-1.8 1.8M13.5 17.5l-1.8 1.8a4 4 0 0 1-5.7-5.7l1.8-1.8"/></svg>Report a broken link</a>
+        </div>
+      </div>
+    </article>
+    <p class="hint" id="hint" aria-hidden="true"></p>
+  </div>
 </main>
+<script>
+// Markooj website 404 page. Copyright (C) 2026 Ahmed Bilal and contributors. AGPL-3.0-or-later.
+(function () {
+  'use strict';
+  var mq = function (q) { return !!(window.matchMedia && window.matchMedia(q).matches); };
+  var reduce = mq('(prefers-reduced-motion: reduce)');
+  var fine = mq('(hover: hover) and (pointer: fine)');
+  var doc = document.getElementById('doc');
+  var h1 = document.getElementById('nf-title');
+  var digits = Array.prototype.slice.call(h1.querySelectorAll('.nf-d'));
+  var hintEl = document.getElementById('hint');
+
+  // ---------- the address that was asked for, and a guess at what was meant ----------
+  var path = '';
+  try { path = decodeURIComponent(location.pathname + location.search); } catch (e) { path = location.pathname; }
+  var asked = document.getElementById('asked');
+  if (path && path !== '/' && !/\/404(\.html)?$/.test(location.pathname)) {
+    asked.textContent = 'You asked for ';
+    var code = document.createElement('code');
+    code.textContent = path.length > 120 ? path.slice(0, 117) + '…' : path;
+    asked.appendChild(code);
+    asked.hidden = false;
+  }
+  var GUESS = [
+    [/download|install|setup|release|\.exe|\.dmg|appimage/i, './#download', 'Download'],
+    [/try|demo|play/i, './#try', 'Try it'],
+    [/mode|inline|simple|read/i, './#modes', 'the four modes'],
+    [/feature/i, './#features', 'Features'],
+    [/lang|urdu|arab|punjab|persian|farsi/i, './#languages', 'Languages'],
+    [/add-?in|plugin|extension|store/i, './#addins', 'Add-ins'],
+    [/help|doc|manual|guide/i, 'https://github.com/datakeen/markooj/tree/main/docs/help', 'the manual on GitHub'],
+    [/support|donat|sponsor|contact|contribut/i, './#support', 'Help Markooj grow'],
+    [/screen|gallery|shot|picture/i, './#gallery', 'Markooj in action']
+  ];
+  for (var g = 0; g < GUESS.length; g++) {
+    if (GUESS[g][0].test(path)) {
+      var s = document.getElementById('suggest');
+      s.textContent = 'Were you looking for ';
+      var a = document.createElement('a');
+      a.href = GUESS[g][1];
+      a.textContent = GUESS[g][2];
+      s.appendChild(a);
+      s.appendChild(document.createTextNode('?'));
+      s.hidden = false;
+      break;
+    }
+  }
+
+  // ---------- "# 404": Markdown that reflows into a formatted heading ----------
+  var on = false;
+  function setFormatted(want) {
+    if (want === on) return;
+    on = want;
+    var first = digits.map(function (d) { return d.getBoundingClientRect(); });
+    doc.classList.toggle('is-fmt', on);
+    if (reduce || !Element.prototype.animate) return;
+    digits.forEach(function (d, i) {
+      var a = first[i], b = d.getBoundingClientRect();
+      if (!b.width || !b.height) return;
+      var dx = a.left - b.left, dy = a.top - b.top, sc = a.height / b.height;
+      d.animate([
+        { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sc + ')' },
+        { transform: 'none' }
+      ], { duration: 640, delay: i * 55, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
+    });
+  }
+  if (fine) {
+    h1.addEventListener('pointerenter', function () { setFormatted(true); });
+    h1.addEventListener('pointerleave', function () { setFormatted(false); });
+    hintEl.textContent = 'Point at the heading to format it.';
+  } else {
+    h1.addEventListener('click', function () { setFormatted(!on); });
+    hintEl.textContent = 'Tap the heading to format it.';
+  }
+
+  // ---------- a caret that keeps writing the missing page ----------
+  var LINES = [
+    'This page is still being written.',
+    'Its author stepped out for a cup of tea.',
+    'We looked under every heading. Not one paragraph.',
+    'Even Find and Replace could not find it.',
+    'Perhaps it was saved as Untitled 3 and never named.',
+    'The cursor is ready. The page is not.'
+  ];
+  var typed = document.getElementById('typed');
+  if (!reduce) {
+    var li = 0, timer = 0;
+    var wait = function (ms, fn) { timer = setTimeout(fn, ms); };
+    var erase = function () {
+      var t = typed.textContent;
+      if (!t.length) { li = (li + 1) % LINES.length; wait(380, type); return; }
+      typed.textContent = t.slice(0, -1);
+      wait(18, erase);
+    };
+    var type = function () {
+      var line = LINES[li], n = typed.textContent.length;
+      if (n < line.length) { typed.textContent = line.slice(0, n + 1); wait(42 + Math.random() * 60, type); }
+      else wait(2600, erase);
+    };
+    typed.textContent = '';
+    wait(500, type);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) clearTimeout(timer);
+      else { clearTimeout(timer); wait(300, typed.textContent.length < LINES[li].length ? type : erase); }
+    });
+  }
+
+  // ---------- the field of Markdown symbols ----------
+  var canvas = document.querySelector('.field');
+  var ctx = canvas.getContext && canvas.getContext('2d');
+  if (!ctx) return;
+  var RAW = ['#', '*', '_', '>', '-', '$', '`', '~', '|', '['];
+  var FMT = {
+    '#': ['H', '800 FONT'], '*': ['•', '700 FONT'], '_': ['i', 'italic 600 SERIF'], '>': ['❝', '400 SERIF'], '-': ['—', '400 FONT'],
+    '$': ['∑', '400 SERIF'], '`': ['{ }', '500 MONO'], '~': ['s', '500 FONT'], '|': ['▦', '400 FONT'], '[': ['↗', '600 FONT']
+  };
+  var cells = [], W = 0, H = 0, dpr = 1, gap = 40, colors = {};
+  var pointer = { x: -9999, y: -9999, tx: -9999, ty: -9999, active: false };
+  var raf = 0;
+  function readColors() {
+    var cs = getComputedStyle(document.documentElement);
+    colors.ink = cs.getPropertyValue('--ink-3').trim() || '#6b7280';
+    colors.accent = cs.getPropertyValue('--accent-ink').trim() || '#0a5ce6';
+    colors.font = cs.getPropertyValue('--font').trim();
+    colors.mono = cs.getPropertyValue('--mono').trim();
+  }
+  function font(spec, size) {
+    return spec.replace('FONT', size + 'px ' + colors.font).replace('SERIF', size + 'px Georgia, "Times New Roman", serif').replace('MONO', size + 'px ' + colors.mono);
+  }
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    gap = W < 600 ? 46 : 40;
+    cells = [];
+    var seed = 7;
+    var rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    for (var y = gap / 2; y < H + gap; y += gap) {
+      for (var x = gap / 2 + ((y / gap) % 2 ? gap / 2 : 0); x < W + gap; x += gap) {
+        if (rnd() < 0.32) continue;
+        cells.push({ x: x, y: y, ch: RAW[Math.floor(rnd() * RAW.length)], k: 0 });
+      }
+    }
+    draw();
+  }
+  function draw() {
+    raf = 0;
+    ctx.clearRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    pointer.x += (pointer.tx - pointer.x) * 0.25;
+    pointer.y += (pointer.ty - pointer.y) * 0.25;
+    var R = 150, moving = false;
+    for (var i = 0; i < cells.length; i++) {
+      var c = cells[i];
+      var dx = c.x - pointer.x, dy = c.y - pointer.y;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      var target = pointer.active && d < R ? 1 - d / R : 0;
+      c.k += (target - c.k) * 0.18;
+      if (Math.abs(target - c.k) > 0.004) moving = true;
+      var k = c.k * c.k * (3 - 2 * c.k);
+      var push = k * 14 / Math.max(d, 1);
+      var x = c.x + dx * push, y = c.y + dy * push;
+      if (k > 0.45) {
+        var f = FMT[c.ch];
+        ctx.font = font(f[1], 15 + k * 6);
+        ctx.fillStyle = colors.accent;
+        ctx.globalAlpha = 0.25 + k * 0.6;
+        ctx.fillText(f[0], x, y);
+      } else {
+        ctx.font = '500 14px ' + colors.mono;
+        ctx.fillStyle = colors.ink;
+        ctx.globalAlpha = 0.16 + k * 0.5;
+        ctx.fillText(c.ch, x, y);
+      }
+    }
+    ctx.globalAlpha = 1;
+    if (moving || Math.abs(pointer.tx - pointer.x) > 0.5) raf = requestAnimationFrame(draw);
+  }
+  function kick() { if (!raf) raf = requestAnimationFrame(draw); }
+  readColors();
+  resize();
+  var rt = 0;
+  window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(resize, 150); });
+  if (window.matchMedia) {
+    var dm = window.matchMedia('(prefers-color-scheme: dark)');
+    if (dm.addEventListener) dm.addEventListener('change', function () { readColors(); draw(); });
+  }
+  if (fine && !reduce) {
+    window.addEventListener('pointermove', function (e) {
+      if (e.pointerType && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      if (!pointer.active) { pointer.x = e.clientX; pointer.y = e.clientY; }
+      pointer.tx = e.clientX; pointer.ty = e.clientY; pointer.active = true;
+      kick();
+    }, { passive: true });
+    document.documentElement.addEventListener('pointerleave', function () { pointer.active = false; kick(); });
+  }
+})();
+</script>
 </body>
 </html>

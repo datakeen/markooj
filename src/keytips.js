@@ -18,12 +18,18 @@
     'format.bold': '1', 'format.italic': '2', 'format.underline': '3', 'format.strike': '4', 'format.sub': '5', 'format.sup': '6', 'edit.changeCaseMenu': '7',
     'format.fontFamily': 'FF', 'format.fontSize': 'FS', 'format.growFont': 'FG', 'format.shrinkFont': 'FK', 'format.clear': 'E', 'format.highlight': 'I', 'format.color': 'FC',
     'list.bullet': 'U', 'list.number': 'N', 'list.task': 'TK', 'para.outdent': 'AO', 'para.indent': 'AI', 'para.alignLeft': 'AL', 'para.alignCenter': 'AC', 'para.alignRight': 'AR', 'para.alignJustify': 'AJ',
-    'edit.paste': 'V', 'edit.cut': 'X', 'edit.copy': 'C', 'format.painter': 'FP', 'edit.find': 'FD', 'edit.replace': 'R', 'para.quote': 'Q',
+    'edit.paste': 'V', 'edit.cut': 'X', 'edit.copy': 'C', 'format.painter': 'FP', 'edit.find': 'FD', 'edit.replace': 'R', 'edit.selectAll': 'SL', 'para.quote': 'Q',
     'insert.table': 'T', 'insert.image': 'P', 'insert.link': 'I', 'insert.equation': 'E', 'insert.symbol': 'U', 'insert.pageBreak': 'B', 'insert.footnote': 'F', 'insert.citation': 'CI',
     'layout.margins': 'M', 'layout.size': 'SZ', 'layout.columns': 'O', 'layout.theme': 'TH',
     'review.spelling': 'S', 'review.wordCount': 'W', 'review.comment': 'C',
     'view.printLayout': 'P', 'view.webLayout': 'L', 'view.focus': 'F', 'view.outline': 'V', 'view.ribbonOptions': 'RB', 'view.zoomIn': 'ZI', 'view.zoomOut': 'ZO', 'view.zoom100': 'J', 'view.pageWidth': 'I',
+    // View → Show and View → Window, Word's letters (round 5)
+    'view.ruler': 'RU', 'view.guides': 'GU', 'view.newWindow': 'N', 'view.arrangeAll': 'A', 'view.split': 'S', 'view.sideBySide': 'B', 'view.syncScroll': 'YS', 'view.resetWindowPosition': 'T', 'view.switchWindows': 'W',
     'ref.toc': 'T', 'ref.footnote': 'F', 'ref.cite': 'C',
+    // Home → Aarab (aarab.js) and View → Keyboard (keyboards.js)
+    'aarab.zabar': 'DA', 'aarab.zer': 'DI', 'aarab.pesh': 'DU', 'aarab.shadd': 'DS', 'aarab.jazm': 'DJ', 'aarab.tanweenZabar': 'DN', 'aarab.tanweenZer': 'DE',
+    'aarab.tanweenPesh': 'DP', 'aarab.khariZabar': 'DK', 'aarab.remove': 'DR', 'aarab.toggleView': 'DH', 'aarab.fromWordList': 'DW',
+    'keyboard.menu': 'KB', 'keyboard.toggle': 'KT', 'keyboard.onScreen': 'KS',
   };
   const CONTROL_SEL = 'button[data-tip-cmd], button[data-cmd], button.select, button.big, button.ib, .gallery button.sty, .gallery button.more, .seg button, .mk-seg button';
 
@@ -68,7 +74,7 @@
     const items = [];
     const rb = ribbon();
     const file = rb?.querySelector('.rtab.file');
-    if (visible(file)) items.push({ el: file, want: 'F', label: 'File', kind: 'file' });
+    if (visible(file)) items.push({ el: file, want: 'F', label: app.t('File'), kind: 'file' });
     for (const b of $$('.rtab[data-tab]', rb || document)) if (visible(b)) items.push({ el: b, want: TAB_KEYS[b.dataset.tab] || '', label: b.textContent, kind: 'tab', id: b.dataset.tab });
     // title bar buttons (Word's Quick Access Toolbar) get numbers
     let n = 1;
@@ -91,7 +97,7 @@
       items.push({ el, want: CMD_KEYS[id] || '', label: labelOf(el) || id.split('.').pop(), kind: 'control', id });
     }
     const disp = rb.querySelector('.ribbon:not(.peek) > .rdisp, .rdisp');
-    if (visible(disp)) items.push({ el: disp, want: 'ZR', label: 'Ribbon display options', kind: 'control', id: 'view.ribbonOptions' });
+    if (visible(disp)) items.push({ el: disp, want: 'ZR', label: app.t('Ribbon display options'), kind: 'control', id: 'view.ribbonOptions' });
     return assign(items);
   }
 

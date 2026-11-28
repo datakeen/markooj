@@ -386,8 +386,8 @@
     const fail = msg => { throw new DefError(msg); };
     const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
     function define(name, body, info) {
-      if (info.kind === 'providecommand' && name in macros) { notes.push({ line: info.line, text: info.source, kind: 'info', name, message: `${name} was already defined, so \\providecommand keeps the first definition.` }); return; }
-      if (name in macros && firstLine[name] != null) notes.push({ line: info.line, text: info.source, kind: 'warn', name, message: `${name} is defined twice (lines ${firstLine[name]} and ${info.line}). The last one wins.` });
+      if (info.kind === 'providecommand' && name in macros) { notes.push({ line: info.line, text: info.source, kind: 'info', name, message: app.t('{name} was already defined, so {command} keeps the first definition.', { name, command: '\\providecommand' }) }); return; }
+      if (name in macros && firstLine[name] != null) notes.push({ line: info.line, text: info.source, kind: 'warn', name, message: app.t('{name} is defined twice (lines {first} and {second}). The last one wins.', { name, first: firstLine[name], second: info.line }) });
       else firstLine[name] = info.line;
       macros[name] = body;
       defs.push({ name, body, ...info });
@@ -405,14 +405,14 @@
         if (simple && !m) { define(simple[1], simple[2].trim(), { line, kind: 'short', args: maxArg(simple[2]), opt: null, source: rest.trim() }); i = lineEnd(i); continue; }
         if (m) {
           const before = rest.slice(0, m.index);
-          if (/\S/.test(before.replace(/[;,]/g, ''))) notes.push({ line, text: rest.trim(), kind: 'info', from: start, to: start + m.index, message: `The text before ${m[0]}, “${short(before)}”, is not part of a definition, so it was skipped.` });
+          if (/\S/.test(before.replace(/[;,]/g, ''))) notes.push({ line, text: rest.trim(), kind: 'info', from: start, to: start + m.index, message: app.t('The text before {command}, “{text}”, is not part of a definition, so it was skipped.', { command: m[0], text: short(before) }) });
           i = start + m.index; continue;
         }
         const t = rest.trim();
         const looksLikeUse = /\$|\\\(|^\\[A-Za-z]/.test(t);
         errors.push({ line, text: t, message: looksLikeUse
-          ? 'Start a definition with \\newcommand, \\renewcommand, \\def or \\DeclareMathOperator, for example \\newcommand{\\R}{\\mathbb{R}}.'
-          : `Write one definition per line, for example \\newcommand{\\R}{\\mathbb{R}}. “${short(t)}” is not a definition.` });
+          ? app.t('Start a definition with {newcommand}, {renewcommand}, {def} or {operator}, for example {example}.', { newcommand: '\\newcommand', renewcommand: '\\renewcommand', def: '\\def', operator: '\\DeclareMathOperator', example: '\\newcommand{\\R}{\\mathbb{R}}' })
+          : app.t('Write one definition per line, for example {example}. “{text}” is not a definition.', { example: '\\newcommand{\\R}{\\mathbb{R}}', text: short(t) }) });
         i = lineEnd(i); continue;
       }
       i += m[0].length;
@@ -423,69 +423,69 @@
         // the name: {\R}, \R, or {R} (the backslash is added)
         if (s[i] === '{') {
           const g = readGroup();
-          if (g === undefined) fail(`Add the closing brace } after the name in ${cmd}{…}.`);
+          if (g === undefined) fail(app.t('Add the closing brace } after the name in {command}.', { command: cmd + '{…}' }));
           const raw = g.trim();
-          if (!raw) fail(`${cmd} needs a name in braces, like ${cmd}{\\R}{…}.`);
+          if (!raw) fail(app.t('{command} needs a name in braces, like {example}.', { command: cmd, example: cmd + '{\\R}{…}' }));
           if (CS_NAME_RE.test(raw)) name = raw;
-          else if (/^[A-Za-z]+$/.test(raw)) { name = '\\' + raw; notes.push({ line, text: lineText(start), kind: 'info', name, message: `Added the missing backslash: the macro is called ${name}.` }); }
-          else fail(`“${short(raw)}” can’t be a macro name. Use a backslash and letters, like {\\R}.`);
+          else if (/^[A-Za-z]+$/.test(raw)) { name = '\\' + raw; notes.push({ line, text: lineText(start), kind: 'info', name, message: app.t('Added the missing backslash: the macro is called {name}.', { name }) }); }
+          else fail(app.t('“{text}” can’t be a macro name. Use a backslash and letters, like {example}.', { text: short(raw), example: '{\\R}' }));
         } else if (s[i] === '\\') name = readCs();
-        else if (/[A-Za-z]/.test(s[i] || '')) fail(`Put the name in braces with a backslash, like ${cmd}{\\R}{…}.`);
-        else fail(`${cmd} needs a name, like ${cmd}{\\R}{…}.`);
+        else if (/[A-Za-z]/.test(s[i] || '')) fail(app.t('Put the name in braces with a backslash, like {example}.', { example: cmd + '{\\R}{…}' }));
+        else fail(app.t('{command} needs a name, like {example}.', { command: cmd, example: cmd + '{\\R}{…}' }));
         skipGap();
         const info = { line, kind, opt: null, source: '' };
         if (kind === 'let') {
           if (s[i] === '=') { i++; skipSp(); }
           const target = s[i] === '{' ? readGroup() : readCs();
-          if (!target) fail(`\\let${name} needs a command to copy, like \\let${name}\\alpha.`);
+          if (!target) fail(app.t('{command} needs a command to copy, like {example}.', { command: '\\let' + name, example: '\\let' + name + '\\alpha' }));
           info.source = s.slice(start, i).trim(); define(name, target, { ...info, args: 0 });
         } else if (kind === 'DeclareMathOperator') {
-          if (s[i] !== '{') fail(`After ${name}, put the operator’s text in braces, like ${cmd}${star ? '*' : ''}{${name}}{${name.slice(1)}}.`);
+          if (s[i] !== '{') fail(app.t('After {name}, put the operator’s text in braces, like {example}.', { name, example: `${cmd}${star ? '*' : ''}{${name}}{${name.slice(1)}}` }));
           const body = readGroup();
-          if (body === undefined) fail(`Add a closing brace } at the end of the text of ${name}.`);
+          if (body === undefined) fail(app.t('Add a closing brace } at the end of the text of {name}.', { name }));
           info.source = s.slice(start, i).trim();
           define(name, `\\operatorname${star ? '*' : ''}{${body.trim()}}`, { ...info, args: 0 });
         } else if (/^[gex]?def$/.test(kind)) {
           const p0 = i; while (i < s.length && s[i] !== '{' && s[i] !== '\n') i++;
           const params = s.slice(p0, i).replace(/\s+/g, '');
-          if (s[i] !== '{') fail(`After \\${kind}${name}, put the definition in braces, like \\def${name}{\\mathbb{R}}.`);
+          if (s[i] !== '{') fail(app.t('After {command}, put the definition in braces, like {example}.', { command: '\\' + kind + name, example: '\\def' + name + '{\\mathbb{R}}' }));
           let n = 0;
           if (params) {
-            if (!/^(#\d)+$/.test(params)) fail(`Use \\newcommand{${name}}[2]{…} instead: \\def with a pattern like ${short(params)} isn’t supported.`);
+            if (!/^(#\d)+$/.test(params)) fail(app.t('Use {example} instead: {def} with a pattern like {pattern} isn’t supported.', { example: `\\newcommand{${name}}[2]{…}`, def: '\\def', pattern: short(params) }));
             const ds = params.match(/\d/g).map(Number);
-            if (ds.some((d, k) => d !== k + 1)) fail(`Number the arguments of ${name} in order: #1#2#3.`);
+            if (ds.some((d, k) => d !== k + 1)) fail(app.t('Number the arguments of {name} in order: #1#2#3.', { name }));
             n = ds.length;
           }
           const body = readGroup();
-          if (body === undefined) fail(`Add a closing brace } to the definition of ${name}: every { needs a matching }.`);
+          if (body === undefined) fail(app.t('Add a closing brace } to the definition of {name}: every { needs a matching }.', { name }));
           const used = maxArg(body);
-          if (used > n) notes.push({ line, text: lineText(start), kind: 'warn', name, message: `${name} uses #${used} but takes ${n ? plural(n, 'argument') : 'no arguments'}. Write \\def${name}${Array.from({ length: used }, (_, k) => '#' + (k + 1)).join('')}{…}.` });
+          if (used > n) notes.push({ line, text: lineText(start), kind: 'warn', name, message: (ex => (n ? app.tn('{name} uses #{used} but takes {count} arguments. Write {example}.', n, { name, used, example: ex }) : app.t('{name} uses #{used} but takes no arguments. Write {example}.', { name, used, example: ex })))(`\\def${name}${Array.from({ length: used }, (_, k) => '#' + (k + 1)).join('')}{…}`) });
           info.source = s.slice(start, i).trim();
           define(name, body.trim(), { ...info, args: Math.max(n, used) });
         } else {
           let n = 0, opt = null;
           if (s[i] === '[') {
             const a = readBracket();
-            if (a === undefined) fail(`Add the closing ] after the [ that follows ${name}.`);
-            if (!/^\s*\d\s*$/.test(a)) fail(`Use a number of arguments from 0 to 9, like [2]. Found [${short(a)}].`);
+            if (a === undefined) fail(app.t('Add the closing ] after the [ that follows {name}.', { name }));
+            if (!/^\s*\d\s*$/.test(a)) fail(app.t('Use a number of arguments from 0 to 9, like [2]. Found [{text}].', { text: short(a) }));
             n = Number(a.trim()); skipGap();
             if (s[i] === '[') {
               opt = readBracket();
-              if (opt === undefined) fail(`Add the closing ] after the default value of ${name}[${n}].`);
-              if (n < 1) fail(`${name} has a default value but no arguments. Write [1] before the default, like ${cmd}{${name}}[1][x]{…}.`);
+              if (opt === undefined) fail(app.t('Add the closing ] after the default value of {command}.', { command: `${name}[${n}]` }));
+              if (n < 1) fail(app.t('{name} has a default value but no arguments. Write [1] before the default, like {example}.', { name, example: `${cmd}{${name}}[1][x]{…}` }));
               skipGap();
             }
           }
-          if (s[i] !== '{') fail(`After ${name}${n ? `[${n}]` : ''}, put the definition in braces, like ${cmd}{${name}}{\\mathbb{R}}.`);
+          if (s[i] !== '{') fail(app.t('After {command}, put the definition in braces, like {example}.', { command: name + (n ? `[${n}]` : ''), example: `${cmd}{${name}}{\\mathbb{R}}` }));
           const raw = readGroup();
-          if (raw === undefined) fail(`Add a closing brace } to the definition of ${name}: every { needs a matching }.`);
+          if (raw === undefined) fail(app.t('Add a closing brace } to the definition of {name}: every { needs a matching }.', { name }));
           let body = raw.trim();
           const used = maxArg(body);
-          if (used > n) notes.push({ line, text: lineText(start), kind: 'warn', name, message: `${name} uses #${used} but says it takes ${n ? plural(n, 'argument') : 'no arguments'}. Write [${used}] after the name.` });
-          else if (n > used) notes.push({ line, text: lineText(start), kind: 'warn', name, message: `${name} says it takes ${plural(n, 'argument')} but uses ${used ? 'only #' + used : 'none of them'}.` });
+          if (used > n) notes.push({ line, text: lineText(start), kind: 'warn', name, message: n ? app.tn('{name} uses #{used} but says it takes {count} arguments. Write [{used}] after the name.', n, { name, used }) : app.t('{name} uses #{used} but says it takes no arguments. Write [{used}] after the name.', { name, used }) });
+          else if (n > used) notes.push({ line, text: lineText(start), kind: 'warn', name, message: used ? app.tn('{name} says it takes {count} arguments but uses only #{used}.', n, { name, used }) : app.tn('{name} says it takes {count} arguments but uses none of them.', n, { name }) });
           if (opt != null) {
             body = body.replace(/(?<!#)#1/g, () => opt).replace(/(?<!#)#([2-9])/g, (_, d) => '#' + (Number(d) - 1));
-            notes.push({ line, text: lineText(start), kind: 'info', name, message: `${name} has an optional first argument. Markooj always uses its default, “${short(opt)}”.` });
+            notes.push({ line, text: lineText(start), kind: 'info', name, message: app.t('{name} has an optional first argument. Markooj always uses its default, “{text}”.', { name, text: short(opt) }) });
           }
           info.source = s.slice(start, i).trim(); info.opt = opt;
           define(name, body, { ...info, args: Math.max(n, used) - (opt != null ? 1 : 0) });
@@ -510,7 +510,7 @@
       if (!/[^\s;,.]/.test(extra)) continue;
       const last = defs[defs.length - 1]?.name || name;
       notes.push({ line, text: lineText(from), kind: 'tail', name: last, from, to, extra: extra.trim(),
-        message: `${last} is defined. The text after it, ${short(extra)}, is not a definition — type it in your document to use the macro.` });
+        message: app.t('{name} is defined. The text after it, {text}, is not a definition — type it in your document to use the macro.', { name: last, text: short(extra) }) });
     }
     return { macros, errors, notes, defs };
   }
@@ -588,10 +588,10 @@
   // =====================================================================================
   let currentRun = null;
   function checkStop() { if (currentRun?.stopped) throw new Error('Stopped'); }
-  function activeDoc() { checkStop(); const d = app.docs.active(); if (!d) throw new Error('Open or create a document first, then run the macro again.'); return d; }
+  function activeDoc() { checkStop(); const d = app.docs.active(); if (!d) throw new Error(app.t('Open or create a document first, then run the macro again.')); return d; }
   function editableDoc() {
     const d = activeDoc();
-    if (d.kind !== 'markdown' || d.readOnly) throw new Error(`“${d.title}” is read-only. Use “Edit as text” to get an editable copy first.`);
+    if (d.kind !== 'markdown' || d.readOnly) throw new Error(app.t('“{title}” is read-only. Use “Edit as text” to get an editable copy first.', { title: d.title }));
     return d;
   }
   function selection(d) {
@@ -658,7 +658,7 @@
       }
       const ed = app.editors?.active?.();
       if (ed?.replaceSelection) { ed.replaceSelection(text); return true; }
-      throw new Error('Click in the document and try again. Markooj couldn’t find the selection.');
+      throw new Error(app.t('Click in the document and try again. Markooj couldn’t find the selection.'));
     },
     replace(find, repl, opts) {
       const d = editableDoc(); const o = { all: true, case: true, regex: false, ...normOpts(opts) };
@@ -698,9 +698,9 @@
     activate(id) { app.docs.activate(id); return docInfo(app.docs.get(id)); },
   };
   const ui = {
-    alert(msg) { checkStop(); return app.ui.dialog({ title: 'Macro', body: esc(fmtArg(msg)).replace(/\n/g, '<br>'), buttons: [{ label: 'OK', value: true, primary: true }] }).then(() => undefined); },
-    confirm(msg) { checkStop(); return Promise.resolve(app.ui.confirm('Macro', fmtArg(msg))).then(Boolean); },
-    prompt(msg, def) { checkStop(); return Promise.resolve(app.ui.prompt('Macro', fmtArg(msg), def == null ? '' : String(def))).then(v => v == null ? undefined : String(v)); },
+    alert(msg) { checkStop(); return app.ui.dialog({ title: app.t('Macro'), body: esc(fmtArg(msg)).replace(/\n/g, '<br>'), buttons: [{ label: app.t('OK'), value: true, primary: true }] }).then(() => undefined); },
+    confirm(msg) { checkStop(); return Promise.resolve(app.ui.confirm(app.t('Macro'), fmtArg(msg))).then(Boolean); },
+    prompt(msg, def) { checkStop(); return Promise.resolve(app.ui.prompt(app.t('Macro'), fmtArg(msg), def == null ? '' : String(def))).then(v => v == null ? undefined : String(v)); },
     toast(msg) { toast(fmtArg(msg)); },
   };
   function run(id, args) { checkStop(); try { if (args && typeof args.toJs === 'function') args = args.toJs({ dict_converter: Object.fromEntries }); } catch {} return app.commands.run(String(id), args); }
@@ -970,7 +970,7 @@ def _guard_stop():
     if (py.inst) return Promise.resolve(py.inst);
     if (py.loading) return py.loading;
     setPyState('loading');
-    toast('Starting Python…');
+    toast(app.t('Starting Python…'));
     py.loading = (async () => {
       const base = pyBase();
       let mod;
@@ -991,10 +991,11 @@ def _guard_stop():
       return p;
     })().catch(e => {
       py.loading = null; setPyState('error');
-      const err = new Error(e && e.pyMissing
-        ? 'Install Markooj again to run Python macros: this copy is missing its Python files. JavaScript macros still work.'
-        : 'Try running it again. Python didn’t start this time; if it keeps failing, restart Markooj. JavaScript macros still work.');
-      err.details = String(e && (e.stack || e.message) || e); err.pyStart = true; err.mkLine = null;
+      // featureMissing: the stand-in pyodide.mjs of a slim copy (main-features.js), when the user chose Not now
+      const err = new Error(e && (e.pyMissing || e.featureMissing)
+        ? app.t('Install Python macros from File → Options → Features (about 6 MB), then run the macro again. JavaScript macros still work.')
+        : app.t('Try running it again. Python didn’t start this time; if it keeps failing, restart Markooj. JavaScript macros still work.'));
+      err.details = String(e && (e.stack || e.message) || e); err.pyStart = true; err.mkLine = null; err.pyFeature = !!(e && (e.pyMissing || e.featureMissing));
       throw err;
     });
     return py.loading;
@@ -1065,7 +1066,7 @@ def _guard_stop():
       } catch (e) {
         const message = (e && e.message) || String(e);
         sink('err', message, e && e.mkLine);
-        return { ok: false, error: message, line: (e && e.mkLine) || null, pyStart: !!(e && e.pyStart), details: e && e.details };
+        return { ok: false, error: message, line: (e && e.mkLine) || null, pyStart: !!(e && e.pyStart), pyFeature: !!(e && e.pyFeature), details: e && e.details };
       } finally {
         ctx.done = true; if (currentRun === ctx) currentRun = null; notifyRun();
       }
@@ -1104,7 +1105,7 @@ def _guard_stop():
     get(name) { return store.list.find(m => m.name.toLowerCase() === String(name).toLowerCase()); },
     async save(m) {
       m = normMacro(m);
-      if (!NAME_RE.test(m.name)) throw new Error('Use letters, numbers, spaces, - or _ for the macro name (up to 48 characters).');
+      if (!NAME_RE.test(m.name)) throw new Error(app.t('Use letters, numbers, spaces, - or _ for the macro name (up to 48 characters).'));
       if (!store.local) { try { await mk.invoke('macros-save', m); } catch (e) { if (/No handler/i.test(e.message)) store.local = true; else throw e; } }
       store.list = store.list.filter(x => x.name.toLowerCase() !== m.name.toLowerCase()).concat(m).sort((a, b) => a.name.localeCompare(b.name));
       if (store.local) try { localStorage.setItem(LS_KEY, JSON.stringify(store.list)); } catch {}
@@ -1122,7 +1123,7 @@ def _guard_stop():
     const now = new Set();
     for (const m of store.list) {
       const id = 'macro.' + m.name; now.add(id);
-      app.commands.register(id, { label: 'Macro: ' + m.name, icon: 'dev-run', shortcut: m.shortcut || undefined, macro: true, run: () => runSaved(m.name) });
+      app.commands.register(id, { label: app.t('Macro: {name}', { name: m.name }), icon: 'dev-run', shortcut: m.shortcut || undefined, macro: true, run: () => runSaved(m.name) });
     }
     for (const id of registeredMacroCmds) if (!now.has(id)) {
       if (typeof app.commands.unregister === 'function') app.commands.unregister(id);
@@ -1130,21 +1131,26 @@ def _guard_stop():
     }
     registeredMacroCmds.clear(); now.forEach(id => registeredMacroCmds.add(id));
     const onRibbon = store.list.filter(m => m.ribbon);
-    if (onRibbon.length) app.ribbon.addGroup('developer', { id: 'dev-mymacros', label: 'My macros', order: 90, items: onRibbon.map(m => ({ type: 'big', command: 'macro.' + m.name, label: m.name, icon: m.lang === 'python' ? 'dev-python' : 'dev-run' })) });
+    if (onRibbon.length) app.ribbon.addGroup('developer', { id: 'dev-mymacros', label: app.tm('My macros'), order: 90, items: onRibbon.map(m => ({ type: 'big', command: 'macro.' + m.name, label: m.name, icon: m.lang === 'python' ? 'dev-python' : 'dev-run' })) });
     else app.ribbon.removeGroup?.('developer', 'dev-mymacros');
     app.events.emit('macros:changed', store.list);
   }
+  // macro commands carry a translated label ("Macro: name"): register them again in the new interface language
+  app.events.on('i18n:changed', () => { try { if (store.loaded) afterChange(); } catch (e) { console.error('developer: i18n', e); } });
   async function runSaved(name) {
     const m = store.get(name);
-    if (!m) { toast(`Pick a macro from Developer → Macros (Alt+F8). “${name}” isn’t saved on this computer.`, { kind: 'warn', actions: [{ label: 'Open Macros', run: () => openMacrosDialog() }] }); return; }
+    if (!m) { toast(app.t('Pick a macro from Developer → Macros (Alt+F8). “{name}” isn’t saved on this computer.', { name }), { kind: 'warn', actions: [{ label: app.t('Open Macros'), run: () => openMacrosDialog() }] }); return; }
     const r = await runMacro(m);
     if (!r.ok && !/^Stopped\.?$/i.test(String(r.error).trim())) {
-      const actions = [{ label: 'Try again', run: () => runSaved(name) }];
+      const actions = [{ label: app.t('Try again'), run: () => runSaved(name) }];
+      // Python macros are an optional feature since 1.2 (src/features.js): offer to install it right here
+      if (r.pyStart && app.features && (r.pyFeature || /Options → Features/.test(r.error))) actions.unshift({ label: app.t('Install Python macros'), run: async () => { if (await app.features.install('python')) runSaved(name); } });
       if (r.pyStart) toast(r.error, { kind: 'error', actions, details: r.details });
       else {
         const last = String(r.error).trim().split('\n').pop();
-        actions.push({ label: 'Edit macro', run: () => openEditor(m.name) });
-        toast(`Open “${m.name}” in the Macro Editor to fix ${r.line ? 'line ' + r.line : 'it'}, then run it again. ${m.lang === 'python' ? 'Python' : 'JavaScript'} says: ${last}`, { kind: 'error', actions, details: r.error });
+        actions.push({ label: app.t('Edit macro'), run: () => openEditor(m.name) });
+        const v = { name: m.name, line: r.line, language: m.lang === 'python' ? 'Python' : 'JavaScript', message: last };
+        toast(r.line ? app.t('Open “{name}” in the Macro Editor to fix line {line}, then run it again. {language} says: {message}', v) : app.t('Open “{name}” in the Macro Editor to fix it, then run it again. {language} says: {message}', v), { kind: 'error', actions, details: r.error });
       }
     }
     return r;
@@ -1189,8 +1195,8 @@ def _guard_stop():
       else rec.steps.push({ kind: 'type', text: added, start: p, end: p + added.length });
     } else if (removed && !added) {
       if (last?.kind === 'type' && a.length - s === last.end && p >= last.start) { last.text = last.text.slice(0, p - last.start); last.end = p; if (!last.text) rec.steps.pop(); }
-      else if (last?.kind !== 'note') rec.steps.push({ kind: 'note', text: 'Text was deleted here (deleting is not recorded).' });
-    } else if (removed && added && last?.kind !== 'note') rec.steps.push({ kind: 'note', text: 'Text was changed here (only typing and commands are recorded).' });
+      else if (last?.kind !== 'note') rec.steps.push({ kind: 'note', text: app.t('Text was deleted here (deleting is not recorded).') });
+    } else if (removed && added && last?.kind !== 'note') rec.steps.push({ kind: 'note', text: app.t('Text was changed here (only typing and commands are recorded).') });
     paintRecStatus();
   });
 
@@ -1203,17 +1209,19 @@ def _guard_stop():
     return '{' + Object.entries(v).map(([k, x]) => JSON.stringify(k) + ': ' + pyLit(x)).join(', ') + '}';
   }
   function buildRecorded(steps, lang) {
-    const when = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const dOpts = { year: 'numeric', month: 'long', day: 'numeric' };
+    const when = app.i18n?.date ? app.i18n.date(new Date(), dOpts) : new Date().toLocaleDateString('en-US', dOpts);
+    const recorded = app.t('Recorded on {date}', { date: when });
     const L = [];
     if (lang === 'python') {
-      L.push(`# Recorded on ${when}`, 'from markooj import doc, run', '');
+      L.push(`# ${recorded}`, 'from markooj import doc, run', '');
       for (const st of steps) {
         if (st.kind === 'cmd') L.push(`await run(${JSON.stringify(st.id)}${st.args !== undefined ? ', ' + pyLit(st.args) : ''})`);
         else if (st.kind === 'type') L.push(`doc.insert(${JSON.stringify(st.text)})`);
         else L.push(`# ${st.text}`);
       }
     } else {
-      L.push(`// Recorded on ${when}`, '');
+      L.push(`// ${recorded}`, '');
       for (const st of steps) {
         if (st.kind === 'cmd') L.push(`await run(${JSON.stringify(st.id)}${st.args !== undefined ? ', ' + JSON.stringify(st.args) : ''});`);
         else if (st.kind === 'type') L.push(`doc.insert(${JSON.stringify(st.text)});`);
@@ -1230,7 +1238,7 @@ def _guard_stop():
     const n = recStatusEl?.querySelector?.('.mkd-rec-n'); if (!n || !rec.on) return;
     const steps = rec.steps.filter(s => s.kind !== 'note').length;
     const sec = Math.floor((Date.now() - rec.started) / 1000);
-    n.textContent = `${steps} step${steps === 1 ? '' : 's'} · ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    n.textContent = `${app.tn('{count} steps', steps)} · ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
   }
   function recChanged() {
     document.body?.classList.toggle('mk-recording', rec.on);
@@ -1245,14 +1253,14 @@ def _guard_stop():
     try { app.editors?.active?.()?.flush?.(); } catch {}
     const d = app.docs.active(); if (d) rec.snap.set(d.id, d.text);
     recChanged();
-    toast('Recording started. Use the ribbon and type as usual. Click Stop in the status bar when you are done.');
+    toast(app.t('Recording started. Use the ribbon and type as usual. Click Stop in the status bar when you are done.'));
   }
   async function stopRecording({ ask = true, save = true, name, lang } = {}) {
     if (!rec.on) return null;
     try { app.editors?.active?.()?.flush?.(); } catch {}
     rec.on = false; const steps = rec.steps.slice(); rec.steps = [];
     recChanged();
-    if (!steps.some(s => s.kind !== 'note')) { if (ask) toast('To record a macro, click Record, then use ribbon buttons or type. This recording had no steps, so it was not saved.'); return null; }
+    if (!steps.some(s => s.kind !== 'note')) { if (ask) toast(app.t('To record a macro, click Record, then use ribbon buttons or type. This recording had no steps, so it was not saved.')); return null; }
     lang = lang || app.settings.get('macroLang', 'python');
     let m = { name: name || nextMacroName(), lang, code: buildRecorded(steps, lang), shortcut: '', ribbon: false };
     if (ask) {
@@ -1261,16 +1269,16 @@ def _guard_stop():
       const langSeg = seg([{ value: 'python', label: 'Python' }, { value: 'js', label: 'JavaScript' }], lang, v => { pre.textContent = buildRecorded(steps, v); });
       const ribbonCb = h('input', { type: 'checkbox' });
       const body = h('div', null,
-        h('div', { class: 'mkd-form' }, h('label', null, 'Name'), nameIn, h('label', null, 'Language'), h('div', null, langSeg), h('span'), h('label', { class: 'mkd-check' }, ribbonCb, 'Show a button on the Developer tab')),
+        h('div', { class: 'mkd-form' }, h('label', null, app.t('Name')), nameIn, h('label', null, app.t('Language')), h('div', null, langSeg), h('span'), h('label', { class: 'mkd-check' }, ribbonCb, app.t('Show a button on the Developer tab'))),
         pre);
       setTimeout(() => { nameIn.focus(); nameIn.select(); }, 60);
-      const v = await app.ui.dialog({ title: 'Save recorded macro', body, buttons: [{ label: 'Discard', value: 'discard', danger: true }, { label: 'Save', value: 'save', primary: true }] });
-      if (v !== 'save') { toast('Recording discarded.'); return null; }
+      const v = await app.ui.dialog({ title: app.t('Save recorded macro'), body, buttons: [{ label: app.t('Discard'), value: 'discard', danger: true }, { label: app.t('Save'), value: 'save', primary: true }] });
+      if (v !== 'save') { toast(app.t('Recording discarded.')); return null; }
       m = { ...m, name: nameIn.value.trim() || m.name, lang: langSeg.value, code: buildRecorded(steps, langSeg.value), ribbon: ribbonCb.checked };
     }
     if (save) {
-      try { m = await store.save(m); toast(`Saved macro “${m.name}”. Run it from Developer → Macros (Alt+F8).`); }
-      catch (e) { app.ui.fail(e, { lead: /^Use /.test(String(e && e.message)) ? '' : 'Try saving the macro again.', actions: [{ label: 'Open in Macro Editor', run: () => openEditor(null, { lang: m.lang, code: m.code, name: m.name }) }] }); }
+      try { m = await store.save(m); toast(app.t('Saved macro “{name}”. Run it from Developer → Macros (Alt+F8).', { name: m.name })); }
+      catch (e) { app.ui.fail(e, { lead: e && e.message === app.t('Use letters, numbers, spaces, - or _ for the macro name (up to 48 characters).') ? '' : app.t('Try saving the macro again.'), actions: [{ label: app.t('Open in Macro Editor'), run: () => openEditor(null, { lang: m.lang, code: m.code, name: m.name }) }] }); }
     }
     return m;
   }
@@ -1401,32 +1409,32 @@ def _guard_stop():
   // =====================================================================================
   const EXAMPLES = [
     {
-      title: 'Replace all “colour” with “color”', name: 'ReplaceColour',
+      title: app.tm('Replace all “colour” with “color”'), name: 'ReplaceColour',
       python: 'from markooj import doc, ui\n\nn = doc.replace("colour", "color")\nn += doc.replace("Colour", "Color")\nui.toast(f"Replaced {n} times")\n',
       js: "let n = doc.replace('colour', 'color');\nn += doc.replace('Colour', 'Color');\nui.toast(`Replaced ${n} times`);\n",
     },
     {
-      title: 'Number all figures', name: 'NumberFigures',
+      title: app.tm('Number all figures'), name: 'NumberFigures',
       python: 'import re\nfrom markooj import doc, ui\n\ncount = 0\n\ndef number(m):\n    global count\n    count += 1\n    caption = re.sub(r"^Figure \\d+[.:]\\s*", "", m.group(1))\n    return f"![Figure {count}: {caption}]({m.group(2)})"\n\ndoc.text = re.sub(r"!\\[([^\\]]*)\\]\\(([^)]*)\\)", number, doc.text)\nui.toast(f"Numbered {count} figures")\n',
       js: "let count = 0;\ndoc.text = doc.text.replace(/!\\[([^\\]]*)\\]\\(([^)]*)\\)/g, (all, caption, src) => {\n    count++;\n    caption = caption.replace(/^Figure \\d+[.:]\\s*/, '');\n    return `![Figure ${count}: ${caption}](${src})`;\n});\nui.toast(`Numbered ${count} figures`);\n",
     },
     {
-      title: 'Insert today’s date', name: 'InsertDate',
+      title: app.tm('Insert today’s date'), name: 'InsertDate',
       python: 'from datetime import date\nfrom markooj import doc\n\ndoc.insert(date.today().strftime("%B %d, %Y"))\n',
       js: "const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });\ndoc.insert(today);\n",
     },
     {
-      title: 'Make a table of word frequencies', name: 'WordTable',
+      title: app.tm('Make a table of word frequencies'), name: 'WordTable',
       python: 'import re\nfrom collections import Counter\nfrom markooj import doc\n\nwords = re.findall(r"[A-Za-z\']+", doc.text.lower())\ncommon = Counter(w for w in words if len(w) > 3).most_common(10)\n\nrows = "\\n".join(f"| {w} | {n} |" for w, n in common)\ndoc.insert("\\n\\n| Word | Count |\\n|---|---:|\\n" + rows + "\\n")\n',
       js: "const counts = {};\nfor (const w of doc.text.toLowerCase().match(/[a-z']+/g) || []) {\n    if (w.length > 3) counts[w] = (counts[w] || 0) + 1;\n}\nconst top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);\nconst rows = top.map(([w, n]) => `| ${w} | ${n} |`).join('\\n');\ndoc.insert('\\n\\n| Word | Count |\\n|---|---:|\\n' + rows + '\\n');\n",
     },
     {
-      title: 'Convert inches to cm in the selection', name: 'InchesToCm',
+      title: app.tm('Convert inches to cm in the selection'), name: 'InchesToCm',
       python: 'import re\nfrom markooj import doc, ui\n\ntext = doc.selection\nif not text:\n    ui.alert("Select some text first.")\nelse:\n    def to_cm(m):\n        return f"{float(m.group(1)) * 2.54:.2f} cm"\n    pattern = r"(\\d+(?:\\.\\d+)?)\\s*(?:inches|inch|in\\b|\\")"\n    doc.replace_selection(re.sub(pattern, to_cm, text))\n',
       js: "const text = doc.selection;\nif (!text) {\n    await ui.alert('Select some text first.');\n} else {\n    const pattern = /(\\d+(?:\\.\\d+)?)\\s*(?:inches|inch|in\\b|\")/g;\n    doc.replaceSelection(text.replace(pattern, (m, n) => (n * 2.54).toFixed(2) + ' cm'));\n}\n",
     },
     {
-      title: 'Ask a question', name: 'AskName',
+      title: app.tm('Ask a question'), name: 'AskName',
       python: 'from markooj import doc, ui\n\nname = await ui.prompt_async("Who is the author?", "")\nif name:\n    doc.set_meta("author", name)\n    ui.toast(f"Author set to {name}")\n',
       js: "const name = await ui.prompt('Who is the author?', '');\nif (name) {\n    doc.setMeta('author', name);\n    ui.toast(`Author set to ${name}`);\n}\n",
     },
@@ -1434,31 +1442,32 @@ def _guard_stop():
   function referenceHtml(lang) {
     const P = lang === 'python';
     const rows = [
-      ['doc.text', 'The whole document as Markdown. Assign to it to replace everything.'],
-      ['doc.title · doc.path', 'The document name and file path (empty if not saved yet).'],
-      ['doc.selection', 'The selected text.'],
-      ['doc.insert(text)', 'Insert text at the cursor.'],
-      [P ? 'doc.replace_selection(text)' : 'doc.replaceSelection(text)', 'Replace the selected text.'],
-      [P ? 'doc.replace(find, repl, regex=False, all=True, case=True)' : 'doc.replace(find, repl, {regex, all, case})', 'Find and replace. Returns how many places changed.'],
-      ['doc.find(query)', 'Every match as {line, column, text}.'],
-      ['doc.lines()', 'The document as a list of lines.'],
-      [P ? 'doc.meta · doc.set_meta(key, value)' : 'doc.meta · doc.setMeta(key, value)', 'Document properties (title, author, keywords…) stored in the front matter.'],
-      ['docs.list() · docs.open(path) · docs.new(text)', 'Work with open documents.'],
-      [P ? 'ui.alert(msg) · ui.confirm(msg)' : 'await ui.alert(msg) · await ui.confirm(msg)', 'Show a message, or ask yes or no.'],
-      [P ? 'await ui.prompt_async(msg, default)' : 'await ui.prompt(msg, default)', 'Ask for some text. Returns the answer, or nothing if canceled.'],
-      ['ui.toast(msg)', 'A short message at the bottom of the window.'],
-      [P ? 'await run(command_id, args)' : 'await run(commandId, args)', 'Run any button’s command, e.g. await run("format.bold").'],
-      ['commands()', 'All command ids (the same ones the macro recorder writes).'],
-      [P ? 'print(...)' : 'print(...) · console.log(...)', 'Write to the Output panel.'],
+      ['doc.text', app.t('The whole document as Markdown. Assign to it to replace everything.')],
+      ['doc.title · doc.path', app.t('The document name and file path (empty if not saved yet).')],
+      ['doc.selection', app.t('The selected text.')],
+      ['doc.insert(text)', app.t('Insert text at the cursor.')],
+      [P ? 'doc.replace_selection(text)' : 'doc.replaceSelection(text)', app.t('Replace the selected text.')],
+      [P ? 'doc.replace(find, repl, regex=False, all=True, case=True)' : 'doc.replace(find, repl, {regex, all, case})', app.t('Find and replace. Returns how many places changed.')],
+      ['doc.find(query)', app.t('Every match as {line, column, text}.')],
+      ['doc.lines()', app.t('The document as a list of lines.')],
+      [P ? 'doc.meta · doc.set_meta(key, value)' : 'doc.meta · doc.setMeta(key, value)', app.t('Document properties (title, author, keywords…) stored in the front matter.')],
+      ['docs.list() · docs.open(path) · docs.new(text)', app.t('Work with open documents.')],
+      [P ? 'ui.alert(msg) · ui.confirm(msg)' : 'await ui.alert(msg) · await ui.confirm(msg)', app.t('Show a message, or ask yes or no.')],
+      [P ? 'await ui.prompt_async(msg, default)' : 'await ui.prompt(msg, default)', app.t('Ask for some text. Returns the answer, or nothing if canceled.')],
+      ['ui.toast(msg)', app.t('A short message at the bottom of the window.')],
+      [P ? 'await run(command_id, args)' : 'await run(commandId, args)', app.t('Run any button’s command, e.g. await run("format.bold").')],
+      ['commands()', app.t('All command ids (the same ones the macro recorder writes).')],
+      [P ? 'print(...)' : 'print(...) · console.log(...)', app.t('Write to the Output panel.')],
     ];
     const notes = P
-      ? `<div class="mkd-note">Python runs offline, right inside Markooj. The standard library works (re, math, statistics, datetime, json, collections). Extra packages cannot be installed.</div>
-         <div class="mkd-note">Start with <code>from markooj import doc, ui</code> (it is also imported for you). <code>ui.prompt(...)</code> waits for the answer where your system supports it; <code>await ui.prompt_async(...)</code> always works.</div>`
-      : `<div class="mkd-note">JavaScript macros run as async functions: use <code>await</code> with ui.alert, ui.prompt, ui.confirm, run and docs.open. The full app object is available as <code>app</code>.</div>`;
-    return `<h5>API reference</h5>${notes}${rows.map(([c, d]) => `<div class="mkd-api"><code>${esc(c)}</code><span>${esc(d)}</span></div>`).join('')}
-      <div class="mkd-api"><button class="mkd-btn" data-act="listcmds">${svg('dev-console')}Print all command ids</button></div>
-      <h5>Examples</h5>${EXAMPLES.map((x, k) => `<button class="mkd-ex" data-ex="${k}">${svg('dev-edit')}${esc(x.title)}</button>`).join('')}
-      <div class="mkd-note">Stuck in a loop? Press Stop. Macros also stop after ${timeLimit() || 'no'} seconds (change this in File → Options → Developer).</div>`;
+      ? `<div class="mkd-note">${app.th('Python runs offline, right inside Markooj. The standard library works (re, math, statistics, datetime, json, collections). Extra packages cannot be installed.')}</div>
+         <div class="mkd-note">${app.th('Start with <code>from markooj import doc, ui</code> (it is also imported for you). <code>ui.prompt(...)</code> waits for the answer where your system supports it; <code>await ui.prompt_async(...)</code> always works.')}</div>`
+      : `<div class="mkd-note">${app.th('JavaScript macros run as async functions: use <code>await</code> with ui.alert, ui.prompt, ui.confirm, run and docs.open. The full app object is available as <code>app</code>.')}</div>`;
+    const limit = timeLimit();
+    return `<h5>${app.th('API reference')}</h5>${notes}${rows.map(([c, d]) => `<div class="mkd-api"><code>${esc(c)}</code><span>${esc(d)}</span></div>`).join('')}
+      <div class="mkd-api"><button class="mkd-btn" data-act="listcmds">${svg('dev-console')}${app.th('Print all command ids')}</button></div>
+      <h5>${app.th('Examples')}</h5>${EXAMPLES.map((x, k) => `<button class="mkd-ex" data-ex="${k}">${svg('dev-edit')}${esc(app.t(x.title))}</button>`).join('')}
+      <div class="mkd-note">${limit ? app.th('Stuck in a loop? Press Stop. Macros also stop after {seconds} seconds (change this in File → Options → Developer).', { seconds: limit }) : app.th('Stuck in a loop? Press Stop. Macros have no time limit now (change this in File → Options → Developer).')}</div>`;
   }
   const TEMPLATE = {
     python: '# My macro: it runs on the open document.\n# Press Ctrl+Enter to run and Ctrl+S to save.\nfrom markooj import doc, ui\n\nwords = len(doc.text.split())\nui.toast(f"“{doc.title}” has {words} words")\n',
@@ -1478,7 +1487,7 @@ def _guard_stop():
     return [...parts, key].join('+');
   }
   function shortcutField(value, onChange) {
-    const inp = h('input', { class: 'mkd-input capture', readonly: true, placeholder: 'Click, then press keys', value: value || '', style: { width: '160px' }, title: 'Click here and press a key combination, like Ctrl+Alt+M. Backspace clears it.' });
+    const inp = h('input', { class: 'mkd-input capture', readonly: true, placeholder: app.t('Click, then press keys'), value: value || '', style: { width: '160px' }, title: app.t('Click here and press a key combination, like Ctrl+Alt+M. Backspace clears it.') });
     inp.addEventListener('keydown', e => {
       if (e.key === 'Tab') return;
       e.preventDefault(); e.stopPropagation();
@@ -1486,7 +1495,7 @@ def _guard_stop():
       if (e.key === 'Escape') { inp.blur(); return; }
       const s = shortcutFromEvent(e);
       if (s === null) return;
-      if (s === '') { toast('Use Ctrl or Alt with a key (or a function key like F9).'); return; }
+      if (s === '') { toast(app.t('Use Ctrl or Alt with a key (or a function key like F9).')); return; }
       inp.value = s; onChange?.(s);
     });
     return inp;
@@ -1504,54 +1513,54 @@ def _guard_stop():
   function openEditor(name, preset) {
     if (editorSheet) { if (name) editorSheet.select(name); else if (preset) editorSheet.loadNew(preset); editorSheet.focus(); return editorSheet; }
     const state = { orig: null, dirty: false, lang: app.settings.get('macroLang', 'python'), running: false };
-    const listEl = h('div', { class: 'mkd-items', role: 'listbox', 'aria-label': 'Macros' });
-    const nameIn = h('input', { class: 'mkd-input', placeholder: 'Macro name', spellcheck: 'false', style: { width: '190px' } });
+    const listEl = h('div', { class: 'mkd-items', role: 'listbox', 'aria-label': app.t('Macros') });
+    const nameIn = h('input', { class: 'mkd-input', placeholder: app.t('Macro name'), spellcheck: 'false', style: { width: '190px' } });
     const langSeg = seg([{ value: 'python', label: 'Python' }, { value: 'js', label: 'JavaScript' }], state.lang, v => { state.lang = v; code.setLang(v); refEl.firstChild.innerHTML = referenceHtml(v); markDirty(); });
     let shortcut = '';
-    const scIn = shortcutField('', v => { shortcut = v; markDirty(); const o = shortcutOwner(v, nameIn.value.trim()); if (o) out('info', `${v} is also used by “${o.label || o.id}”. The macro will take it over.`); });
+    const scIn = shortcutField('', v => { shortcut = v; markDirty(); const o = shortcutOwner(v, nameIn.value.trim()); if (o) out('info', app.t('{shortcut} is also used by “{command}”. The macro will take it over.', { shortcut: v, command: o.label ? app.t(o.label) : o.id })); });
     const ribbonCb = h('input', { type: 'checkbox' }); ribbonCb.addEventListener('change', markDirty);
-    const dot = h('span', { class: 'mkd-dot' }), stText = h('span', null, 'Ready'), posEl = h('span', { style: { marginLeft: 'auto', textTransform: 'none', letterSpacing: 0 } }, 'Line 1');
-    const code = createCodeEditor({ lang: state.lang, onChange: () => markDirty(), onCursor: ln => { posEl.textContent = 'Line ' + ln; } });
+    const dot = h('span', { class: 'mkd-dot' }), stText = h('span', null, app.t('Ready')), posEl = h('span', { style: { marginLeft: 'auto', textTransform: 'none', letterSpacing: 0 } }, app.t('Line {line}', { line: 1 }));
+    const code = createCodeEditor({ lang: state.lang, onChange: () => markDirty(), onCursor: ln => { posEl.textContent = app.t('Line {line}', { line: ln }); } });
     const outBody = h('div', { class: 'mkd-out-body', role: 'log', 'aria-live': 'polite' });
     const outWrap = h('div', { class: 'mkd-out' },
-      h('div', { class: 'mkd-out-h' }, 'Output', h('span', { class: 'st' }, dot, stText), posEl,
-        h('button', { class: 'mkd-btn icon', title: 'Bigger or smaller', onclick: () => outWrap.classList.toggle('big'), html: svg('chev') }),
-        h('button', { class: 'mkd-btn', onclick: () => { outBody.textContent = ''; } }, 'Clear')),
+      h('div', { class: 'mkd-out-h' }, app.t('Output'), h('span', { class: 'st' }, dot, stText), posEl,
+        h('button', { class: 'mkd-btn icon', title: app.t('Bigger or smaller'), onclick: () => outWrap.classList.toggle('big'), html: svg('chev') }),
+        h('button', { class: 'mkd-btn', onclick: () => { outBody.textContent = ''; } }, app.t('Clear'))),
       outBody);
     const refEl = h('aside', { class: 'mkd-ref' + (app.settings.get('macroRefOpen', true) ? ' show' : '') }, h('div', { class: 'mkd-ref-in', html: referenceHtml(state.lang) }));
-    const runBtn = h('button', { class: 'mkd-btn primary', title: 'Run (Ctrl+Enter or F5)', html: `${svg('dev-run')}Run <kbd>Ctrl+Enter</kbd>`, onclick: () => doRun() });
-    const stopBtn = h('button', { class: 'mkd-btn danger', title: 'Stop the running macro', html: `${svg('dev-stop')}Stop`, disabled: true, onclick: () => stopMacro() });
-    const saveBtn = h('button', { class: 'mkd-btn', title: 'Save (Ctrl+S)', html: `${svg('save')}Save`, onclick: () => doSave() });
-    const delBtn = h('button', { class: 'mkd-btn icon', title: 'Delete this macro', html: svg('dev-trash'), onclick: () => doDelete() });
-    const refBtn = h('button', { class: 'mkd-btn icon' + (refEl.classList.contains('show') ? ' on' : ''), title: 'API reference and examples (F1)', html: svg('dev-book'), onclick: () => toggleRef() });
-    const closeBtn = h('button', { class: 'mkd-btn icon', title: 'Close (Esc)', html: svg('x'), onclick: () => sheet.close() });
+    const runBtn = h('button', { class: 'mkd-btn primary', title: app.t('Run (Ctrl+Enter or F5)'), html: `${svg('dev-run')}${app.th('Run@@macro')} <kbd>Ctrl+Enter</kbd>`, onclick: () => doRun() });
+    const stopBtn = h('button', { class: 'mkd-btn danger', title: app.t('Stop the running macro'), html: `${svg('dev-stop')}${app.th('Stop')}`, disabled: true, onclick: () => stopMacro() });
+    const saveBtn = h('button', { class: 'mkd-btn', title: app.t('Save (Ctrl+S)'), html: `${svg('save')}${app.th('Save')}`, onclick: () => doSave() });
+    const delBtn = h('button', { class: 'mkd-btn icon', title: app.t('Delete this macro'), html: svg('dev-trash'), onclick: () => doDelete() });
+    const refBtn = h('button', { class: 'mkd-btn icon' + (refEl.classList.contains('show') ? ' on' : ''), title: app.t('API reference and examples (F1)'), html: svg('dev-book'), onclick: () => toggleRef() });
+    const closeBtn = h('button', { class: 'mkd-btn icon', title: app.t('Close (Esc)'), html: svg('x'), onclick: () => sheet.close() });
     const content = h('div', { style: { display: 'contents' } },
-      h('header', { class: 'mkd-head' }, h('div', { class: 'mkd-title', html: `${svg('dev-editor')}Macro Editor` }), h('span', { class: 'mkd-grow' }), runBtn, stopBtn, saveBtn, delBtn, refBtn, closeBtn),
+      h('header', { class: 'mkd-head' }, h('div', { class: 'mkd-title', html: `${svg('dev-editor')}${app.th('Macro Editor')}` }), h('span', { class: 'mkd-grow' }), runBtn, stopBtn, saveBtn, delBtn, refBtn, closeBtn),
       h('div', { class: 'mkd-body' },
-        h('aside', { class: 'mkd-list' }, h('div', { class: 'mkd-list-h' }, h('h5', null, 'Macros'), h('button', { class: 'mkd-btn icon', title: 'New macro', html: svg('plus'), onclick: () => confirmLeave().then(ok => ok && loadNew()) })), listEl),
+        h('aside', { class: 'mkd-list' }, h('div', { class: 'mkd-list-h' }, h('h5', null, app.t('Macros')), h('button', { class: 'mkd-btn icon', title: app.t('New macro'), html: svg('plus'), onclick: () => confirmLeave().then(ok => ok && loadNew()) })), listEl),
         h('section', { class: 'mkd-main' },
-          h('div', { class: 'mkd-props' }, h('label', { class: 'mkd-field' }, 'Name', nameIn), langSeg, h('label', { class: 'mkd-field' }, 'Shortcut', scIn), h('label', { class: 'mkd-check' }, ribbonCb, 'Show on ribbon')),
+          h('div', { class: 'mkd-props' }, h('label', { class: 'mkd-field' }, app.t('Name'), nameIn), langSeg, h('label', { class: 'mkd-field' }, app.t('Shortcut'), scIn), h('label', { class: 'mkd-check' }, ribbonCb, app.t('Show on ribbon'))),
           code.el, outWrap),
         refEl));
     nameIn.addEventListener('input', markDirty);
 
     function out(kind, text, line) {
       const row = h('div', { class: 'mkd-line ' + kind }, text);
-      if (line) { row.append(h('button', { class: 'mkd-goto', onclick: () => code.gotoLine(line) }, 'Line ' + line)); code.markError(line); }
+      if (line) { row.append(h('button', { class: 'mkd-goto', onclick: () => code.gotoLine(line) }, app.t('Line {line}', { line }))); code.markError(line); }
       outBody.append(row); outBody.scrollTop = outBody.scrollHeight;
     }
     function setStatus(kind, text) { dot.className = 'mkd-dot ' + kind; stText.textContent = text; }
     function markDirty() { if (!state.dirty) { state.dirty = true; renderList(); } }
     function renderList() {
       listEl.textContent = '';
-      if (!store.list.length && state.orig == null) listEl.append(h('div', { class: 'mkd-empty' }, 'Your saved macros appear here.'));
+      if (!store.list.length && state.orig == null) listEl.append(h('div', { class: 'mkd-empty' }, app.t('Your saved macros appear here.')));
       const items = store.list.map(m => ({ ...m }));
-      if (state.orig == null) items.unshift({ name: nameIn.value.trim() || 'New macro', lang: state.lang, isNew: true });
+      if (state.orig == null) items.unshift({ name: nameIn.value.trim() || app.t('New macro'), lang: state.lang, isNew: true });
       for (const m of items) {
         const on = m.isNew ? state.orig == null : state.orig === m.name;
-        const b = h('button', { class: 'mkd-item' + (on ? ' on' : ''), role: 'option', 'aria-selected': String(on), title: m.shortcut ? `${m.name} (${m.shortcut})` : m.name },
+        const b = h('button', { class: 'mkd-item' + (on ? ' on' : ''), role: 'option', 'aria-selected': String(on), translate: 'no', title: m.shortcut ? `${m.name} (${m.shortcut})` : m.name },
           h('span', { class: 'mkd-chip' + (m.lang === 'js' ? ' js' : '') }, m.lang === 'js' ? 'JS' : 'PY'), h('span', { class: 'nm' }, m.name),
-          on && state.dirty ? h('span', { class: 'dirty', title: 'Not saved' }) : m.shortcut ? h('span', { class: 'sc' }, m.shortcut) : null);
+          on && state.dirty ? h('span', { class: 'dirty', title: app.t('Not saved') }) : m.shortcut ? h('span', { class: 'sc' }, m.shortcut) : null);
         if (!m.isNew) b.addEventListener('click', () => { if (!on) confirmLeave().then(ok => ok && select(m.name)); });
         listEl.append(b);
       }
@@ -1572,54 +1581,56 @@ def _guard_stop():
     }
     async function confirmLeave() {
       if (!state.dirty) return true;
-      const v = await app.ui.dialog({ title: `Save changes to “${nameIn.value.trim() || 'this macro'}”?`, body: 'Your changes will be lost if you don’t save them.', buttons: [{ label: 'Don’t Save', value: 'discard', danger: true }, { label: 'Cancel', value: 'cancel' }, { label: 'Save', value: 'save', primary: true }] });
+      const nm = nameIn.value.trim();
+      const v = await app.ui.dialog({ title: nm ? app.t('Save changes to “{name}”?', { name: nm }) : app.t('Save changes to this macro?'), body: app.th('Your changes will be lost if you don’t save them.'), buttons: [{ label: app.t('Don’t Save'), value: 'discard', danger: true }, { label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Save'), value: 'save', primary: true }] });
       if (v === 'save') return doSave();
       return v === 'discard';
     }
     async function doSave() {
       const name = nameIn.value.trim();
-      if (!NAME_RE.test(name)) { out('err', 'Give the macro a name: letters, numbers, spaces, - or _ (up to 48 characters).'); nameIn.focus(); return false; }
+      if (!NAME_RE.test(name)) { out('err', app.t('Give the macro a name: letters, numbers, spaces, - or _ (up to 48 characters).')); nameIn.focus(); return false; }
       const clash = store.get(name);
       if (clash && clash.name !== state.orig) {
-        const ok = await app.ui.confirm('Replace macro?', `A macro called “${clash.name}” already exists. Replace it?`, { ok: 'Replace', danger: true });
+        const ok = await app.ui.confirm(app.t('Replace macro?'), app.t('A macro called “{name}” already exists. Replace it?', { name: clash.name }), { ok: app.t('Replace'), danger: true });
         if (!ok) return false;
       }
       try {
         const saved = await store.save({ name, lang: state.lang, code: code.value, shortcut, ribbon: ribbonCb.checked });
         if (state.orig && state.orig.toLowerCase() !== name.toLowerCase()) await store.remove(state.orig);
         state.orig = saved.name; state.dirty = false; delBtn.disabled = false; renderList();
-        setStatus('ok', `Saved “${saved.name}”`); app.settings.set('macroLang', state.lang);
+        setStatus('ok', app.t('Saved “{name}”', { name: saved.name })); app.settings.set('macroLang', state.lang);
         return true;
       } catch (e) { out('err', e.message); return false; }
     }
     async function doDelete() {
       if (!state.orig) return;
-      if (!(await app.ui.confirm('Delete macro?', `Delete “${state.orig}”? This cannot be undone.`, { ok: 'Delete', danger: true }))) return;
+      if (!(await app.ui.confirm(app.t('Delete macro?'), app.t('Delete “{name}”? This cannot be undone.', { name: state.orig }), { ok: app.t('Delete'), danger: true }))) return;
       await store.remove(state.orig); state.dirty = false;
       if (store.list.length) select(store.list[0].name); else loadNew();
-      setStatus('', 'Deleted');
+      setStatus('', app.t('Deleted'));
     }
     async function doRun() {
       if (state.running) return;
       const target = app.docs.active();
       state.running = true; runBtn.disabled = true; stopBtn.disabled = false;
-      setStatus('busy', state.lang === 'python' && !py.inst ? 'Starting Python… (the first time takes a few seconds)' : 'Running…');
-      out('info', `▶ ${nameIn.value.trim() || 'Macro'} on “${target?.title || 'no document'}”  ·  ${new Date().toLocaleTimeString('en-US')}`);
+      setStatus('busy', state.lang === 'python' && !py.inst ? app.t('Starting Python… (the first time takes a few seconds)') : app.t('Running…'));
+      const at = app.i18n?.time ? app.i18n.time(new Date()) : new Date().toLocaleTimeString('en-US');
+      out('info', `▶ ${target ? app.t('{macro} on “{title}”', { macro: nameIn.value.trim() || app.t('Macro'), title: target.title }) : app.t('{macro} on no document', { macro: nameIn.value.trim() || app.t('Macro') })}  ·  ${at}`);
       const t0 = performance.now();
       const r = await runMacro({ name: nameIn.value.trim(), lang: state.lang, code: code.value }, { sink: (k, t, l) => out(k, t, l) });
       state.running = false; runBtn.disabled = false; stopBtn.disabled = true;
       const secs = ((performance.now() - t0) / 1000).toFixed(2);
-      if (r.ok) setStatus('ok', `Finished in ${secs} s`); else setStatus('err', r.line ? `Error on line ${r.line}` : 'Stopped with an error');
+      if (r.ok) setStatus('ok', app.t('Finished in {seconds} s', { seconds: secs })); else setStatus('err', r.line ? app.t('Error on line {line}', { line: r.line }) : app.t('Stopped with an error'));
     }
     function toggleRef() { const on = refEl.classList.toggle('show'); refBtn.classList.toggle('on', on); app.settings.set('macroRefOpen', on); }
     refEl.addEventListener('click', async e => {
       const ex = e.target.closest('[data-ex]');
       if (ex) { const x = EXAMPLES[Number(ex.dataset.ex)]; if (await confirmLeave()) loadNew({ name: store.get(x.name) ? nextMacroName(x.name) : x.name, lang: state.lang, code: x[state.lang] }); return; }
-      if (e.target.closest('[data-act="listcmds"]')) { out('info', 'Commands you can run with run(…):'); for (const c of commands().sort((a, b) => a.id.localeCompare(b.id))) out('out', `${c.id.padEnd(28)} ${c.label}${c.shortcut ? '  (' + c.shortcut + ')' : ''}`); }
+      if (e.target.closest('[data-act="listcmds"]')) { out('info', app.t('Commands you can run with run(…):')); for (const c of commands().sort((a, b) => a.id.localeCompare(b.id))) out('out', `${c.id.padEnd(28)} ${c.label}${c.shortcut ? '  (' + c.shortcut + ')' : ''}`); }
     });
 
     const sheet = openSheet({
-      cls: 'mkd-editor', label: 'Macro Editor', content,
+      cls: 'mkd-editor', label: app.t('Macro Editor'), content,
       beforeClose: () => confirmLeave(),
       onKey(e) {
         const k = e.key.toLowerCase();
@@ -1638,7 +1649,7 @@ def _guard_stop():
     else if (name && store.get(name)) select(name);
     else if (store.list.length) select(store.list[0].name);
     else loadNew();
-    out('info', 'Write a macro, then press Run. Use the book button for the API reference and examples.');
+    out('info', app.t('Write a macro, then press Run. Use the book button for the API reference and examples.'));
     return editorSheet;
   }
 
@@ -1647,30 +1658,30 @@ def _guard_stop():
   // =====================================================================================
   function openMacrosDialog() {
     let sel = store.list[0]?.name || null, filter = '';
-    const search = h('input', { class: 'mkd-input', placeholder: 'Find a macro', style: { width: '100%' }, spellcheck: 'false' });
-    const rows = h('div', { class: 'mkd-mrows', role: 'listbox', tabindex: '0', 'aria-label': 'Macros' });
+    const search = h('input', { class: 'mkd-input', placeholder: app.t('Find a macro'), style: { width: '100%' }, spellcheck: 'false' });
+    const rows = h('div', { class: 'mkd-mrows', role: 'listbox', tabindex: '0', 'aria-label': app.t('Macros') });
     const btn = (label, icon, fn, cls = '') => h('button', { class: 'mkd-btn ' + cls, html: `${svg(icon)}${label}`, onclick: fn });
-    const runB = btn('Run', 'dev-run', () => doRun(), 'primary');
-    const editB = btn('Edit', 'dev-edit', () => { sheet.close(); openEditor(sel); });
-    const delB = btn('Delete', 'dev-trash', () => doDelete());
+    const runB = btn(app.t('Run@@macro'), 'dev-run', () => doRun(), 'primary');
+    const editB = btn(app.t('Edit@@verb'), 'dev-edit', () => { sheet.close(); openEditor(sel); });
+    const delB = btn(app.t('Delete'), 'dev-trash', () => doDelete());
     const content = h('div', { style: { display: 'contents' } },
-      h('header', { class: 'mkd-head' }, h('div', { class: 'mkd-title', html: `${svg('dev-macros')}Macros` }), h('span', { class: 'mkd-grow' }), h('button', { class: 'mkd-btn icon', title: 'Close (Esc)', html: svg('x'), onclick: () => sheet.close() })),
+      h('header', { class: 'mkd-head' }, h('div', { class: 'mkd-title', html: `${svg('dev-macros')}${app.th('Macros')}` }), h('span', { class: 'mkd-grow' }), h('button', { class: 'mkd-btn icon', title: app.t('Close (Esc)'), html: svg('x'), onclick: () => sheet.close() })),
       h('div', { class: 'mkd-content' },
         h('div', { class: 'mkd-mlist' },
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 } }, search, rows),
-          h('div', { class: 'mkd-mbtns' }, runB, editB, btn('New', 'plus', () => { sheet.close(); openEditor(null, { lang: app.settings.get('macroLang', 'python'), code: TEMPLATE[app.settings.get('macroLang', 'python')], name: nextMacroName() }); }), delB,
+          h('div', { class: 'mkd-mbtns' }, runB, editB, btn(app.t('New@@macro'), 'plus', () => { sheet.close(); openEditor(null, { lang: app.settings.get('macroLang', 'python'), code: TEMPLATE[app.settings.get('macroLang', 'python')], name: nextMacroName() }); }), delB,
             h('div', { style: { height: '8px' } }),
-            btn(rec.on ? 'Stop recording' : 'Record', 'dev-record', () => { sheet.close(); toggleRecording(); }),
-            btn('Editor', 'dev-editor', () => { sheet.close(); openEditor(sel); }))),
-        h('p', { class: 'mkd-hint', style: { margin: '12px 0 0' } }, 'Double-click a macro to run it. Macros work on the document that is open now.')));
+            btn(rec.on ? app.t('Stop recording') : app.t('Record'), 'dev-record', () => { sheet.close(); toggleRecording(); }),
+            btn(app.t('Editor'), 'dev-editor', () => { sheet.close(); openEditor(sel); }))),
+        h('p', { class: 'mkd-hint', style: { margin: '12px 0 0' } }, app.t('Double-click a macro to run it. Macros work on the document that is open now.'))));
     function visible() { const f = filter.toLowerCase(); return store.list.filter(m => !f || m.name.toLowerCase().includes(f)); }
     function render() {
       const list = visible(); if (!list.find(m => m.name === sel)) sel = list[0]?.name || null;
       rows.textContent = '';
-      if (!list.length) rows.append(h('div', { class: 'mkd-empty' }, store.list.length ? 'No macro matches.' : 'No macros yet. Click New to write one, or Record to capture what you do.'));
+      if (!list.length) rows.append(h('div', { class: 'mkd-empty' }, store.list.length ? app.t('No macro matches.') : app.t('No macros yet. Click New to write one, or Record to capture what you do.')));
       for (const m of list) {
         const r = h('button', { class: 'mkd-mrow' + (m.name === sel ? ' on' : ''), role: 'option', 'aria-selected': String(m.name === sel), tabindex: '-1' },
-          h('span', { class: 'mkd-chip' + (m.lang === 'js' ? ' js' : '') }, m.lang === 'js' ? 'JS' : 'PY'), h('span', { class: 'nm' }, m.name), h('small', null, [m.shortcut, m.ribbon ? 'On ribbon' : ''].filter(Boolean).join(' · ')));
+          h('span', { class: 'mkd-chip' + (m.lang === 'js' ? ' js' : '') }, m.lang === 'js' ? 'JS' : 'PY'), h('span', { class: 'nm', translate: 'no' }, m.name), h('small', null, [m.shortcut, m.ribbon ? app.t('On ribbon') : ''].filter(Boolean).join(' · ')));
         r.addEventListener('click', () => { sel = m.name; render(); });
         r.addEventListener('dblclick', () => { sel = m.name; doRun(); });
         rows.append(r);
@@ -1679,10 +1690,10 @@ def _guard_stop():
       rows.querySelector('.on')?.scrollIntoView({ block: 'nearest' });
     }
     async function doRun() { if (!sel) return; const name = sel; await sheet.close(true); runSaved(name); }
-    async function doDelete() { if (!sel) return; if (!(await app.ui.confirm('Delete macro?', `Delete “${sel}”? This cannot be undone.`, { ok: 'Delete', danger: true }))) return; await store.remove(sel); render(); }
+    async function doDelete() { if (!sel) return; if (!(await app.ui.confirm(app.t('Delete macro?'), app.t('Delete “{name}”? This cannot be undone.', { name: sel }), { ok: app.t('Delete'), danger: true }))) return; await store.remove(sel); render(); }
     search.addEventListener('input', () => { filter = search.value; render(); });
     const sheet = openSheet({
-      cls: 'mkd-small', label: 'Macros', content, backdropCloses: true,
+      cls: 'mkd-small', label: app.t('Macros'), content, backdropCloses: true,
       onKey(e) {
         const list = visible(), i = list.findIndex(m => m.name === sel);
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const n = list[Math.max(0, Math.min(list.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]; if (n) { sel = n.name; render(); } }
@@ -1704,14 +1715,14 @@ def _guard_stop():
     try { history = JSON.parse(localStorage.getItem('markooj-pyhist') || '[]'); } catch {}
     function build() {
       outEl = h('div', { class: 'mkd-con-out', role: 'log', 'aria-live': 'polite' });
-      inp = h('textarea', { rows: '1', spellcheck: 'false', 'aria-label': 'Python input', placeholder: 'Type Python and press Enter' });
+      inp = h('textarea', { rows: '1', spellcheck: 'false', 'aria-label': app.t('Python input'), placeholder: app.t('Type Python and press Enter') });
       dot = h('span', { class: 'mkd-dot' }); hint = h('small', null, 'Python');
       const prompt = h('span', null, '>>>');
-      el = h('section', { class: 'mkd-console', 'data-mk-keys': 'own', role: 'dialog', 'aria-label': 'Python console' },
-        h('div', { class: 'mkd-con-h' }, dot, h('b', null, 'Python console'), hint, h('span', { class: 'mkd-grow' }),
-          h('button', { class: 'mkd-btn', title: 'Clear (Ctrl+L)', onclick: () => { outEl.textContent = ''; } }, 'Clear'),
-          h('button', { class: 'mkd-btn icon', title: 'Stop', html: svg('dev-stop'), onclick: () => stopMacro() }),
-          h('button', { class: 'mkd-btn icon', title: 'Close', html: svg('x'), onclick: () => close() })),
+      el = h('section', { class: 'mkd-console', 'data-mk-keys': 'own', role: 'dialog', 'aria-label': app.t('Python console') },
+        h('div', { class: 'mkd-con-h' }, dot, h('b', null, app.t('Python console')), hint, h('span', { class: 'mkd-grow' }),
+          h('button', { class: 'mkd-btn', title: app.t('Clear (Ctrl+L)'), onclick: () => { outEl.textContent = ''; } }, app.t('Clear')),
+          h('button', { class: 'mkd-btn icon', title: app.t('Stop'), html: svg('dev-stop'), onclick: () => stopMacro() }),
+          h('button', { class: 'mkd-btn icon', title: app.t('Close'), html: svg('x'), onclick: () => close() })),
         outEl, h('div', { class: 'mkd-con-in' }, prompt, inp));
       document.body.append(el);
       const head = el.firstChild;
@@ -1753,7 +1764,7 @@ def _guard_stop():
     function paintState(s) {
       if (!dot) return;
       dot.className = 'mkd-dot ' + (s === 'loading' || busy ? 'busy' : s === 'ready' ? 'ok' : s === 'error' ? 'err' : '');
-      hint.textContent = s === 'loading' ? 'Starting Python…' : busy ? 'Running…' : s === 'ready' ? `Python ${py.version || ''} · offline`.replace('  ', ' ') : 'Python';
+      hint.textContent = s === 'loading' ? app.t('Starting Python…') : busy ? app.t('Running…') : s === 'ready' ? app.t('Python {version} · offline', { version: py.version || '' }).replace('  ', ' ') : 'Python';
     }
     async function isIncomplete(src) {
       try {
@@ -1772,7 +1783,7 @@ def _guard_stop():
       if (!el) build();
       requestAnimationFrame(() => el.classList.add('show'));
       el.hidden = false;
-      if (!outEl.childNodes.length) append('info', 'Python runs offline inside Markooj. doc, docs, ui and run are ready to use. Try: doc.title');
+      if (!outEl.childNodes.length) append('info', app.t('Python runs offline inside Markooj. doc, docs, ui and run are ready to use. Try: doc.title'));
       if (focus) setTimeout(() => inp.focus(), 50);
       loadPython().catch(e => append('err', e.message));
     }
@@ -1800,14 +1811,14 @@ def _guard_stop():
       const fence = /^(```|~~~)\s*\{?\.?(python|py)\b[^\n]*\n([\s\S]*?)^\1\s*$/gim; let m;
       while ((m = fence.exec(d.text))) if (s.start >= m.index && s.start <= m.index + m[0].length) { codeText = m[3]; fromDoc = true; break; }
     }
-    if (!codeText.trim()) { toast('Select some Python code first (or click inside a ```python code block).'); return; }
+    if (!codeText.trim()) { toast(app.t('Select some Python code first (or click inside a ```python code block).')); return; }
     const key = d.path || d.id;
     const trusted = trustedDocs.has(key) || (d.path && (app.settings.get('pyTrustedFiles', []) || []).includes(d.path));
     if (fromDoc && !trusted) {
       const v = await app.ui.dialog({
-        title: 'Run the Python code in this document?',
-        body: '<p>Only run code you trust. Python in Markooj can read and change files on your computer.</p>',
-        buttons: [{ label: 'Cancel', value: 'cancel' }, ...(d.path ? [{ label: 'Always run for this file', value: 'always' }] : []), { label: 'Run', value: 'run', primary: true }],
+        title: app.t('Run the Python code in this document?'),
+        body: `<p>${app.th('Only run code you trust. Python in Markooj can read and change files on your computer.')}</p>`,
+        buttons: [{ label: app.t('Cancel'), value: 'cancel' }, ...(d.path ? [{ label: app.t('Always run for this file'), value: 'always' }] : []), { label: app.t('Run@@macro'), value: 'run', primary: true }],
         cancelValue: 'cancel',
       });
       if (v !== 'run' && v !== 'always') return;
@@ -1823,31 +1834,31 @@ def _guard_stop():
   // =====================================================================================
   // what: what it does; type: how to use it inside $…$ (also the rendered sample)
   const MATH_GALLERY = [
-    { name: '\\R', def: '\\newcommand{\\R}{\\mathbb{R}}', what: 'The real numbers, in blackboard bold.', type: 'x \\in \\R' },
-    { name: '\\N', def: '\\newcommand{\\N}{\\mathbb{N}}', what: 'The natural numbers.', type: 'n \\in \\N' },
-    { name: '\\Z', def: '\\newcommand{\\Z}{\\mathbb{Z}}', what: 'The integers.', type: 'k \\in \\Z' },
-    { name: '\\Q', def: '\\newcommand{\\Q}{\\mathbb{Q}}', what: 'The rational numbers.', type: '\\tfrac{p}{q} \\in \\Q' },
-    { name: '\\C', def: '\\newcommand{\\C}{\\mathbb{C}}', what: 'The complex numbers.', type: 'z \\in \\C' },
-    { name: '\\vect', def: '\\newcommand{\\vect}[1]{\\mathbf{#1}}', what: 'A vector in bold. Takes one argument.', type: '\\vect{v} = (v_1, v_2)' },
-    { name: '\\abs', def: '\\newcommand{\\abs}[1]{\\left\\lvert #1 \\right\\rvert}', what: 'Absolute value. The bars grow with what is inside.', type: '\\abs{x - y}' },
-    { name: '\\norm', def: '\\newcommand{\\norm}[1]{\\left\\lVert #1 \\right\\rVert}', what: 'The norm (length) of a vector.', type: '\\norm{x}_2' },
-    { name: '\\set', def: '\\newcommand{\\set}[1]{\\left\\{ #1 \\right\\}}', what: 'A set in braces that grow with the content.', type: '\\set{1, 2, 3}' },
-    { name: '\\inner', def: '\\newcommand{\\inner}[2]{\\left\\langle #1, #2 \\right\\rangle}', what: 'Inner product of two vectors. Takes two arguments.', type: '\\inner{u}{v}' },
-    { name: '\\dd', def: '\\newcommand{\\dd}{\\mathrm{d}}', what: 'An upright d for integrals and derivatives.', type: '\\int_0^1 f(x)\\,\\dd x' },
-    { name: '\\pdv', def: '\\newcommand{\\pdv}[2]{\\frac{\\partial #1}{\\partial #2}}', what: 'Partial derivative: the function, then the variable.', type: '\\pdv{f}{x}' },
-    { name: '\\grad', def: '\\newcommand{\\grad}{\\nabla}', what: 'Gradient (nabla).', type: '\\grad f' },
-    { name: '\\E', def: '\\newcommand{\\E}{\\mathbb{E}}', what: 'Expected value (expectation).', type: '\\E[X] = \\mu' },
-    { name: '\\Var', def: '\\DeclareMathOperator{\\Var}{Var}', what: 'Variance, set upright like sin and log.', type: '\\Var(X) = \\sigma^2' },
-    { name: '\\Cov', def: '\\DeclareMathOperator{\\Cov}{Cov}', what: 'Covariance of two variables.', type: '\\Cov(X, Y)' },
-    { name: '\\given', def: '\\newcommand{\\given}{\\mid}', what: 'The bar in a conditional probability.', type: 'P(A \\given B)' },
-    { name: '\\tr', def: '\\DeclareMathOperator{\\tr}{tr}', what: 'Trace of a matrix.', type: '\\tr(A)' },
-    { name: '\\T', def: '\\newcommand{\\T}{^{\\mathsf{T}}}', what: 'Transpose mark. Type it right after a matrix.', type: 'A\\T x' },
-    { name: '\\argmin', def: '\\DeclareMathOperator*{\\argmin}{arg\\,min}', what: 'Arg min. In a displayed equation the variable sits underneath.', type: '\\argmin_{x} f(x)' },
-    { name: '\\argmax', def: '\\DeclareMathOperator*{\\argmax}{arg\\,max}', what: 'Arg max, the same way.', type: '\\argmax_{\\theta} L(\\theta)' },
-    { name: '\\order', def: '\\newcommand{\\order}[1]{\\mathcal{O}\\left(#1\\right)}', what: 'Big O, for how fast something grows.', type: '\\order{n \\log n}' },
-    { name: '\\unit', def: '\\newcommand{\\unit}[1]{\\,\\mathrm{#1}}', what: 'A unit after a number: upright, with a thin space.', type: 'g = 9.81\\unit{m/s^2}' },
-    { name: '\\degree', def: '\\newcommand{\\degree}{^{\\circ}}', what: 'Degree sign. (LaTeX already uses \\deg for the degree of a polynomial.)', type: '90\\degree' },
-    { name: '\\eps', def: '\\newcommand{\\eps}{\\varepsilon}', what: 'A short name for the curly epsilon.', type: '\\eps > 0' },
+    { name: '\\R', def: '\\newcommand{\\R}{\\mathbb{R}}', what: app.tm('The real numbers, in blackboard bold.'), type: 'x \\in \\R' },
+    { name: '\\N', def: '\\newcommand{\\N}{\\mathbb{N}}', what: app.tm('The natural numbers.'), type: 'n \\in \\N' },
+    { name: '\\Z', def: '\\newcommand{\\Z}{\\mathbb{Z}}', what: app.tm('The integers.'), type: 'k \\in \\Z' },
+    { name: '\\Q', def: '\\newcommand{\\Q}{\\mathbb{Q}}', what: app.tm('The rational numbers.'), type: '\\tfrac{p}{q} \\in \\Q' },
+    { name: '\\C', def: '\\newcommand{\\C}{\\mathbb{C}}', what: app.tm('The complex numbers.'), type: 'z \\in \\C' },
+    { name: '\\vect', def: '\\newcommand{\\vect}[1]{\\mathbf{#1}}', what: app.tm('A vector in bold. Takes one argument.'), type: '\\vect{v} = (v_1, v_2)' },
+    { name: '\\abs', def: '\\newcommand{\\abs}[1]{\\left\\lvert #1 \\right\\rvert}', what: app.tm('Absolute value. The bars grow with what is inside.'), type: '\\abs{x - y}' },
+    { name: '\\norm', def: '\\newcommand{\\norm}[1]{\\left\\lVert #1 \\right\\rVert}', what: app.tm('The norm (length) of a vector.'), type: '\\norm{x}_2' },
+    { name: '\\set', def: '\\newcommand{\\set}[1]{\\left\\{ #1 \\right\\}}', what: app.tm('A set in braces that grow with the content.'), type: '\\set{1, 2, 3}' },
+    { name: '\\inner', def: '\\newcommand{\\inner}[2]{\\left\\langle #1, #2 \\right\\rangle}', what: app.tm('Inner product of two vectors. Takes two arguments.'), type: '\\inner{u}{v}' },
+    { name: '\\dd', def: '\\newcommand{\\dd}{\\mathrm{d}}', what: app.tm('An upright d for integrals and derivatives.'), type: '\\int_0^1 f(x)\\,\\dd x' },
+    { name: '\\pdv', def: '\\newcommand{\\pdv}[2]{\\frac{\\partial #1}{\\partial #2}}', what: app.tm('Partial derivative: the function, then the variable.'), type: '\\pdv{f}{x}' },
+    { name: '\\grad', def: '\\newcommand{\\grad}{\\nabla}', what: app.tm('Gradient (nabla).'), type: '\\grad f' },
+    { name: '\\E', def: '\\newcommand{\\E}{\\mathbb{E}}', what: app.tm('Expected value (expectation).'), type: '\\E[X] = \\mu' },
+    { name: '\\Var', def: '\\DeclareMathOperator{\\Var}{Var}', what: app.tm('Variance, set upright like sin and log.'), type: '\\Var(X) = \\sigma^2' },
+    { name: '\\Cov', def: '\\DeclareMathOperator{\\Cov}{Cov}', what: app.tm('Covariance of two variables.'), type: '\\Cov(X, Y)' },
+    { name: '\\given', def: '\\newcommand{\\given}{\\mid}', what: app.tm('The bar in a conditional probability.'), type: 'P(A \\given B)' },
+    { name: '\\tr', def: '\\DeclareMathOperator{\\tr}{tr}', what: app.tm('Trace of a matrix.'), type: '\\tr(A)' },
+    { name: '\\T', def: '\\newcommand{\\T}{^{\\mathsf{T}}}', what: app.tm('Transpose mark. Type it right after a matrix.'), type: 'A\\T x' },
+    { name: '\\argmin', def: '\\DeclareMathOperator*{\\argmin}{arg\\,min}', what: app.tm('Arg min. In a displayed equation the variable sits underneath.'), type: '\\argmin_{x} f(x)' },
+    { name: '\\argmax', def: '\\DeclareMathOperator*{\\argmax}{arg\\,max}', what: app.tm('Arg max, the same way.'), type: '\\argmax_{\\theta} L(\\theta)' },
+    { name: '\\order', def: '\\newcommand{\\order}[1]{\\mathcal{O}\\left(#1\\right)}', what: app.tm('Big O, for how fast something grows.'), type: '\\order{n \\log n}' },
+    { name: '\\unit', def: '\\newcommand{\\unit}[1]{\\,\\mathrm{#1}}', what: app.tm('A unit after a number: upright, with a thin space.'), type: 'g = 9.81\\unit{m/s^2}' },
+    { name: '\\degree', def: '\\newcommand{\\degree}{^{\\circ}}', what: app.tm('Degree sign. (LaTeX already uses \\deg for the degree of a polynomial.)'), type: '90\\degree' },
+    { name: '\\eps', def: '\\newcommand{\\eps}{\\varepsilon}', what: app.tm('A short name for the curly epsilon.'), type: '\\eps > 0' },
   ];
   const galleryItem = name => MATH_GALLERY.find(g => g.name === name);
   function katexHtml(tex, macros, display = false) {
@@ -1873,32 +1884,32 @@ def _guard_stop():
     const orig = { ...texts };
     let timer = 0;
     const code = createCodeEditor({ lang: 'latex', value: texts[scope], onChange: v => { texts[scope] = v; clearTimeout(timer); timer = setTimeout(preview, 120); } });
-    code.textarea.setAttribute('aria-label', 'Math macro definitions');
+    code.textarea.setAttribute('aria-label', app.t('Math macro definitions'));
     code.textarea.placeholder = '\\newcommand{\\R}{\\mathbb{R}}';
 
     // --- help text at the top
     const helpOn = () => app.settings.get('mathMacrosHelp', true) !== false;
     const help = h('div', { class: 'mkd-mhelp', hidden: !helpOn() },
       h('div', null,
-        h('p', null, h('b', null, 'Math macros are shortcuts for LaTeX you type often. '), 'Define ', h('code', null, '\\R'), ' once as ', h('code', null, '\\mathbb{R}'), ', then type ', h('code', null, '$\\R$'), ' in any equation to get ℝ. Pick one from Examples or write your own, one per line.'),
-        h('p', null, h('b', null, 'All documents'), ' keeps the macros in Markooj and uses them in every document. ', h('b', null, 'This document'), ' saves them in this file’s front matter, so they travel with the file. If both define the same name, This document wins.')),
-      h('button', { class: 'mkd-btn icon', 'data-tip': 'Hide this help', 'aria-label': 'Hide this help', html: svg('x'), onclick: () => { help.hidden = true; app.settings.set('mathMacrosHelp', false); helpBtn.classList.remove('on'); } }));
-    const helpBtn = h('button', { class: 'mkd-btn icon' + (helpOn() ? ' on' : ''), 'data-tip': 'What are math macros?', 'data-tip-d': 'Show or hide the short help at the top.', 'aria-label': 'Help', text: '?', style: { fontWeight: '600' },
+        h('p', { html: app.th('<b>Math macros are shortcuts for LaTeX you type often.</b> Define <code>{name}</code> once as <code>{body}</code>, then type <code>{use}</code> in any equation to get ℝ. Pick one from Examples or write your own, one per line.', { name: '\\R', body: '\\mathbb{R}', use: '$\\R$' }) }),
+        h('p', { html: app.th('<b>All documents</b> keeps the macros in Markooj and uses them in every document. <b>This document</b> saves them in this file’s front matter, so they travel with the file. If both define the same name, This document wins.') })),
+      h('button', { class: 'mkd-btn icon', 'data-tip': app.t('Hide this help'), 'aria-label': app.t('Hide this help'), html: svg('x'), onclick: () => { help.hidden = true; app.settings.set('mathMacrosHelp', false); helpBtn.classList.remove('on'); } }));
+    const helpBtn = h('button', { class: 'mkd-btn icon' + (helpOn() ? ' on' : ''), 'data-tip': app.t('What are math macros?'), 'data-tip-d': app.t('Show or hide the short help at the top.'), 'aria-label': app.t('Help'), text: '?', style: { fontWeight: '600' },
       onclick: () => { help.hidden = !help.hidden; helpBtn.classList.toggle('on', !help.hidden); app.settings.set('mathMacrosHelp', !help.hidden); } });
 
     // --- scope switch
-    const scopeSeg = seg([{ value: 'all', label: 'All documents', title: 'Saved in Markooj, used in every document' }, { value: 'doc', label: 'This document', title: canDoc ? 'Saved in this document’s front matter (math-macros)' : 'Open an editable Markdown document to use this' }], scope, v => setScope(v));
+    const scopeSeg = seg([{ value: 'all', label: app.t('All documents'), title: app.t('Saved in Markooj, used in every document') }, { value: 'doc', label: app.t('This document'), title: canDoc ? app.t('Saved in this document’s front matter (math-macros)') : app.t('Open an editable Markdown document to use this') }], scope, v => setScope(v));
     if (!canDoc) scopeSeg.querySelectorAll('button')[1].disabled = true;
     function setScope(v) { if (v === 'doc' && !canDoc) return; scope = v; scopeSeg.set(v); code.value = texts[v]; preview(); renderGallery(); }
 
     // --- right panel: Preview | Examples
-    const prevEl = h('div', { class: 'mkd-mprev', role: 'region', 'aria-label': 'Preview' });
+    const prevEl = h('div', { class: 'mkd-mprev', role: 'region', 'aria-label': app.t('Preview') });
     prevEl.addEventListener('keydown', e => { const c = e.target.closest?.('.mkd-mcard[role="button"]'); if (c && e.target === c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); c.click(); } });
-    const search = h('input', { class: 'mkd-input', type: 'search', placeholder: 'Find an example, like vector or derivative', spellcheck: 'false', 'aria-label': 'Find an example', style: { width: '100%' } });
+    const search = h('input', { class: 'mkd-input', type: 'search', placeholder: app.t('Find an example, like vector or derivative'), spellcheck: 'false', 'aria-label': app.t('Find an example'), style: { width: '100%' } });
     const galList = h('div', { class: 'mkd-glist' });
-    const galEl = h('div', { class: 'mkd-mgal', role: 'region', 'aria-label': 'Examples', hidden: true }, h('div', { class: 'mkd-gsearch' }, search), galList);
+    const galEl = h('div', { class: 'mkd-mgal', role: 'region', 'aria-label': app.t('Examples'), hidden: true }, h('div', { class: 'mkd-gsearch' }, search), galList);
     let panel = opts.panel === 'examples' ? 'examples' : 'preview';
-    const panelSeg = seg([{ value: 'preview', label: 'Preview' }, { value: 'examples', label: 'Examples' }], panel, v => setPanel(v));
+    const panelSeg = seg([{ value: 'preview', label: app.t('Preview') }, { value: 'examples', label: app.t('Examples') }], panel, v => setPanel(v));
     function setPanel(v) { panel = v; panelSeg.set(v); prevEl.hidden = v !== 'preview'; galEl.hidden = v !== 'examples'; if (v === 'examples') renderGallery(); }
     const countEl = h('span', { class: 'mkd-mcount' });
     search.addEventListener('input', () => renderGallery());
@@ -1909,30 +1920,30 @@ def _guard_stop():
       const all = { ...allMacros() };
       prevEl.textContent = '';
       const nMac = det.defs.length, nErr = det.errors.length;
-      countEl.textContent = nErr ? `${nErr} line${nErr === 1 ? '' : 's'} to fix` : nMac ? `${nMac} macro${nMac === 1 ? '' : 's'}` : '';
+      countEl.textContent = nErr ? app.tn('{count} lines to fix', nErr) : nMac ? app.tn('{count} macros', nMac) : '';
       countEl.className = 'mkd-mcount' + (nErr ? ' bad' : '');
       if (!nMac && !nErr && !det.notes.length) {
         prevEl.append(h('div', { class: 'mkd-mempty' },
-          h('p', null, 'No macros yet.'),
-          h('p', null, 'Type a definition on the left, for example ', h('code', null, '\\newcommand{\\R}{\\mathbb{R}}'), ', or pick some from Examples.'),
-          h('button', { class: 'mkd-btn primary', onclick: () => setPanel('examples') }, 'See examples')));
+          h('p', null, app.t('No macros yet.')),
+          h('p', { html: app.th('Type a definition on the left, for example <code>{example}</code>, or pick some from Examples.', { example: '\\newcommand{\\R}{\\mathbb{R}}' }) }),
+          h('button', { class: 'mkd-btn primary', onclick: () => setPanel('examples') }, app.t('See examples'))));
       }
       for (const er of det.errors) {
         prevEl.append(h('div', { class: 'mkd-mcard bad', role: 'button', tabindex: '0', onclick: () => code.gotoLine(er.line) },
-          h('div', { class: 'mkd-mcard-h' }, h('span', { class: 'mkd-mbadge bad' }, `Line ${er.line}`), plain('Not added', 'mkd-mstate')),
+          h('div', { class: 'mkd-mcard-h' }, h('span', { class: 'mkd-mbadge bad' }, app.t('Line {line}', { line: er.line })), plain(app.t('Not added'), 'mkd-mstate')),
           h('div', { class: 'mkd-mmsg' }, er.message),
           er.text ? h('code', { class: 'mkd-mline' }, er.text) : null));
       }
       for (const nt of det.notes) {
         const card = h('div', { class: 'mkd-mcard note ' + nt.kind },
-          h('div', { class: 'mkd-mcard-h' }, h('span', { class: 'mkd-mbadge ' + nt.kind }, `Line ${nt.line}`), plain(nt.kind === 'warn' ? 'Check this' : 'Note', 'mkd-mstate')),
+          h('div', { class: 'mkd-mcard-h' }, h('span', { class: 'mkd-mbadge ' + nt.kind }, app.t('Line {line}', { line: nt.line })), plain(nt.kind === 'warn' ? app.t('Check this') : app.t('Note'), 'mkd-mstate')),
           h('div', { class: 'mkd-mmsg' }, nt.message));
         if (nt.kind === 'tail' && nt.from != null) {
           const r = katexHtml(nt.extra.replace(/^\$+|\$+$/g, ''), all);
-          if (r.html && /\$/.test(nt.extra)) card.append(h('div', { class: 'mkd-mtail' }, plain('In a document it shows as ', 'mkd-hint'), h('span', { class: 'r', html: r.html })));
+          if (r.html && /\$/.test(nt.extra)) card.append(h('div', { class: 'mkd-mtail' }, plain(app.t('In a document it shows as') + ' ', 'mkd-hint'), h('span', { class: 'r', html: r.html })));
           card.append(h('div', { class: 'mkd-mact' },
-            h('button', { class: 'mkd-btn', 'data-tip': 'Remove the extra text', 'data-tip-d': 'Deletes the text after the definition. Ctrl+Z brings it back.', onclick: () => removeRange(nt.from, nt.to) }, 'Remove the extra text'),
-            h('button', { class: 'mkd-btn', onclick: () => code.gotoLine(nt.line) }, 'Show line')));
+            h('button', { class: 'mkd-btn', 'data-tip': app.t('Remove the extra text'), 'data-tip-d': app.t('Deletes the text after the definition. Ctrl+Z brings it back.'), onclick: () => removeRange(nt.from, nt.to) }, app.t('Remove the extra text')),
+            h('button', { class: 'mkd-btn', onclick: () => code.gotoLine(nt.line) }, app.t('Show line'))));
         }
         prevEl.append(card);
       }
@@ -1940,10 +1951,10 @@ def _guard_stop():
         if (det.macros[def.name] !== def.body) continue; // redefined later: show only the one that wins
         const sample = macroSample(def);
         const r = katexHtml(sample, all, false);
-        const card = h('div', { class: 'mkd-mcard' + (r.error ? ' bad' : ''), role: 'button', tabindex: '0', 'data-tip': 'Show this definition', onclick: () => code.gotoLine(def.line) },
-          h('div', { class: 'mkd-mres' }, h('code', null, def.name), plain('→', 'mkd-marrow'), r.error ? plain('Can’t draw it', 'mkd-mstate bad') : h('span', { class: 'r', html: r.html })),
-          h('div', { class: 'mkd-mtype' }, plain('Type ', 'mkd-hint'), h('code', null, `$${sample}$`)));
-        if (r.error) card.append(h('div', { class: 'mkd-mmsg bad' }, `Fix the definition of ${def.name}: ${r.error}`));
+        const card = h('div', { class: 'mkd-mcard' + (r.error ? ' bad' : ''), role: 'button', tabindex: '0', 'data-tip': app.t('Show this definition'), onclick: () => code.gotoLine(def.line) },
+          h('div', { class: 'mkd-mres' }, h('code', null, def.name), plain('→', 'mkd-marrow'), r.error ? plain(app.t('Can’t draw it'), 'mkd-mstate bad') : h('span', { class: 'r', html: r.html })),
+          h('div', { class: 'mkd-mtype' }, plain(app.t('Type@@verb before an example') + ' ', 'mkd-hint'), h('code', null, `$${sample}$`)));
+        if (r.error) card.append(h('div', { class: 'mkd-mmsg bad' }, app.t('Fix the definition of {name}: {error}', { name: def.name, error: r.error })));
         prevEl.append(card);
       }
     }
@@ -1963,20 +1974,20 @@ def _guard_stop():
       const q = search.value.trim().toLowerCase();
       const merged = { ...allMacros() };
       galList.textContent = '';
-      const list = MATH_GALLERY.filter(g => !q || (g.name + ' ' + g.what + ' ' + g.def).toLowerCase().includes(q.replace(/^\\/, '')) || g.name.toLowerCase().includes(q));
-      if (!list.length) galList.append(h('div', { class: 'mkd-empty' }, 'No example matches. Try “set”, “vector” or “operator”.'));
+      const list = MATH_GALLERY.filter(g => !q || (g.name + ' ' + app.t(g.what) + ' ' + g.what + ' ' + g.def).toLowerCase().includes(q.replace(/^\\/, '')) || g.name.toLowerCase().includes(q));
+      if (!list.length) galList.append(h('div', { class: 'mkd-empty' }, app.t('No example matches. Try “set”, “vector” or “operator”.')));
       for (const g of list) {
         const body = parseMath(g.def)[g.name];
         const added = here[g.name] === body, taken = !added && g.name in here;
         const r = katexHtml(g.type, { ...merged, [g.name]: body }, false);
-        const add = h('button', { class: 'mkd-btn ' + (added ? 'on' : 'primary'), disabled: added, 'data-tip': added ? 'Already added' : taken ? `Replace your ${g.name}` : `Add ${g.name}`, 'data-tip-d': added ? '' : `Adds ${g.def} to ${scope === 'doc' ? 'this document' : 'all documents'}.`, 'aria-label': `${added ? 'Added' : 'Add'} ${g.name}` }, added ? 'Added' : taken ? 'Replace' : 'Add');
-        add.addEventListener('click', () => { try { app.ui.ripple?.(add); } catch {} addDefinition(g.def); toast(`${g.name} added. Type $${g.type}$ in your document.`); });
+        const add = h('button', { class: 'mkd-btn ' + (added ? 'on' : 'primary'), disabled: added, 'data-tip': added ? app.t('Already added') : taken ? app.t('Replace your {name}', { name: g.name }) : app.t('Add {name}', { name: g.name }), 'data-tip-d': added ? '' : scope === 'doc' ? app.t('Adds {definition} to this document.', { definition: g.def }) : app.t('Adds {definition} to all documents.', { definition: g.def }), 'aria-label': added ? app.t('Added {name}', { name: g.name }) : app.t('Add {name}', { name: g.name }) }, added ? app.t('Added') : taken ? app.t('Replace') : app.t('Add'));
+        add.addEventListener('click', () => { try { app.ui.ripple?.(add); } catch {} addDefinition(g.def); toast(app.t('{name} added. Type {example} in your document.', { name: g.name, example: `$${g.type}$` })); });
         galList.append(h('div', { class: 'mkd-gcard', 'data-name': g.name },
           h('div', { class: 'mkd-gres', html: r.html || esc(g.type) }),
           h('div', { class: 'mkd-gtext' },
-            h('div', { class: 'mkd-gname' }, h('code', null, g.name), h('span', null, g.what)),
-            h('div', { class: 'mkd-gtype' }, plain('Type ', 'mkd-hint'), h('code', null, `$${g.type}$`)),
-            h('code', { class: 'mkd-gdef', title: 'The definition that Add inserts' }, g.def)),
+            h('div', { class: 'mkd-gname' }, h('code', null, g.name), h('span', null, app.t(g.what))),
+            h('div', { class: 'mkd-gtype' }, plain(app.t('Type@@verb before an example') + ' ', 'mkd-hint'), h('code', null, `$${g.type}$`)),
+            h('code', { class: 'mkd-gdef', title: app.t('The definition that Add inserts') }, g.def)),
           add));
       }
     }
@@ -1994,26 +2005,26 @@ def _guard_stop():
       try { app.editors?.active?.()?.refresh?.(); } catch {}
       app.events.emit('mathMacros:changed', mathMacros());
       orig.all = texts.all; orig.doc = texts.doc;
-      toast('Math macros saved.');
+      toast(app.t('Math macros saved.'));
       await sheet.close(true);
       return true;
     }
     async function askSave() {
       if (!dirty()) return true;
-      const v = await app.ui.dialog({ title: 'Save your math macros?', body: 'Your changes will be lost if you don’t save them.', buttons: [{ label: 'Don’t Save', value: 'discard', danger: true }, { label: 'Cancel', value: 'cancel' }, { label: 'Save', value: 'save', primary: true }] });
+      const v = await app.ui.dialog({ title: app.t('Save your math macros?'), body: app.th('Your changes will be lost if you don’t save them.'), buttons: [{ label: app.t('Don’t Save'), value: 'discard', danger: true }, { label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Save'), value: 'save', primary: true }] });
       if (v === 'save') { await save(); return false; }
       return v === 'discard';
     }
     const content = h('div', { style: { display: 'contents' } },
-      h('header', { class: 'mkd-head' }, h('div', { class: 'mkd-title', html: `${svg('sigma')}Math macros` }), scopeSeg, h('span', { class: 'mkd-grow' }), helpBtn,
-        h('button', { class: 'mkd-btn', onclick: () => sheet.close() }, 'Cancel'), h('button', { class: 'mkd-btn primary', 'data-tip': 'Save', 'data-key': 'Ctrl+S', onclick: save }, 'Save'),
-        h('button', { class: 'mkd-btn icon', 'data-tip': 'Close', 'data-key': 'Esc', 'aria-label': 'Close', html: svg('x'), onclick: () => sheet.close() })),
+      h('header', { class: 'mkd-head' }, h('div', { class: 'mkd-title', html: `${svg('sigma')}${app.th('Math macros')}` }), scopeSeg, h('span', { class: 'mkd-grow' }), helpBtn,
+        h('button', { class: 'mkd-btn', onclick: () => sheet.close() }, app.t('Cancel')), h('button', { class: 'mkd-btn primary', 'data-tip': app.t('Save'), 'data-key': 'Ctrl+S', onclick: save }, app.t('Save')),
+        h('button', { class: 'mkd-btn icon', 'data-tip': app.t('Close'), 'data-key': 'Esc', 'aria-label': app.t('Close'), html: svg('x'), onclick: () => sheet.close() })),
       help,
       h('div', { class: 'mkd-math-body' },
-        h('div', { class: 'mkd-math-left' }, code.el, h('div', { class: 'mkd-math-foot' }, plain('One definition per line. % starts a comment.', 'mkd-hint'), h('span', { class: 'mkd-grow' }), countEl)),
+        h('div', { class: 'mkd-math-left' }, code.el, h('div', { class: 'mkd-math-foot' }, plain(app.t('One definition per line. % starts a comment.'), 'mkd-hint'), h('span', { class: 'mkd-grow' }), countEl)),
         h('div', { class: 'mkd-math-right' }, h('div', { class: 'mkd-math-tabs' }, panelSeg), prevEl, galEl)));
     const sheet = openSheet({
-      cls: 'mkd-math', label: 'Math macros', content, beforeClose: askSave,
+      cls: 'mkd-math', label: app.t('Math macros'), content, beforeClose: askSave,
       onKey(e) { if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 's' || e.key === 'Enter')) { e.preventDefault(); save(); } },
     });
     preview(); setPanel(panel); setTimeout(() => code.focus(), 40);
@@ -2029,43 +2040,43 @@ def _guard_stop():
   // Commands, ribbon, status bar, options
   // =====================================================================================
   const C = (id, def) => app.commands.register(id, def);
-  C('dev.macros', { label: 'Macros…', icon: 'dev-macros', shortcut: 'Alt+F8', run: () => { openMacrosDialog(); } });
-  C('dev.record', { label: 'Record macro', description: 'Start recording what you do. Click again, or Stop in the status bar, to finish and save the macro.', icon: 'dev-record', run: () => toggleRecording(), isActive: () => rec.on });
-  C('dev.stopRecording', { label: 'Stop recording macro', icon: 'dev-stop', run: () => stopRecording(), isEnabled: () => rec.on });
-  C('dev.editor', { label: 'Macro editor', icon: 'dev-editor', shortcut: 'Alt+F11', run: args => { openEditor(args?.name); } });
-  C('dev.newMacro', { label: 'New macro', icon: 'plus', run: args => { const lang = args?.lang || app.settings.get('macroLang', 'python'); openEditor(null, { lang, code: TEMPLATE[lang], name: nextMacroName() }); } });
-  C('dev.runMacro', { label: 'Run macro…', icon: 'dev-run', run: args => args?.name ? runSaved(args.name) : openMacrosDialog() });
-  C('dev.stopMacro', { label: 'Stop running macro', icon: 'dev-stop', run: () => { if (!stopMacro()) toast('No macro is running.'); } });
-  C('dev.runSelection', { label: 'Run selection as Python', icon: 'dev-run', shortcut: 'Ctrl+Alt+Enter', run: () => runSelection() });
-  C('dev.pythonConsole', { label: 'Python console', icon: 'dev-console', shortcut: 'Ctrl+Alt+P', run: () => pyConsole.toggle(), isActive: () => pyConsole.isOpen });
-  C('dev.mathMacros', { label: 'Math macros…', icon: 'sigma', run: () => { openMathDialog(); } });
+  C('dev.macros', { label: app.tm('Macros…'), icon: 'dev-macros', shortcut: 'Alt+F8', run: () => { openMacrosDialog(); } });
+  C('dev.record', { label: app.tm('Record macro'), description: app.tm('Start recording what you do. Click again, or Stop in the status bar, to finish and save the macro.'), icon: 'dev-record', run: () => toggleRecording(), isActive: () => rec.on });
+  C('dev.stopRecording', { label: app.tm('Stop recording macro'), icon: 'dev-stop', run: () => stopRecording(), isEnabled: () => rec.on });
+  C('dev.editor', { label: app.tm('Macro editor'), icon: 'dev-editor', shortcut: 'Alt+F11', run: args => { openEditor(args?.name); } });
+  C('dev.newMacro', { label: app.tm('New macro'), icon: 'plus', run: args => { const lang = args?.lang || app.settings.get('macroLang', 'python'); openEditor(null, { lang, code: TEMPLATE[lang], name: nextMacroName() }); } });
+  C('dev.runMacro', { label: app.tm('Run macro…'), icon: 'dev-run', run: args => args?.name ? runSaved(args.name) : openMacrosDialog() });
+  C('dev.stopMacro', { label: app.tm('Stop running macro'), icon: 'dev-stop', run: () => { if (!stopMacro()) toast(app.t('No macro is running.')); } });
+  C('dev.runSelection', { label: app.tm('Run selection as Python'), icon: 'dev-run', shortcut: 'Ctrl+Alt+Enter', run: () => runSelection() });
+  C('dev.pythonConsole', { label: app.tm('Python console'), icon: 'dev-console', shortcut: 'Ctrl+Alt+P', run: () => pyConsole.toggle(), isActive: () => pyConsole.isOpen });
+  C('dev.mathMacros', { label: app.tm('Math macros…'), icon: 'sigma', run: () => { openMathDialog(); } });
   // Add-in commands are implemented by addons.js; these fallbacks only run if it is missing.
-  if (!app.commands.get('dev.addins')) C('dev.addins', { label: 'Manage add-ins', icon: 'puzzle', run: () => app.backstage.open('addins') });
+  if (!app.commands.get('dev.addins')) C('dev.addins', { label: app.tm('Manage add-ins'), icon: 'puzzle', run: () => app.backstage.open('addins') });
 
   // Record turns into Stop recording while the recorder runs
   function addCodeGroup() {
     app.ribbon.addGroup('developer', {
-      id: 'dev-code', label: 'Code', order: 10, items: [
-        { type: 'big', command: 'dev.macros', label: 'Macros', icon: 'dev-macros' },
-        rec.on ? { type: 'big', command: 'dev.record', label: 'Stop recording', icon: 'dev-stop', tooltip: 'Stop recording' }
-          : { type: 'big', command: 'dev.record', label: 'Record', icon: 'dev-record' },
-        { type: 'big', command: 'dev.editor', label: 'Editor', icon: 'dev-editor' },
+      id: 'dev-code', label: app.tm('Code@@ribbon group'), order: 10, items: [
+        { type: 'big', command: 'dev.macros', label: app.tm('Macros'), icon: 'dev-macros' },
+        rec.on ? { type: 'big', command: 'dev.record', label: app.tm('Stop recording'), icon: 'dev-stop', tooltip: app.tm('Stop recording') }
+          : { type: 'big', command: 'dev.record', label: app.tm('Record'), icon: 'dev-record' },
+        { type: 'big', command: 'dev.editor', label: app.tm('Editor'), icon: 'dev-editor' },
       ],
     });
   }
   addCodeGroup();
   app.ribbon.addGroup('developer', {
-    id: 'dev-run', label: 'Run', order: 20, items: [
-      { type: 'big', command: 'dev.runSelection', label: 'Run code', icon: 'dev-run' },
-      { type: 'big', command: 'dev.pythonConsole', label: 'Console', icon: 'dev-console' },
+    id: 'dev-run', label: app.tm('Run@@macro'), order: 20, items: [
+      { type: 'big', command: 'dev.runSelection', label: app.tm('Run code'), icon: 'dev-run' },
+      { type: 'big', command: 'dev.pythonConsole', label: app.tm('Console'), icon: 'dev-console' },
     ],
   });
-  app.ribbon.addGroup('developer', { id: 'dev-math', label: 'Math', order: 30, items: [{ type: 'big', command: 'dev.mathMacros', label: 'Math macros', icon: 'sigma' }] });
+  app.ribbon.addGroup('developer', { id: 'dev-math', label: app.tm('Math@@ribbon group'), order: 30, items: [{ type: 'big', command: 'dev.mathMacros', label: app.tm('Math macros'), icon: 'sigma' }] });
   app.ribbon.addGroup('developer', {
-    id: 'dev-addins', label: 'Add-ins', order: 40, items: [
-      { type: 'big', command: 'dev.addins', label: 'Add-ins', icon: 'puzzle' },
-      { type: 'big', command: 'dev.installAddin', label: 'Install', icon: 'dev-download' },
-      { type: 'big', command: 'dev.openAddinsFolder', label: 'Folder', icon: 'open' },
+    id: 'dev-addins', label: app.tm('Add-ins'), order: 40, items: [
+      { type: 'big', command: 'dev.addins', label: app.tm('Add-ins'), icon: 'puzzle' },
+      { type: 'big', command: 'dev.installAddin', label: app.tm('Install'), icon: 'dev-download' },
+      { type: 'big', command: 'dev.openAddinsFolder', label: app.tm('Folder'), icon: 'open' },
     ],
   });
 
@@ -2075,14 +2086,14 @@ def _guard_stop():
       el.textContent = ''; recStatusEl = el;
       el.hidden = !rec.on; el.style.display = rec.on ? '' : 'none';
       if (!rec.on) return;
-      el.append(h('button', { class: 'mkd-rec', 'data-tip': 'Recording a macro', 'data-tip-d': 'Everything you do with the ribbon and the keyboard is being recorded. Click to stop and save it as a macro.', 'aria-label': 'Stop recording',
-        onclick: () => stopRecording() }, h('i'), h('span', null, 'Recording'), h('span', { class: 'mkd-rec-n' }), h('b', null, 'Stop')));
+      el.append(h('button', { class: 'mkd-rec', 'data-tip': app.t('Recording a macro'), 'data-tip-d': app.t('Everything you do with the ribbon and the keyboard is being recorded. Click to stop and save it as a macro.'), 'aria-label': app.t('Stop recording'),
+        onclick: () => stopRecording() }, h('i'), h('span', null, app.t('Recording')), h('span', { class: 'mkd-rec-n' }), h('b', null, app.t('Stop'))));
       paintRecStatus();
     },
   });
 
   app.options?.addSection?.({
-    id: 'developer', label: 'Developer', order: 80,
+    id: 'developer', label: app.tm('Developer'), order: 80,
     render(el) {
       el.textContent = '';
       const langS = seg([{ value: 'python', label: 'Python' }, { value: 'js', label: 'JavaScript' }], app.settings.get('macroLang', 'python'), v => app.settings.set('macroLang', v));
@@ -2091,9 +2102,9 @@ def _guard_stop():
       const pre = h('input', { type: 'checkbox' }); pre.checked = !!app.settings.get('pythonPreload', false);
       pre.addEventListener('change', () => app.settings.set('pythonPreload', pre.checked));
       el.append(h('div', { class: 'mkd-opt' },
-        h('div', { class: 'mkd-opt-row' }, h('span', null, 'Language for new macros'), langS),
-        h('div', { class: 'mkd-opt-row' }, h('span', null, 'Stop macros that run longer than'), lim, h('span', { class: 'mkd-hint' }, 'seconds (0 means no limit)')),
-        h('label', { class: 'mkd-check' }, pre, 'Start Python in the background when Markooj opens (faster first run)')));
+        h('div', { class: 'mkd-opt-row' }, h('span', null, app.t('Language for new macros')), langS),
+        h('div', { class: 'mkd-opt-row' }, h('span', null, app.t('Stop macros that run longer than')), lim, h('span', { class: 'mkd-hint' }, app.t('seconds (0 means no limit)'))),
+        h('label', { class: 'mkd-check' }, pre, app.t('Start Python in the background when Markooj opens (faster first run)'))));
     },
   });
 
@@ -2167,14 +2178,16 @@ def _guard_stop():
     const out = highlight('def f(x):\n    return "hi"  # note', 'python');
     A(out.includes('mkd-t-kw') && out.includes('mkd-t-str') && out.includes('mkd-t-com'), 'tokens');
   });
-  app.tests.register('developer: Python macro via Pyodide (allowed 60 s)', () => withDoc('start ', async d => {
+  // since 1.2 Python macros are an optional feature: a slim copy without it skips the Python runs (asking to install would wait for a click)
+  const pythonHere = async () => { try { if (!app.features) return true; await app.features.list(); const f = app.features.get('python'); return !f || f.state === 'installed' || f.state === 'included'; } catch { return true; } };
+  app.tests.register('developer: Python macro via Pyodide (allowed 60 s)', async () => { if (!(await pythonHere())) return; return withDoc('start ', async d => {
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('Python did not finish within 60 s')), 60000));
     const r = await Promise.race([runMacro({ lang: 'python', code: 'from markooj import doc\ndoc.insert("py ok")\nprint(len(doc.text))' }, { sink: silent }), timeout]);
     A(r.ok, 'python ran: ' + r.error);
     A(d.text.includes('py ok'), 'text inserted, got ' + JSON.stringify(d.text));
     const r2 = await runMacro({ lang: 'python', code: 'x = 1\ny = 0\nprint(x / y)' }, { sink: silent });
     A(!r2.ok && r2.line === 3 && /ZeroDivisionError/.test(r2.error), 'python error line: ' + r2.line + ' ' + r2.error);
-  }));
+  }); });
   // ---- round 3: lenient math macros, Examples gallery, recorder end to end
   const USER_LINE = '\\newcommand{\\R}{\\mathbb{R}}$\\R$';
   app.tests.register('developer: math macros accept the pasted line with a note', () => {
@@ -2326,6 +2339,7 @@ def _guard_stop():
       await new Promise(r2 => setTimeout(r2, 200));
       A(d.text.includes('Hello world') && /^---$/m.test(d.text), 'JS replay did both steps: ' + JSON.stringify(d.text));
     });
+    if (!(await pythonHere())) return; // slim copy without the Python macros feature: the JS replay above is enough
     await withDoc('Start\n', async d => {
       app.docs.activate(d.id); await new Promise(r => setTimeout(r, 150));
       const r = await runMacro({ lang: 'python', code: pyM.code }, { sink: silent });

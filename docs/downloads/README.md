@@ -10,33 +10,49 @@ In the file names below, `x.y.z` is the version number, for example `1.1.0`.
 
 | Your computer | Download | Notes |
 | --- | --- | --- |
-| **Windows 10 or 11** (most PCs) | `Markooj-x.y.z-win-x64-setup.exe` | The usual choice on Windows. Run it and follow the steps. |
-| Windows, without installing | `Markooj-x.y.z-win-x64-portable.zip` | Unzip the whole zip into a folder (or a USB drive) and run `Markooj.exe`. Settings stay in a `data` folder next to it. |
+| **Windows 10 or 11** (most PCs) | `Markooj-x.y.z-win-x64-setup.exe` | The usual choice on Windows. Run it and follow the steps. It asks for your language and which extra features you want. |
+| Windows, without installing or without internet | `Markooj-x.y.z-win-x64-portable.zip` | The **full** copy: every feature is included, so it works with no internet at all. Unzip the whole zip into a folder (or a USB drive) and run `Markooj.exe`. Settings stay in a `data` folder next to it. |
 | **Mac with an Apple chip** (M1, M2, M3, M4 and later) | `Markooj-x.y.z-mac-arm64.dmg` | Most Macs from late 2020 on. |
 | Mac with an Intel chip | `Markooj-x.y.z-mac-x64.dmg` | Older Macs. Not sure? Click the Apple menu → **About This Mac**: it says **Chip** (Apple) or **Processor** (Intel). |
 | **Linux** (most distributions) | `Markooj-x.y.z-linux-x86_64.AppImage` | One file that runs on most 64-bit Linux systems. |
 | Debian, Ubuntu, Linux Mint | `Markooj-x.y.z-linux-amd64.deb` | Installs Markooj with the rest of your programs. |
 | Linux, without installing | `Markooj-x.y.z-linux-x64.tar.gz` | A plain folder to unpack anywhere. |
 
-You do not need `Markooj-x.y.z-third-party-sources.zip`. It holds the source code of Pandoc, DjVuLibre and pdf2djvu, which Markooj includes, for anyone who wants it. `Markooj-x.y.z-SHA256SUMS.txt` lists the checksums of every file.
+You do not need `Markooj-x.y.z-third-party-sources.zip`. It holds the source code of Pandoc, DjVuLibre and pdf2djvu, for anyone who wants it. `Markooj-x.y.z-SHA256SUMS.txt` lists the checksums of every file. The `markooj-feature-…zip` files are the optional features (below); Markooj downloads the ones you choose by itself.
+
+## Optional features
+
+Markooj installs small (about 360 MB on Windows instead of 730 MB). Three parts are optional and download only when you want them:
+
+| Feature | What it does | Download | On disk |
+| --- | --- | --- | --- |
+| **Pandoc** | Save as LaTeX, OpenDocument, Rich Text, PowerPoint, Typst and more, and open those files. | about 40 MB | about 230 MB |
+| **DjVu tools** (Windows) | Open DjVu files and save documents as DjVu. | about 15 MB | about 37 MB |
+| **Python macros** | Run macros written in Python on the Developer tab. | about 6 MB | about 13 MB |
+
+Choose them in the Windows installer, on the Welcome screen (macOS and Linux), or any time in **File → Options → Features**, where you can also remove them. Without them, writing, the four modes, Word (.docx), PDF, EPUB, web pages, equations, diagrams and the Writing Assistant all work. Every download is checked against the checksum that came with Markooj before it is installed.
+
+**No internet on the computer?** On Windows, use the portable zip, which includes every feature. Or download the `markooj-feature-…zip` files for your system from the release page (or the [features release](https://github.com/datakeen/markooj/releases/tag/tools)) on another computer, copy them over, and choose **Install from file…** in **File → Options → Features**.
 
 ## System needs
 
 - Windows 10 or 11, 64-bit; macOS 12 (Monterey) or later; or a 64-bit Linux.
-- About 1 GB of free disk space.
-- No internet connection is needed. Pandoc, Python and the spelling and grammar checks are all inside. On Windows, the DjVu tools are inside too.
+- About 400 MB of free disk space, plus the space of the features you choose (up to about 280 MB more).
+- No internet connection is needed to write, check spelling and grammar, or save as Word, PDF and EPUB. The optional features download once (or use the Windows portable zip, which includes them).
 
 ## Installing
 
 ### Windows
 
-**Installer:** run `Markooj-x.y.z-win-x64-setup.exe`. You can choose the folder. It adds Markooj to the Start menu and the desktop, and Markdown files open in it with a double-click. To remove it later, use **Settings → Apps** in Windows.
+**Installer:** run `Markooj-x.y.z-win-x64-setup.exe`. The first screen lists the 11 languages of Markooj, each in its own script: pick yours, and both the installer and Markooj use it (you can switch it later in Markooj). The installer's standard steps are in English for Urdu, Roman Urdu and Punjabi, because the installer toolkit Markooj uses has no Urdu or Punjabi yet; the features step is in your language. Then choose the folder and the extra features you want (Pandoc is checked to start with; each shows its size). The features you check download in the background the first time Markooj starts; a small card shows the progress, and **Cancel** stops it. The installer adds Markooj to the Start menu and the desktop, and Markdown files open in it with a double-click. To remove it later, use **Settings → Apps** in Windows; that also removes the features it downloaded.
 
-**Portable zip:** right-click the zip, choose **Extract All…**, and pick a folder. Run `Markooj.exe` inside it. Keep the whole folder together: Markooj needs the `resources` folder beside it. To remove it, delete the folder.
+For IT departments: `Markooj-x.y.z-win-x64-setup.exe /S /LANGUAGE=en /FEATURES=pandoc,djvu,python` installs silently with those choices. The language codes are `en`, `zh-CN`, `ur`, `ur-Latn`, `pnb`, `ja`, `ar`, `sv`, `es`, `fr` and `pt-BR`; `/LANGUAGE=` also skips the language screen of a normal install.
+
+**Portable zip:** right-click the zip, choose **Extract All…**, and pick a folder. Run `Markooj.exe` inside it. Keep the whole folder together: Markooj and its features are in the `resources` folder beside it. This copy includes every feature and never needs the internet. To remove it, delete the folder.
 
 ### macOS
 
-Open the `.dmg` file and drag **Markooj** onto the **Applications** folder. Then open Markooj from Applications. To remove it, drag it from Applications to the Trash.
+Open the `.dmg` file and drag **Markooj** onto the **Applications** folder. Then open Markooj from Applications. The Welcome screen asks which extra features you want (Pandoc and Python macros). To remove Markooj, drag it from Applications to the Trash.
 
 ### Linux
 

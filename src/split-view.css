@@ -1,0 +1,91 @@
+/* Markooj — Split and View Side by Side (split-view.js). Colors come from the theme variables, so dark mode just works. */
+.mk-split-div,.mk-split-pane{display:none}
+
+/* side by side: outline | first pane | divider | second pane */
+body.mk-split .mid-inner{display:grid;grid-template-columns:auto minmax(0,var(--mk-sa,1fr)) 7px minmax(0,var(--mk-sb,1fr));grid-template-rows:minmax(0,1fr)}
+body.mk-split .mid-inner > .outline{grid-column:1;grid-row:1 / -1}
+body.mk-split .mid-inner > #editorHost{grid-column:2;grid-row:1;min-height:0}
+body.mk-split .mid-inner > .mk-split-div{display:block;grid-column:3;grid-row:1}
+body.mk-split .mid-inner > .mk-split-pane{display:grid;grid-column:4;grid-row:1}
+/* stacked: first pane above, second below */
+body.mk-split.mk-split-stacked .mid-inner{grid-template-columns:auto minmax(0,1fr);grid-template-rows:minmax(0,var(--mk-sa,1fr)) 7px minmax(0,var(--mk-sb,1fr))}
+body.mk-split.mk-split-stacked .mid-inner > #editorHost{grid-column:2;grid-row:1}
+body.mk-split.mk-split-stacked .mid-inner > .mk-split-div{grid-column:2;grid-row:2}
+body.mk-split.mk-split-stacked .mid-inner > .mk-split-pane{grid-column:2;grid-row:3}
+
+.mk-split-pane{grid-template-rows:auto minmax(0,1fr);min-width:0;min-height:0;background:var(--canvas);position:relative}
+.mk-split-host{position:relative;overflow:auto;min-height:0;min-width:0;background:var(--canvas);outline:none;transition:background .3s}
+.mk-split-host > *{min-height:100%}
+body.layout-web .mk-split-host{background:var(--page-bg)}
+
+/* the pane's own bar: document, mode, sync, swap, orientation, close */
+.mk-split-bar{display:flex;align-items:center;gap:3px;padding:3px 0;padding-inline:10px 6px;min-height:34px;box-sizing:border-box;border-bottom:.5px solid var(--line);background:var(--bg);font:12px var(--font);color:var(--text-2);overflow:hidden;white-space:nowrap}
+.mk-split-sp{flex:1;min-width:6px}
+.mk-split-label{display:flex;align-items:baseline;gap:7px;min-width:0;overflow:hidden}
+.mk-split-label b{font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis}
+.mk-split-label span{color:var(--text-3);font-size:11px}
+.mk-split-btn{border:0;background:none;color:var(--text-2);height:26px;min-width:26px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 5px;font:inherit;cursor:default;transition:background .15s,color .15s}
+.mk-split-btn:hover{background:var(--hover);color:var(--text)}
+.mk-split-btn:focus-visible{outline:2px solid var(--accent-ring);outline-offset:1px}
+.mk-split-btn.on{background:var(--accent-soft);color:var(--accent)}
+.mk-split-btn svg.i{width:16px;height:16px}
+.mk-split-doc{max-width:46%;min-width:0;padding:0 8px;color:var(--text)}
+.mk-split-doc .t{overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.mk-split-doc .mk-split-chev{width:11px;height:11px;color:var(--text-3)}
+.mk-split-dot{width:7px;height:7px;border-radius:50%;flex:none;background:transparent;box-shadow:inset 0 0 0 1px var(--line-2)}
+.mk-split-dot.on{background:var(--accent);box-shadow:none}
+.mk-split-seg{margin:0 4px}
+.mk-split-close:hover{color:var(--text)}
+
+/* which pane has the cursor: a thin accent line along its top edge */
+body.mk-split:not(.mk-split-p2) #editorHost{box-shadow:inset 0 2px 0 0 var(--accent)}
+body.mk-split.mk-split-p2 .mk-split-bar{box-shadow:inset 0 -2px 0 0 var(--accent)}
+
+/* the divider: drag, double-click, or arrow keys */
+.mk-split-div{position:relative;background:var(--bg);cursor:col-resize;border-left:.5px solid var(--line);border-right:.5px solid var(--line);outline:none;touch-action:none;z-index:2}
+.mk-split-grip{position:absolute;left:50%;top:50%;width:3px;height:38px;margin:-19px 0 0 -1.5px;border-radius:2px;background:var(--line-2);transition:background .15s,transform .15s}
+body.mk-split-stacked .mk-split-div{cursor:row-resize;border:0;border-top:.5px solid var(--line);border-bottom:.5px solid var(--line)}
+body.mk-split-stacked .mk-split-grip{width:38px;height:3px;margin:-1.5px 0 0 -19px}
+.mk-split-div:hover .mk-split-grip,.mk-split-div.drag .mk-split-grip,.mk-split-div:focus-visible .mk-split-grip{background:var(--accent)}
+.mk-split-div:focus-visible{box-shadow:inset 0 0 0 2px var(--accent-ring)}
+body.mk-split-dragging{cursor:col-resize;user-select:none}
+body.mk-split-dragging.mk-split-stacked{cursor:row-resize}
+body.mk-split-dragging iframe{pointer-events:none}
+
+/* View Side by Side: pick the second document */
+.mk-split-pick p{margin:0 0 8px}
+.mk-split-list{display:flex;flex-direction:column;gap:2px;max-height:46vh;overflow:auto;margin:0 -4px}
+.mk-split-item{display:flex;align-items:center;gap:10px;text-align:start;border:0;background:none;border-radius:8px;padding:7px 9px;font:13px var(--font);color:var(--text);cursor:default}
+.mk-split-item:hover{background:var(--hover)}
+.mk-split-item.on{background:var(--accent-soft)}
+.mk-split-item:focus-visible{outline:2px solid var(--accent-ring);outline-offset:-2px}
+.mk-split-item span{display:flex;flex-direction:column;min-width:0}
+.mk-split-item small{color:var(--text-3);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:420px}
+.mk-split-item svg.i{color:var(--accent)}
+
+/* narrow panes: Simple mode keeps only the Markdown side (widen the pane for the preview), and the pane bar gets compact */
+body.mk-split #editorHost,.mk-split-host{container-type:inline-size}
+.mk-split-pane{container-type:inline-size}
+.mk-split-btn{flex:none}
+.mk-split-modebtn{display:none;padding:0 8px;font-weight:600;color:var(--text)}
+.mk-split-modebtn .mk-split-chev{width:11px;height:11px;color:var(--text-3)}
+.mk-split-doc .t{min-width:3em}
+@container (max-width: 620px){
+  .mk-simple:not(.no-preview){grid-template-columns:minmax(0,1fr)}
+  .mk-simple .mk-preview,.mk-simple .mk-pv-float{display:none}
+}
+@container (max-width: 560px){
+  .mk-split-label span{display:none}
+  .mk-split-seg{display:none}
+  .mk-split-modebtn{display:inline-flex}
+}
+@container (max-width: 500px){
+  .mk-split-orient,.mk-split-swap{display:none} /* still on the ribbon and in Alt+Q: Swap panes, Stack or side by side panes */
+  .mk-split-doc{flex:0 1 auto}
+  .mk-split-doc .t{min-width:0}
+}
+@container (max-width: 300px){
+  .mk-split-label{display:none}
+}
+
+@media (prefers-reduced-motion: reduce){.mk-split-grip,.mk-split-btn{transition:none}}

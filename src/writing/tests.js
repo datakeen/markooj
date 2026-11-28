@@ -418,4 +418,191 @@
     const lr = lf.find(x => x.text === run);
     A(lr && !lr._sugg.length && nm === null && runMs < 200, `long run: ${Math.round(runMs)} ms, ${JSON.stringify(lf.map(x => [x.text.length, x._sugg.length]))}`);
   });
+
+  // =================================================================== writing quality (1.2.0): suggestions, domain words, false alarms, context, wording
+  const Q = (name, fn) => T('quality: ' + name, fn);
+  const machineFactor = () => { const t = performance.now(); let x = 0; for (let k = 0; k < 4e6; k++) x += Math.sqrt(k) % 3; return Math.max(1, Math.min(4, (performance.now() - t + (x < 0 ? 1 : 0)) / 60)); };
+
+  Q('spelling suggestions put the intended word first', async () => {
+    await W.spellReady('en-US');
+    const en = W.languageFor({ meta: { lang: 'en-US' } });
+    const cases = [['calander', 'calendar', 1], ['coreection', 'correction', 1], ['seperate', 'separate', 1], ['definately', 'definitely', 1], ['recieve', 'receive', 1], ['occured', 'occurred', 1], ['accomodate', 'accommodate', 1], ['teh', 'the', 1], ['gramamr', 'grammar', 1], ['syncrounus', 'synchronous', 1], ['monotonusity', /^(monotony|monotonousness)$/, 3],
+      ['speling', 'spelling', 1], ['beleive', 'believe', 1], ['enviroment', 'environment', 1], ['begining', 'beginning', 1], ['neccessary', 'necessary', 1], ['adress', 'address', 1], ['existance', 'existence', 1], ['hydrolic', 'hydraulic', 2], ['mispeled', 'misspelled', 2], ['Calander', 'Calendar', 1], ['Lahor', 'Lahore', 3]];
+    const bad = []; let worst = 0;
+    for (const [w, want, n] of cases) {
+      const t = performance.now(); const s = W.suggest(w, en); worst = Math.max(worst, performance.now() - t);
+      if (!s.slice(0, n).some(x => (want instanceof RegExp ? want.test(x) : x === want))) bad.push(`${w} → ${s.join(', ')}`);
+    }
+    A(!bad.length, 'suggestions: ' + bad.join(' | '));
+    A(W.suggest('calander', en).includes('colander'), 'colander may follow calendar');
+    A(worst < 400 * machineFactor(), `slowest suggestion list ${Math.round(worst)} ms`);
+    console.log(`[writing] ${cases.length} suggestion lists; slowest ${Math.round(worst)} ms`);
+  });
+
+  Q('technical terms and place names are accepted, with their capitals', async () => {
+    await W.spellReady('en-US');
+    const ok = 'The penstock, feedwater pump, tailrace and headrace were checked. A thermohydraulic and thermodynamic model ran in Simulink, MATLAB, ANSYS, HEC-RAS and OpenFOAM. ' +
+      'The hydrograph and hyetograph used Manning and Froude numbers. We visited San Onofre, Lahore, Rawalpindi, Faisalabad, Multan, Peshawar, Quetta, Sukkur, Hyderabad, Wah, Taxila, Mangla and Tarbela ' +
+      'in Punjab, Sindh, Khyber Pakhtunkhwa, Balochistan, Gilgit-Baltistan and Azad Kashmir, and then Kraków, Düsseldorf, Bengaluru and Ulaanbaatar.\n';
+    const f = (await W.checkText(ok, { lang: 'en-US' })).filter(x => x.rule === 'spelling' || x.source === 'harper' && x.cat === 'correctness');
+    A(!f.length, 'nothing marked: ' + JSON.stringify(f.map(x => [x.rule, x.harperRule, x.text])));
+    const low = (await W.checkText('We drove to lahore and saw the penstock.\n', { lang: 'en-US', harper: false })).filter(x => x.rule === 'spelling');
+    A(low.some(x => x.text === 'lahore') && !low.some(x => x.text === 'penstock'), 'a place name keeps its capital: ' + JSON.stringify(low.map(x => x.text)));
+    A(W.domainWords.has('Lahore') && !W.domainWords.has('lahore') && W.domainWords.has('Penstock') && W.domainWords.has('PENSTOCK'), 'case rule of W.domainWords.has');
+    const was = W.settings.domainWords();
+    try {
+      app.settings.set('writingDomainWords', false); await sleep(60);
+      const off = (await W.checkText('The penstock feeds the tailrace.\n', { lang: 'en-US', harper: false })).filter(x => x.rule === 'spelling').map(x => x.text);
+      A(off.includes('penstock') && off.includes('tailrace'), 'turned off, the terms are checked again: ' + off.join(', '));
+      A(app.commands.get('writing.domainWords') && !app.commands.get('writing.domainWords').isActive(), 'palette command shows the switch state');
+      await app.commands.run('writing.domainWords'); await sleep(60);
+      A(W.settings.domainWords() === true, 'the command turns it back on');
+      const on = (await W.checkText('The penstock feeds the tailrace.\n', { lang: 'en-US', harper: false })).filter(x => x.rule === 'spelling');
+      A(!on.length, 'on again: ' + JSON.stringify(on.map(x => x.text)));
+      // dictionary words in the list are never removed when it is turned off
+      app.settings.set('writingDomainWords', false); await sleep(60);
+      const dict = (await W.checkText('Chicago and London are cities.\n', { lang: 'en-US', harper: false })).filter(x => x.rule === 'spelling');
+      A(!dict.length, 'dictionary words stay known: ' + JSON.stringify(dict.map(x => x.text)));
+    } finally { app.settings.set('writingDomainWords', was); await sleep(60); }
+    const tip = app.tooltips?.info?.('writing.domainWords');
+    A(tip && tip.title && tip.description, 'ScreenTip for the switch: ' + JSON.stringify(tip));
+    A(JSON.stringify(app.ribbon.tabs()).includes('writing.domainWords') || document.querySelector('[data-tip-cmd="writing.domainWords"]'), 'Review → Proofing has the switch');
+  });
+
+  // correct sentences (from the request that asked for these checks, typos fixed, plus confusable words used correctly)
+  const CORRECT = ['Writing Arabic, Urdu and Persian should use the keyboard layout that is famous among native speakers, not the same one for everyone.',
+    'This writing can be enabled, that is, made possible, even if the keyboard of the operating system (Windows, Linux, Mac) is not installed.',
+    'Easy switching between English and right-to-left languages should be given.', 'Normally, a selection of text written in Urdu and English (or math) is very inconvenient.',
+    'Please improve the selection of mixed text.', 'Add the ability to paste a table to and from Microsoft Office documents and Markooj.',
+    'Equation and figure numbering and caption handling within a table should be easy as well.',
+    'Its installed memory footprint is bigger than I expected; I was hoping for something in the 100 to 150 MB range.',
+    'Please tell me what causes its size to be that big and how it can be reduced.',
+    'Can we give users options during installation about which packages to include, along with the memory each option uses or saves and the features it helps?',
+    'It will help users select the features they need, and if they want, they can install the remaining features later.',
+    'Please make the website feel lively with some subtle effects, and surprising and inspiring mouse movement effects that are related to the theme of Markooj as well, that is, an easy-to-use Markdown editor.',
+    'If possible, add a short section where a visitor can have a short, controlled first taste of the different modes of Markooj, for example Word and Inline, and add an equation, a Mermaid diagram and so on.',
+    'Some of Obsidian’s behavior will probably enhance the user experience.',
+    'For example, brackets should close automatically: when we type one asterisk, a second one should appear with the cursor in between.',
+    'An option to turn this behavior off should also be possible.',
+    'There should be keyboard shortcuts as well as a control in the ribbon through which we can insert a date in the style the user prefers, like dd/mm/yy or yyyymmdd.',
+    'Today’s date could come from /today, and any date from /date through a calendar dialog, with the day name included or not, and a Hijri calendar date as well.',
+    'Multi-cursor writing will also enhance the user experience.',
+    'A misspelled “calander” may also mean “calendar” instead of “colander”, so it is better to offer more closely related spelling corrections.',
+    'We need a beautiful, engaging, modern, surprising, and mesmerizing yet decent 404 page.',
+    'When we are in Read mode or Simple mode, click on a word in the right pane and press Ctrl+A, it selects all the words, even those of the interface, which is an undesired outcome.',
+    'The ruler should be turned on and off as it is in Word.', 'If possible, guides can be created from the ruler by dragging with the mouse pressed from the edge of the ruler, just as in Adobe Illustrator.',
+    'Please accept words used in hydraulics and river dynamics, such as thermo, penstock, ANSYS, MATLAB and feedwater, names of US states and places such as San Onofre, famous city names, and the cities and provinces of Pakistan.',
+    'Ctrl+Alt+V should paste as plain text without formatting.', 'Here “effects” is used correctly, but it is marked as incorrect.',
+    'Please improve the grammar rules so that such silly suggestions are rare, not only for affect and effect but for others as well.',
+    'Also, based on the context, the word “an” is wrong and the word “and” should be the suggestion.', 'You need to improve the grammar rules based on the context as well.',
+    'As a writing aid, an opening quotation mark should also come with a closing one.',
+    'Here, even with an opening quotation mark, a closing one does not appear, and if we press this key again, instead of a closing mark it inserts another opening mark at the end of the sentence, which leaves a bad taste for the user.',
+    'Every time it gives the same suggestion.', 'The suggestion is fine, but it creates monotony.',
+    'It may be better to have five or ten suggestions and to change the suggestion at random, even if the same mistake appears several times in a single document.',
+    'A picture pasted or embedded by another Markdown editor does not show here when the file is opened.',
+    'Add the ability to read and write another document side by side; another instance of the same document should be possible too, with synchronous scrolling on or off.',
+    'It should be possible to split the document window just as in Word, but even better.',
+    'Please translate the interface into Chinese (Simplified), Urdu (right to left), Roman Urdu (left to right), Punjabi (Shahmukhi), Japanese, Arabic, Swedish, Spanish, French and Portuguese.',
+    'Please note that the translation has to work well.', 'Poor or awkward, machine-like translations can turn users away, while well-written ones will keep them connected.',
+    'For Urdu, Arabic and Punjabi, use the language packs for spell checking and suggestions while writing.',
+    'Users can choose their language at the start of installation, and they can also switch between languages easily while using the software.',
+    'The new policy will affect every student in the program.', 'The effects of the flood were visible for months.', 'These subtle visual effects make the page feel alive.',
+    'Small changes can have large effects on the result.', 'The drug had no effect on the patients.', 'The manager wants to effect real change in the team.',
+    'Rising costs affect how we plan the project.', 'The sediment load is higher than last year.', 'First we measured the flow, and then we dried the samples.',
+    'The river changed its course after the storm.', 'It’s clear that the model works.', 'Your report is due on Friday.', 'You’re right about the delay.',
+    'Do not lose the receipt.', 'The bolts on the gate were loose.', 'The principal investigator approved the plan.', 'In principle, the design is sound.',
+    'The colors complement each other well.', 'She paid me a compliment on the report.', 'Thank you for your advice.', 'We advise you to back up your files.',
+    'The pump is more efficient than the old one.', 'Back then, the road was narrow.', 'Its value depends on the season.', 'The side effects were mild.',
+    'Special effects in the film were impressive.', 'Sound effects and lighting effects were added later.', 'These factors affected the outcome.', 'The effect was immediate.',
+    'We studied the effects, and the results were clear.', 'Mouse movement effects should stay subtle.', 'Turbulence effects near the wall are strong.',
+    'It took an hour to run a European test at a university.', 'Black and white photos look timeless.', 'The spillway, penstock and tailrace were inspected at Tarbela.',
+    'Using an engaging layout helps readers.', 'A big old red truck stood near a short, steep slope.', 'Breakfast is complimentary for guests.', 'Rather than wait, we left early.'];
+  W.qualityCorpus = CORRECT;
+
+  Q('no correctness alerts on 80 correct sentences, and the real mistakes are still found', async () => {
+    A(CORRECT.length >= 60, 'corpus size ' + CORRECT.length);
+    await W.spellReady('en-US');
+    const text = CORRECT.join('\n\n') + '\n';
+    const all = await W.checkText(text, { lang: 'en-US', spelling: false });
+    A(W.engine.harper === 'ready', 'Harper is part of this check (state: ' + W.engine.harper + ')');
+    const bad = all.filter(x => x.cat === 'correctness');
+    A(!bad.length, 'false alarms: ' + JSON.stringify(bad.map(x => [x.rule, x.harperRule || x.sub || '', x.text, text.slice(Math.max(0, x.start - 30), x.end + 10)])));
+    console.log(`[writing] false-alarm corpus: ${CORRECT.length} sentences, ${bad.length} correctness alerts, ${all.length} hints in other categories`);
+    // the mistakes these rules exist for are still caught (each with the right fix first)
+    const WRONG = [['The new rules will effect everyone.', 'effect', 'affect'], ['The drug had no affect on the patients.', 'affect', 'effect'], ['The side affects were mild.', 'affects', 'effects'],
+      ['It is bigger then the old one.', 'then', 'than'], ['Since than, the river rose.', 'than', 'then'], ['Your going to like it.', 'Your', 'You’re'], ['Check you’re own work.', 'you’re', 'your'],
+      ['Do not loose the receipt.', 'loose', 'lose'], ['The screw is lose.', 'lose', 'loose'], ['In principal, the plan works.', 'principal', 'principle'], ['The principle investigator agreed.', 'principle', 'principal'],
+      ['The colors compliment each other.', 'compliment', 'complement'], ['She paid me a nice complement.', 'complement', 'compliment'], ['We advice you to save often.', 'advice', 'advise'], ['Thanks for the advise.', 'advise', 'advice'],
+      ['We were badly effected by the flood.', 'effected', 'affected'], ['Its a good day.', 'Its', 'It’s'], ['It took a hour.', 'a', 'an']];
+    const miss = [];
+    for (const [s, w, fix] of WRONG) { const f = (await W.checkText(s + '\n', { lang: 'en-US', spelling: false })).find(x => x.text === w && x.cat === 'correctness'); if (!f || f.replacements[0] !== fix) miss.push(`${s} → ${f ? f.replacements[0] : 'nothing'}`); }
+    A(!miss.length, 'missed: ' + miss.join(' | '));
+  });
+
+  Q('“an” between describing words suggests “and”; commas between coordinate describing words', async () => {
+    const t = 'We want a beautiful engaging modern and surprising, an mesmerizing yet decent 404 page.\n';
+    const f = await W.checkText(t, { lang: 'en-US', harper: false, spelling: false });
+    const an = f.find(x => x.rule === 'article' && x.text === 'an');
+    A(an && an.replacements[0] === 'and' && an.replacements[1] === 'a' && /Did you mean “and”|“and”/.test(an.message), 'an → and first, a second: ' + JSON.stringify(an));
+    const why = W.explain(an); A(/and/.test(why.text) && why.right, 'Why? explains the list: ' + JSON.stringify(why));
+    const cm = f.find(x => x.rule === 'adjCommas');
+    A(cm && cm.cat === 'clarity' && !cm.safe && cm.replacements[0] === 'beautiful, engaging, modern, surprising, and mesmerizing', 'comma hint: ' + JSON.stringify(cm));
+    const bw = (await W.checkText('We printed black an white photos.\n', { lang: 'en-US', harper: false, spelling: false })).find(x => x.rule === 'article');
+    A(bw && bw.replacements[0] === 'and', 'black an white: ' + JSON.stringify(bw));
+    const plain = (await W.checkText('A beautiful engaging modern design.\n', { lang: 'en-US', harper: false, spelling: false })).find(x => x.rule === 'adjCommas');
+    A(plain && plain.replacements[0] === 'beautiful, engaging, modern', 'no "and" added when the list has none: ' + JSON.stringify(plain));
+    const uk = (await W.checkText('A calm quiet and friendly place.\n', { lang: 'en-GB', harper: false, spelling: false })).find(x => x.rule === 'adjCommas');
+    A(uk && uk.replacements[0] === 'calm, quiet and friendly', 'British style has no serial comma: ' + JSON.stringify(uk));
+    for (const s of ['It took an hour.', 'Using an engaging layout helps.', 'A big old red truck.', 'A short, controlled first taste.', 'It was an elegant and modern design.', 'A calm, quiet, friendly place.', 'An honest, open answer.']) {
+      const g = (await W.checkText(s + '\n', { lang: 'en-US', harper: false, spelling: false })).filter(x => x.rule === 'article' || x.rule === 'adjCommas');
+      A(!g.length, `quiet on “${s}”: ` + JSON.stringify(g.map(x => [x.rule, x.text, x.replacements])));
+    }
+    // accepting the comma fix gives the sentence the request asked for
+    await withDoc(t, 'simple', async d => {
+      const list = await W.check(d); const c = list.find(x => x.rule === 'adjCommas');
+      A(c && await W.accept(c, c.replacements[0], d), 'comma fix accepted');
+      A(/a beautiful, engaging, modern, surprising, and mesmerizing yet decent/.test(d.text), 'text: ' + d.text);
+    });
+  });
+
+  Q('repeated mistakes are explained in varied words, the same on every check', async () => {
+    for (const [k, list] of Object.entries(R.PHRASES)) A(list.length >= 5 && list.length <= 10 && new Set(list).size === list.length, `${k}: ${list.length} distinct phrasings`);
+    const t = 'I ate a apple. She ate a orange. He ate a egg. We saw a owl. It took a hour.\n\nWe discussed about the plan. They discussed about the cost. She discussed about it.\n';
+    const a1 = await W.checkText(t, { lang: 'en-US', harper: false, spelling: false });
+    const a2 = await W.checkText(t, { lang: 'en-US', harper: false, spelling: false });
+    const arts = a1.filter(x => x.rule === 'article'), preps = a1.filter(x => x.rule === 'preposition');
+    A(arts.length === 5 && new Set(arts.map(x => x.message)).size === 5, 'five article messages, all different: ' + JSON.stringify(arts.map(x => x.message)));
+    A(preps.length === 3 && new Set(preps.map(x => x.message)).size === 3 && preps.every(x => x.message.includes('“Discuss” already means')), 'preposition frames keep the reason: ' + JSON.stringify(preps.map(x => x.message)));
+    A(JSON.stringify(a1.map(x => x.message)) === JSON.stringify(a2.map(x => x.message)), 'checking again gives the same messages');
+    A(new Set(arts.map(x => JSON.stringify(W.explain(x)))).size === 1, 'Why? stays the same');
+    A(arts.every(x => !/\{\w+\}/.test(x.message) && /“(apple|orange|egg|owl|hour)”|an (apple|orange|egg|owl|hour)/.test(x.message)), 'every phrasing names the word: ' + JSON.stringify(arts.map(x => x.message)));
+    // Harper messages vary only for rules whose meaning is known
+    const h = R.vary([{ source: 'harper', harperRule: 'AnA', message: 'Incorrect indefinite article.', text: 'a', replacements: ['an'], start: 0, end: 1 }, { source: 'harper', harperRule: 'AnA', message: 'Incorrect indefinite article.', text: 'a', replacements: ['an'], start: 9, end: 10 }, { source: 'harper', harperRule: 'SomethingElse', message: 'Keep me.', text: 'x', replacements: [], start: 20, end: 21 }]);
+    A(h[0].message === 'Incorrect indefinite article.' && h[1].message !== h[0].message && /an/.test(h[1].message) && h[2].message === 'Keep me.', 'Harper wording: ' + JSON.stringify(h.map(x => x.message)));
+  });
+
+  Q('passive hints: no reporting verbs with “as”, one per paragraph', async () => {
+    const p = s => W.checkText(s, { lang: 'en-US', harper: false, spelling: false }).then(f => f.filter(x => x.rule === 'passive'));
+    A(!(await p('Here effects is used correctly, but it is marked as incorrect.\n')).length, 'is marked as');
+    A(!(await p('This value is known as the Froude number.\n')).length, 'is known as');
+    A(!(await p('Save the file when it is opened.\n')).length, 'a time clause');
+    A((await p('The report was written by the committee. It was then reviewed by the board. The plan was approved by the council.\n')).length === 1, 'one per paragraph');
+    A((await p('The samples were collected by the team.\n')).length === 1, 'still shown for a plain passive');
+  });
+
+  Q('a 10,000-word document is checked without a noticeable slowdown', async () => {
+    const parts = ['The committee discussed about the plan in order to reduce costs at site N.', 'The subtle effects, and surprising mouse movement effects, were tested N times.', 'A beautiful engaging modern and surprising, an mesmerizing page N appeared.',
+      'It is bigger then the old pump N.', 'We measured the flow at N sites and the results were very good.', 'The penstock and tailrace at Tarbela N were inspected.'];
+    const paras = []; let words = 0, i = 0;
+    while (words < 10000) { const p = []; for (let k = 0; k < 5; k++) { const s = parts[(i + k) % parts.length].replace('N', String(i * 7 + k)); p.push(s); words += s.split(/\s+/).length; } paras.push(p.join(' ')); i++; }
+    const text = paras.join('\n\n') + '\n';
+    const slow = machineFactor();
+    let t = performance.now(); const own = R.checkAll(text, { dialect: 'US', goals: {} }); const ownMs = performance.now() - t;
+    t = performance.now(); R.vary(own.findings); const varyMs = performance.now() - t;
+    await W.checkText(paras.slice(0, 6).join('\n\n'), { lang: 'en-US', harper: false });
+    t = performance.now(); const f = await W.checkText(text, { lang: 'en-US', harper: false }); const fullMs = performance.now() - t;
+    A(f.some(x => x.rule === 'confusable') && f.some(x => x.rule === 'adjCommas'), 'the new rules fire in the big document');
+    A(ownMs < 900 * slow && varyMs < 100 * slow && fullMs < 3000 * slow, `rules ${Math.round(ownMs)} ms, wording ${Math.round(varyMs)} ms, full check with spelling ${Math.round(fullMs)} ms (machine factor ${slow.toFixed(2)})`);
+    console.log(`[writing] 10,000 words (${words}): rules ${Math.round(ownMs)} ms in the page, wording ${Math.round(varyMs)} ms, worker check + spelling ${Math.round(fullMs)} ms, ${f.length} findings`);
+  });
 })();

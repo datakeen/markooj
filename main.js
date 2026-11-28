@@ -1,4 +1,5 @@
 // Markooj — main process: protocol, window, files, conversions, bundled tools, recovery store, settings, smoke test.
+/* i18n-aliases: tm, tx */
 'use strict';
 const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Menu, protocol, session, screen, nativeImage } = require('electron');
 const path = require('path');
@@ -20,7 +21,9 @@ function onMainError(e) {
   if (IS_SMOKE_RUN) { try { app.exit(3); } catch { process.exit(3); } return; }
   if (STARTUP_DONE || startupErrorShown) return;
   startupErrorShown = true;
-  try { dialog.showErrorBox('Start Markooj again', `Please start Markooj again. If this keeps happening, download Markooj again from https://datakeen.github.io/markooj/#download and install it over this copy (your documents and settings stay), or report it at https://github.com/datakeen/markooj/issues.\n\nTechnical details: ${msg.split('\n')[0]}`); } catch {}
+  // in the interface language once main-i18n is loaded; a failure before that shows English
+  const tx = (text, vars) => { try { return I18N.t(text, vars); } catch { return text.replace(/\{(\w+)\}/g, (m, k) => (vars && k in vars ? vars[k] : m)); } };
+  try { dialog.showErrorBox(tx('Start Markooj again'), tx('Please start Markooj again. If this keeps happening, download Markooj again from {downloadUrl} and install it over this copy (your documents and settings stay), or report it at {issuesUrl}.\n\nTechnical details: {details}', { downloadUrl: 'https://datakeen.github.io/markooj/#download', issuesUrl: 'https://github.com/datakeen/markooj/issues', details: msg.split('\n')[0] })); } catch {}
   try { app.exit(1); } catch { process.exit(1); }
 }
 process.on('uncaughtException', onMainError);
@@ -37,14 +40,15 @@ process.on('unhandledRejection', e => { try { process.stderr.write(`[markooj] un
 const ERR_MARK = String.fromCharCode(10, 0x2063) + 'mk-info:'; // newline, invisible separator, tag
 const ISSUES_URL = 'https://github.com/datakeen/markooj/issues';
 const DOWNLOAD_URL = 'https://datakeen.github.io/markooj/#download';
+// labels are translated each time an action is made (the interface language can change while Markooj runs)
 const ACT = {
-  retry: { id: 'retry', label: 'Try again' },
-  saveAs: { id: 'save-as', label: 'Save to another folder' },
-  chooseFormat: { id: 'choose-format', label: 'Choose another format' },
-  openFile: { id: 'open-file', label: 'Choose another file' },
-  checkTools: { id: 'check-tools', label: 'Check again' },
-  report: { id: 'report', label: 'Report this', url: ISSUES_URL },
-  details: text => ({ id: 'copy-details', label: 'Copy details', text: String(text || '').slice(0, 4000) }),
+  get retry() { return { id: 'retry', label: I18N.t('Try again') }; },
+  get saveAs() { return { id: 'save-as', label: I18N.t('Save to another folder') }; },
+  get chooseFormat() { return { id: 'choose-format', label: I18N.t('Choose another format') }; },
+  get openFile() { return { id: 'open-file', label: I18N.t('Choose another file') }; },
+  get checkTools() { return { id: 'check-tools', label: I18N.t('Check again') }; },
+  get report() { return { id: 'report', label: I18N.t('Report this'), url: ISSUES_URL }; },
+  details: text => ({ id: 'copy-details', label: I18N.t('Copy details'), text: String(text || '').slice(0, 4000) }),
   url: (label, url) => ({ id: 'open-url', label, url }),
   copy: (label, text) => ({ id: 'copy', label, text }),
 };
@@ -194,22 +198,30 @@ function writeAtomic(file, data) {
 }
 const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } };
 // File-system failures in words people can act on. `what`: 'save the file', 'open the file', 'export the document' …
+// `what` stays English for the logic; the message shows it translated ({action})
+function actionText(what) {
+  const m = { 'do that': I18N.t('do that'), 'save the file': I18N.t('save the file'), 'open the file': I18N.t('open the file'), 'copy the sample': I18N.t('copy the sample'), 'save the exported file': I18N.t('save the exported file'), 'show this page': I18N.t('show this page'), 'read the text of this file': I18N.t('read the text of this file') };
+  return m[what] || what;
+}
 function friendlyError(e, what = 'do that') {
   if (e && e.plain) return e;
   const code = e && e.code;
   const write = !/^(open|read)/.test(what);
+  const action = actionText(what);
   const details = `${code || 'error'}: ${(e && e.message) || e}`;
   const o = actions => ({ actions: [...actions, ACT.details(details)], details, code });
-  if (code === 'EBUSY') return userError(`Close the file in the other program (for example Word), then try again${write ? ', or save to another folder' : ''}. Another program is using it, so Markooj could not ${what}.`, o(write ? [ACT.retry, ACT.saveAs] : [ACT.retry]));
+  if (code === 'EBUSY') return userError(write
+    ? I18N.t('Close the file in the other program (for example Word), then try again, or save to another folder. Another program is using it, so Markooj could not {action}.', { action })
+    : I18N.t('Close the file in the other program (for example Word), then try again. Another program is using it, so Markooj could not {action}.', { action }), o(write ? [ACT.retry, ACT.saveAs] : [ACT.retry]));
   if (code === 'EPERM' || code === 'EACCES' || code === 'EROFS') return write
-    ? userError(`Save to another folder, such as Documents, or close the file in the program that has it open and try again. The file is read-only, in use, or in a protected folder, so Markooj could not ${what}.`, o([ACT.saveAs, ACT.retry]))
-    : userError('Copy the file to a folder such as Documents and open it from there, or close it in the program that has it open and try again. Markooj is not allowed to read it where it is.', o([ACT.retry, ACT.openFile]));
+    ? userError(I18N.t('Save to another folder, such as Documents, or close the file in the program that has it open and try again. The file is read-only, in use, or in a protected folder, so Markooj could not {action}.', { action }), o([ACT.saveAs, ACT.retry]))
+    : userError(I18N.t('Copy the file to a folder such as Documents and open it from there, or close it in the program that has it open and try again. Markooj is not allowed to read it where it is.'), o([ACT.retry, ACT.openFile]));
   if (code === 'ENOENT') return write
-    ? userError('Save to another folder: this one is no longer there. It may have been moved or renamed, or its drive was removed. Your text is still open in Markooj.', o([ACT.saveAs]))
-    : userError('Choose the file again: it may have been moved, renamed or deleted, or its drive was removed.', o([ACT.openFile]));
-  if (code === 'ENOSPC') return userError(`Free some space on the disk, or save to another drive, then try again. The disk is full, so Markooj could not ${what}. Your text is still open in Markooj.`, o([ACT.saveAs, ACT.retry]));
-  if (code === 'ENAMETOOLONG') return userError(`Choose a shorter file name or a folder nearer the top of the drive, then try again. The name or folder path is too long, so Markooj could not ${what}.`, o(write ? [ACT.saveAs] : [ACT.openFile]));
-  if (code === 'EMFILE' || code === 'ENFILE') return userError(`Close a few programs or tabs, then try again. Your computer has too many files open right now, so Markooj could not ${what}.`, o([ACT.retry]));
+    ? userError(I18N.t('Save to another folder: this one is no longer there. It may have been moved or renamed, or its drive was removed. Your text is still open in Markooj.'), o([ACT.saveAs]))
+    : userError(I18N.t('Choose the file again: it may have been moved, renamed or deleted, or its drive was removed.'), o([ACT.openFile]));
+  if (code === 'ENOSPC') return userError(I18N.t('Free some space on the disk, or save to another drive, then try again. The disk is full, so Markooj could not {action}. Your text is still open in Markooj.', { action }), o([ACT.saveAs, ACT.retry]));
+  if (code === 'ENAMETOOLONG') return userError(I18N.t('Choose a shorter file name or a folder nearer the top of the drive, then try again. The name or folder path is too long, so Markooj could not {action}.', { action }), o(write ? [ACT.saveAs] : [ACT.openFile]));
+  if (code === 'EMFILE' || code === 'ENFILE') return userError(I18N.t('Close a few programs or tabs, then try again. Your computer has too many files open right now, so Markooj could not {action}.', { action }), o([ACT.retry]));
   return e instanceof Error ? e : new Error(String(e));
 }
 async function mkWork() { return fsp.mkdtemp(path.join(os.tmpdir(), 'markooj-')); }
@@ -225,6 +237,12 @@ function applyTheme() {
   nativeTheme.themeSource = t === 'dark' || t === 'light' ? t : 'system';
 }
 const bgColor = () => (nativeTheme.shouldUseDarkColors ? '#1c1c1e' : '#f5f5f7');
+
+// ---------- interface translations (main-i18n.js): I18N.t() for native menus, dialogs and notifications ----------
+const I18N = require('./main-i18n').init({
+  appRoot: APP_ROOT, smokeDir: SMOKE, getSettings: () => loadSettings(),
+  saveSetting: (k, v) => { const s = loadSettings(); if (v === '' || v == null) delete s[k]; else s[k] = v; saveSettings(); },
+});
 
 // ---------- bundled tools ----------
 const TOOL_DIRS = { pandoc: 'pandoc', ddjvu: 'djvulibre', djvutxt: 'djvulibre', djvused: 'djvulibre', djvm: 'djvulibre', c44: 'djvulibre', pdf2djvu: 'pdf2djvu' };
@@ -247,9 +265,17 @@ const SYSTEM_TOOL_DIRS = process.platform === 'darwin' ? ['/opt/homebrew/bin', '
   : process.platform === 'linux' ? ['/usr/bin', '/usr/local/bin', '/snap/bin', '/home/linuxbrew/.linuxbrew/bin'] : [];
 // On macOS and Linux only Pandoc ships inside Markooj; DjVuLibre and pdf2djvu come from Homebrew or the package manager.
 const toolShipped = id => process.platform === 'win32' || id === 'pandoc';
+// Optional Features (main-features.js: Pandoc, DjVu tools, Python macros downloaded into <userData>/features); set below
+// where the IPC modules load. Lookup order: an installed feature, then the bundled vendor folder, then the system.
+let FEATURES = null;
 async function findTool(name) {
   const exe = process.platform === 'win32' ? name + '.exe' : name;
   const sub = TOOL_DIRS[name] || name;
+  for (const f of (FEATURES ? FEATURES.toolBases(name) : [])) {
+    for (const c of [path.join(f.dir, sub, exe), path.join(f.dir, sub, 'bin', exe), path.join(f.dir, exe)]) {
+      if (fs.existsSync(c)) return { path: c, bundled: false, feature: f.id };
+    }
+  }
   for (const base of vendorBases()) {
     for (const c of [path.join(base, sub, exe), path.join(base, sub, 'bin', exe), path.join(base, exe), path.join(base, 'djvulibre', exe)]) {
       if (fs.existsSync(c)) return { path: c, bundled: true };
@@ -282,13 +308,16 @@ const HEALTH_TOOLS = [
   { id: 'ddjvu', label: 'DjVuLibre', args: ['--help'], ver: /DjVuLibre-(\d+(?:\.\d+)+)/i },
 ];
 const TOOL_LABEL = { pandoc: 'Pandoc', pdf2djvu: 'pdf2djvu', ddjvu: 'DjVuLibre (ddjvu)', djvutxt: 'DjVuLibre (djvutxt)', djvused: 'DjVuLibre (djvused)', djvm: 'DjVuLibre (djvm)', c44: 'DjVuLibre (c44)' };
-// a packaged Windows copy always carries the tools; a dev checkout has them after `npm run fetch-tools`
-const bundleExpected = () => process.platform === 'win32' && (app.isPackaged || fs.existsSync(path.join(APP_ROOT, 'vendor', 'win32', 'MANIFEST.json')));
+// the full Windows copy (portable zip) carries the tools in resources/vendor, a dev checkout after `npm run fetch-tools`;
+// the installer is slim since 1.2 (the tools are optional Features)
+const bundleExpected = () => process.platform === 'win32' && fs.existsSync(path.join(app.isPackaged ? path.join(process.resourcesPath, 'vendor') : path.join(APP_ROOT, 'vendor', 'win32'), 'MANIFEST.json'));
+// folders whose MANIFEST.json names the DjVuLibre version: an installed DjVu tools feature first, then the bundle
+const manifestBases = () => [...(FEATURES ? FEATURES.toolBases('ddjvu').map(b => b.dir) : []), ...vendorBases()];
 // What each tool is for, and where its official download page is. djvutxt, djvused, djvm and c44 belong to DjVuLibre.
 const TOOL_INFO = {
-  pandoc: { label: 'Pandoc', goal: 'save as OpenDocument, Rich Text, LaTeX and more', url: 'https://pandoc.org/installing.html', getLabel: 'Get Pandoc' },
-  pdf2djvu: { label: 'pdf2djvu', goal: 'save as DjVu', url: 'https://jwilk.net/software/pdf2djvu', getLabel: 'Get pdf2djvu' },
-  ddjvu: { label: 'DjVuLibre', goal: 'open DjVu files', url: 'https://djvu.sourceforge.net/', getLabel: 'Get DjVuLibre' },
+  pandoc: { label: 'Pandoc', get goal() { return I18N.t('save as OpenDocument, Rich Text, LaTeX and more'); }, url: 'https://pandoc.org/installing.html', get getLabel() { return I18N.t('Get {name}', { name: 'Pandoc' }); } },
+  pdf2djvu: { label: 'pdf2djvu', get goal() { return I18N.t('save as DjVu'); }, url: 'https://jwilk.net/software/pdf2djvu', get getLabel() { return I18N.t('Get {name}', { name: 'pdf2djvu' }); } },
+  ddjvu: { label: 'DjVuLibre', get goal() { return I18N.t('open DjVu files'); }, url: 'https://djvu.sourceforge.net/', get getLabel() { return I18N.t('Get {name}', { name: 'DjVuLibre' }); } },
 };
 const toolFamily = id => (id === 'pandoc' || id === 'pdf2djvu' ? id : 'ddjvu');
 const BREW_DJVU = 'brew install djvulibre pdf2djvu';
@@ -301,33 +330,49 @@ function toolRemedy(id, ctx = {}) {
   const portable = 'portable' in ctx ? !!ctx.portable : USER_DATA_FROM === 'portable';
   const fam = toolFamily(id), T = TOOL_INFO[fam];
   const shipped = platform === 'win32' || fam === 'pandoc';
+  // since 1.2 the tools are optional Features: File → Options → Features installs them (main-features.js)
+  const feat = FEATURES ? FEATURES.remedyFor(id, { platform, arch: ctx.arch }) : null;
+  const install = feat && feat.available ? { id: 'install-feature', label: I18N.t('Install {name}', { name: feat.name }), feature: feat.id } : null;
+  const tool = T.label;
   if (shipped && !packaged) return {
-    text: `Run npm run fetch-tools in the Markooj folder, then check again. Or install ${T.label} yourself.`,
-    steps: [{ text: 'In the Markooj folder, run:', command: 'npm run fetch-tools' }],
-    actions: [ACT.copy('Copy command', 'npm run fetch-tools'), ACT.url(T.getLabel, T.url), ACT.checkTools],
+    text: I18N.t('Run npm run fetch-tools in the Markooj folder, then check again. Or install {tool} yourself.', { tool }),
+    steps: [{ text: I18N.t('In the Markooj folder, run:'), command: 'npm run fetch-tools' }],
+    actions: [ACT.copy(I18N.t('Copy command'), 'npm run fetch-tools'), ...(install ? [install] : []), ACT.url(T.getLabel, T.url), ACT.checkTools],
   };
+  if (install) {
+    const v = { feature: feat.name, size: feat.downloadText, tool };
+    return {
+      text: portable
+        ? I18N.t('Install {feature} from File → Options → Features ({size} to download), or unzip the full portable zip again into a new folder. Or install {tool} yourself.', v)
+        : I18N.t('Install {feature} from File → Options → Features ({size} to download). Or install {tool} yourself.', v),
+      steps: [{ text: I18N.t('Open File → Options → Features and choose Install next to {feature}. Markooj downloads it once ({size}).', v) },
+        ...(portable ? [{ text: I18N.t('Or unzip the full portable zip again into a new folder: it includes every feature.') }] : []), { text: I18N.t('Or install {tool} from its official page.', v) }],
+      actions: [install, ACT.url(T.getLabel, T.url), ACT.checkTools],
+    };
+  }
   if (shipped) return {
     text: portable
-      ? `Unzip the full portable zip again into a new folder: that puts ${T.label} back, and your data folder can move with it. Or install ${T.label} yourself.`
-      : `Download Markooj again and install it over this copy: that puts ${T.label} back, and your documents and settings stay. Or install ${T.label} yourself.`,
-    steps: [{ text: portable ? 'Download the portable zip again and unzip all of it into a new folder.' : 'Download Markooj again and install it over this copy.' }, { text: `Or install ${T.label} from its official page.` }],
-    actions: [ACT.url('Repair Markooj', DOWNLOAD_URL), ACT.url(T.getLabel, T.url), ACT.checkTools],
+      ? I18N.t('Unzip the full portable zip again into a new folder: that puts {tool} back, and your data folder can move with it. Or install {tool} yourself.', { tool })
+      : I18N.t('Download Markooj again and install it over this copy: that puts {tool} back, and your documents and settings stay. Or install {tool} yourself.', { tool }),
+    steps: [{ text: portable ? I18N.t('Download the portable zip again and unzip all of it into a new folder.') : I18N.t('Download Markooj again and install it over this copy.') }, { text: I18N.t('Or install {tool} from its official page.', { tool }) }],
+    actions: [ACT.url(I18N.t('Repair Markooj'), DOWNLOAD_URL), ACT.url(T.getLabel, T.url), ACT.checkTools],
   };
   if (platform === 'darwin') return {
-    text: `Install the free DjVu tools with Homebrew: open Terminal and run ${BREW_DJVU}, then check again.`,
-    steps: [{ text: 'If you do not have Homebrew yet, get it from brew.sh.' }, { text: 'Then open Terminal and run:', command: BREW_DJVU }],
-    actions: [ACT.copy('Copy command', BREW_DJVU), ACT.url('Get Homebrew', 'https://brew.sh'), ACT.checkTools],
+    text: I18N.t('Install the free DjVu tools with Homebrew: open Terminal and run {command}, then check again.', { command: BREW_DJVU }),
+    steps: [{ text: I18N.t('If you do not have Homebrew yet, get it from brew.sh.') }, { text: I18N.t('Then open Terminal and run:'), command: BREW_DJVU }],
+    actions: [ACT.copy(I18N.t('Copy command'), BREW_DJVU), ACT.url(I18N.t('Get {name}', { name: 'Homebrew' }), 'https://brew.sh'), ACT.checkTools],
   };
   return {
-    text: `Install the free DjVu tools from a terminal: ${APT_DJVU} (Debian, Ubuntu) or ${DNF_DJVU} (Fedora), then check again.`,
-    steps: [{ text: 'Debian, Ubuntu and Mint:', command: APT_DJVU }, { text: 'Fedora:', command: DNF_DJVU }],
-    actions: [ACT.copy('Copy apt command', APT_DJVU), ACT.copy('Copy dnf command', DNF_DJVU), ACT.checkTools],
+    text: I18N.t('Install the free DjVu tools from a terminal: {apt} (Debian, Ubuntu) or {dnf} (Fedora), then check again.', { apt: APT_DJVU, dnf: DNF_DJVU }),
+    steps: [{ text: I18N.t('Debian, Ubuntu and Mint:'), command: APT_DJVU }, { text: 'Fedora:', command: DNF_DJVU }],
+    actions: [ACT.copy(I18N.t('Copy {name} command', { name: 'apt' }), APT_DJVU), ACT.copy(I18N.t('Copy {name} command', { name: 'dnf' }), DNF_DJVU), ACT.checkTools],
   };
 }
 /** The error for a feature whose tool is not there: what to do first, then what still works. */
 function toolNeeded(id, goal) {
   const fam = toolFamily(id), T = TOOL_INFO[fam], r = toolRemedy(id);
-  return userError(`To ${goal || T.goal}, Markooj needs the free ${T.label} ${fam === 'ddjvu' ? 'tools' : 'program'}. ${r.text} Everything else works.`,
+  const v = { goal: goal || T.goal, tool: T.label, remedy: r.text };
+  return userError(fam === 'ddjvu' ? I18N.t('To {goal}, Markooj needs the free {tool} tools. {remedy} Everything else works.', v) : I18N.t('To {goal}, Markooj needs the free {tool} program. {remedy} Everything else works.', v),
     { actions: r.actions, code: 'TOOL_MISSING', tool: fam, details: `${TOOL_LABEL[id] || id} was not found (${process.platform}, ${app.isPackaged ? 'installed copy' : 'source checkout'}).` });
 }
 // the short fix line kept in the health result (`fix`) for the first tool that needs attention
@@ -366,21 +411,21 @@ async function checkTools() {
   const tools = {};
   await Promise.all(HEALTH_TOOLS.map(async t => {
     const found = await tool(t.id);
-    const r = { id: t.id, label: t.label, ok: false, state: 'missing', path: found ? found.path : null, bundled: !!(found && found.bundled), version: null, error: null };
+    const r = { id: t.id, label: t.label, ok: false, state: 'missing', path: found ? found.path : null, bundled: !!(found && found.bundled), feature: (found && found.feature) || null, version: null, error: null };
     if (!found) r.error = 'not found';
     else {
       const p = await probeTool(found.path, t.args);
       const v = toolAnswered(t.id, p);
       r.version = v.version;
       // the bundled DjVuLibre package (3.5.30-2) prints an older version of its own (3.5.29): show both, as the notices do
-      if (t.id === 'ddjvu' && found.bundled && r.version) {
-        for (const dir of vendorBases()) {
+      if (t.id === 'ddjvu' && (found.bundled || found.feature) && r.version) {
+        for (const dir of manifestBases()) {
           try { const mf = JSON.parse(fs.readFileSync(path.join(dir, 'MANIFEST.json'), 'utf8')); const pv = mf?.tools?.djvulibre?.version; if (pv && pv !== r.version) r.version += ` (package ${pv})`; break; } catch {}
         }
       }
       // a DjVuLibre that only printed its usage text: the version comes from the bundled MANIFEST.json
-      if (v.usage && !r.version && found.bundled) {
-        for (const dir of vendorBases()) {
+      if (v.usage && !r.version && (found.bundled || found.feature)) {
+        for (const dir of manifestBases()) {
           try { const mf = JSON.parse(fs.readFileSync(path.join(dir, 'MANIFEST.json'), 'utf8')); if (mf?.tools?.djvulibre?.version) { r.version = mf.tools.djvulibre.version; break; } } catch {}
         }
       }
@@ -432,10 +477,10 @@ function toolGone(cmd, err) {
   let e;
   if (missing) {
     const r = toolRemedy(name);
-    e = userError(`To ${T.goal} again, put ${T.label} back. ${r.text} (${T.label} was moved or deleted while Markooj was running.) Everything else works.`,
+    e = userError(I18N.t('To {goal} again, put {tool} back. {remedy} ({tool} was moved or deleted while Markooj was running.) Everything else works.', { goal: T.goal, tool: T.label, remedy: r.text }),
       { actions: r.actions, details, code: 'TOOL_GONE', tool: fam });
   } else {
-    e = userError(`Allow ${T.label} in your security software, then try again. Your computer did not let it start, so Markooj could not ${T.goal}. Everything else works.`,
+    e = userError(I18N.t('Allow {tool} in your security software, then try again. Your computer did not let it start, so Markooj could not {goal}. Everything else works.', { tool: T.label, goal: T.goal }),
       { actions: [ACT.retry, ACT.checkTools, ACT.details(details), ACT.report], details, code: 'TOOL_GONE', tool: fam });
   }
   e.tool = name;
@@ -533,6 +578,10 @@ async function handleProtocol(req) {
       if (v) return new Response(v, { status: 200, headers: { ...headers, 'content-type': 'text/html; charset=utf-8' } });
       full = path.resolve(APP_ROOT, '.' + rel);
       if (full !== APP_ROOT && !full.startsWith(APP_ROOT + path.sep)) return new Response('Forbidden', { status: 403 });
+      // Pyodide (node_modules/pyodide/…) may come from the Python macros feature folder (main-features.js)
+      const alt = FEATURES && FEATURES.resolveAppFile(rel);
+      if (alt && alt.body != null) return new Response(alt.body, { status: 200, headers: { ...headers, 'content-type': alt.type } });
+      if (alt && alt.file) full = alt.file;
     } else if (u.host === 'local') {
       // pictures and media that sit next to a user's document (markooj://local/C:/path/fig.png)
       // Never a network path: opening \\host\share\x.png over SMB would hand the user's Windows (NTLM) hash to that host.
@@ -576,6 +625,18 @@ function rememberBounds() {
 let boundsTimer = null;
 const rememberBoundsSoon = () => { clearTimeout(boundsTimer); boundsTimer = setTimeout(rememberBounds, 600); };
 
+// macOS needs an Edit menu for Cmd+C/V/X/A/Z to reach text fields, so it gets a minimal one (in the interface language;
+// it is built again when the language changes). Roles keep macOS's own item names.
+function setAppMenu() {
+  if (process.platform !== 'darwin') { Menu.setApplicationMenu(null); return; }
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    { label: I18N.t('Edit'), submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'pasteAndMatchStyle' }, { role: 'selectAll' }] },
+    { role: 'windowMenu' },
+  ]));
+}
+I18N.onChange(() => { try { setAppMenu(); } catch (e) { console.warn('[i18n] menu', e.message); } });
+
 function createWindow() {
   const b = windowBounds();
   win = new BrowserWindow({
@@ -590,13 +651,7 @@ function createWindow() {
   });
   // No default menu: it would claim Ctrl+R (reload), which the editor uses for Align right.
   // macOS needs an Edit menu for Cmd+C/V/X/A/Z to reach text fields, so it gets a minimal one.
-  if (process.platform === 'darwin') {
-    Menu.setApplicationMenu(Menu.buildFromTemplate([
-      { role: 'appMenu' },
-      { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'pasteAndMatchStyle' }, { role: 'selectAll' }] },
-      { role: 'windowMenu' },
-    ]));
-  } else Menu.setApplicationMenu(null);
+  setAppMenu();
   const wc = win.webContents;
   if (SMOKE) {
     // painted but invisible, so capturePage works
@@ -651,12 +706,12 @@ function createWindow() {
     const now = Date.now();
     crashTimes = crashTimes.filter(t => now - t < 60000).concat(now);
     if (crashTimes.length <= 3) setTimeout(() => { if (win && !win.isDestroyed()) win.loadURL(START_URL); }, 400);
-    else dialog.showMessageBox(win, { type: 'error', message: 'Reload Markooj, or close it and start it again.', detail: 'The window stopped a few times in a row. Your unsaved text is kept in File → Recover.', buttons: ['Reload', 'Close'] })
+    else dialog.showMessageBox(win, { type: 'error', message: I18N.t('Reload Markooj, or close it and start it again.'), detail: I18N.t('The window stopped a few times in a row. Your unsaved text is kept in File → Recover.'), buttons: [I18N.t('Reload'), I18N.t('Close')] })
       .then(r => { if (r.response === 0) win.loadURL(START_URL); else { win.__forceClose = true; win.close(); } });
   });
   wc.on('unresponsive', async () => {
     if (SMOKE || !win || win.isDestroyed()) return;
-    const r = await dialog.showMessageBox(win, { type: 'warning', message: 'Wait a moment, or reload the window.', detail: 'Markooj is not responding right now. Unsaved text is kept in File → Recover.', buttons: ['Wait', 'Reload'], defaultId: 0, cancelId: 0 });
+    const r = await dialog.showMessageBox(win, { type: 'warning', message: I18N.t('Wait a moment, or reload the window.'), detail: I18N.t('Markooj is not responding right now. Unsaved text is kept in File → Recover.'), buttons: [I18N.t('Wait'), I18N.t('Reload')], defaultId: 0, cancelId: 0 });
     if (r.response === 1) { SESSION = newId(); wc.forcefullyCrashRenderer(); win.loadURL(START_URL); }
   });
 
@@ -672,42 +727,43 @@ function createWindow() {
     if (!ok) { win.__forceClose = true; win.close(); return; } // page never loaded or is broken: nothing to ask about
     const now = Date.now();
     if (closeRequestedAt && now - closeRequestedAt > 10000) {
-      const r = await dialog.showMessageBox(win, { type: 'question', message: 'Close Markooj anyway?', detail: 'Markooj did not finish closing. Unsaved text is kept in File → Recover.', buttons: ['Close anyway', 'Cancel'], defaultId: 1, cancelId: 1 });
+      const r = await dialog.showMessageBox(win, { type: 'question', message: I18N.t('Close Markooj anyway?'), detail: I18N.t('Markooj did not finish closing. Unsaved text is kept in File → Recover.'), buttons: [I18N.t('Close anyway'), I18N.t('Cancel')], defaultId: 1, cancelId: 1 });
       if (r.response === 0) { win.__forceClose = true; win.close(); return; }
     }
     closeRequestedAt = now;
     wc.send('request-close');
   });
-  win.on('closed', () => { win = null; });
+  const self = win; // round 5: when the first window closes, another Markooj window (main-windows.js) takes its place
+  win.on('closed', () => { if (win === self) win = (mkWindows && mkWindows.promote(self)) || null; });
 }
 
 function showContextMenu(wc, p) {
   const t = [];
   if (p.misspelledWord) {
     for (const s of (p.dictionarySuggestions || []).slice(0, 6)) t.push({ label: s, click: () => wc.replaceMisspelling(s) });
-    if (!(p.dictionarySuggestions || []).length) t.push({ label: 'No spelling suggestions', enabled: false });
-    t.push({ label: 'Add to dictionary', click: () => wc.session.addWordToSpellCheckerDictionary(p.misspelledWord) });
+    if (!(p.dictionarySuggestions || []).length) t.push({ label: I18N.t('No spelling suggestions'), enabled: false });
+    t.push({ label: I18N.t('Add to dictionary'), click: () => wc.session.addWordToSpellCheckerDictionary(p.misspelledWord) });
     t.push({ type: 'separator' });
   }
   const ef = p.editFlags || {};
-  if (p.isEditable) t.push({ label: 'Cut', role: 'cut', accelerator: 'CmdOrCtrl+X', enabled: !!ef.canCut });
-  t.push({ label: 'Copy', role: 'copy', accelerator: 'CmdOrCtrl+C', enabled: !!ef.canCopy || !!p.selectionText });
+  if (p.isEditable) t.push({ label: I18N.t('Cut'), role: 'cut', accelerator: 'CmdOrCtrl+X', enabled: !!ef.canCut });
+  t.push({ label: I18N.t('Copy'), role: 'copy', accelerator: 'CmdOrCtrl+C', enabled: !!ef.canCopy || !!p.selectionText });
   if (p.isEditable) {
-    t.push({ label: 'Paste', role: 'paste', accelerator: 'CmdOrCtrl+V', enabled: !!ef.canPaste });
-    t.push({ label: 'Paste as plain text', role: 'pasteAndMatchStyle', accelerator: 'CmdOrCtrl+Shift+V', enabled: !!ef.canPaste });
+    t.push({ label: I18N.t('Paste'), role: 'paste', accelerator: 'CmdOrCtrl+V', enabled: !!ef.canPaste });
+    t.push({ label: I18N.t('Paste as plain text'), role: 'pasteAndMatchStyle', accelerator: 'CmdOrCtrl+Shift+V', enabled: !!ef.canPaste });
   }
-  t.push({ type: 'separator' }, { label: 'Select all', role: 'selectAll', accelerator: 'CmdOrCtrl+A' });
+  t.push({ type: 'separator' }, { label: I18N.t('Select all'), role: 'selectAll', accelerator: 'CmdOrCtrl+A' });
   const sel = (p.selectionText || '').trim();
   if (sel && sel.length <= 40 && !/\s/.test(sel)) {
     const short = sel.length > 24 ? sel.slice(0, 24) + '…' : sel;
     t.push({ type: 'separator' });
-    if (process.platform === 'darwin') t.push({ label: `Look up “${short}”`, click: () => wc.showDefinitionForSelection() });
-    else t.push({ label: `Look up “${short}” online`, click: () => shell.openExternal('https://www.merriam-webster.com/dictionary/' + encodeURIComponent(sel.toLowerCase())) });
+    if (process.platform === 'darwin') t.push({ label: I18N.t('Look up “{word}”', { word: short }), click: () => wc.showDefinitionForSelection() });
+    else t.push({ label: I18N.t('Look up “{word}” online', { word: short }), click: () => shell.openExternal('https://www.merriam-webster.com/dictionary/' + encodeURIComponent(sel.toLowerCase())) });
   }
   if (p.linkURL && /^(https?|mailto):/i.test(p.linkURL)) {
-    t.push({ type: 'separator' }, { label: 'Open link in browser', click: () => shell.openExternal(p.linkURL) }, { label: 'Copy link', click: () => require('electron').clipboard.writeText(p.linkURL) });
+    t.push({ type: 'separator' }, { label: I18N.t('Open link in browser'), click: () => shell.openExternal(p.linkURL) }, { label: I18N.t('Copy link'), click: () => require('electron').clipboard.writeText(p.linkURL) });
   }
-  if (p.mediaType === 'image' && p.hasImageContents) t.push({ type: 'separator' }, { label: 'Copy image', click: () => wc.copyImageAt(p.x, p.y) });
+  if (p.mediaType === 'image' && p.hasImageContents) t.push({ type: 'separator' }, { label: I18N.t('Copy image'), click: () => wc.copyImageAt(p.x, p.y) });
   Menu.buildFromTemplate(t).popup({ window: BrowserWindow.fromWebContents(wc) || undefined });
 }
 
@@ -789,13 +845,25 @@ ipcMain.handle('smoke-done', async (_e, results) => {
 });
 
 // ---------- basic IPC ----------
-ipcMain.handle('confirm-close', () => { closeRequestedAt = 0; if (win) { win.__forceClose = true; win.close(); } });
+ipcMain.handle('confirm-close', e => { closeRequestedAt = 0; const w = BrowserWindow.fromWebContents(e.sender) || win; if (w) { w.__forceClose = true; w.close(); } });
 // Review → Spelling → Add to Dictionary
 ipcMain.handle('spell-add', (_e, word) => { const w = String(word || '').trim(); if (w && w.length < 80 && win) win.webContents.session.addWordToSpellCheckerDictionary(w); return true; });
 // the renderer answered the close request and the user chose to stay (Cancel, or a save failed)
 ipcMain.handle('close-cancelled', () => { closeRequestedAt = 0; });
 try { require('./main-langpacks'); } catch (e) { console.warn('language packs', e.message); } // langpack-* IPC (languages role)
 try { require('./main-addins'); } catch (e) { console.warn('add-in store', e.message); } // addins-* IPC (store role)
+// round 5: optional Features (Pandoc, DjVu tools, Python macros) — features-* IPC, tool lookup and Pyodide (install-size role)
+try {
+  FEATURES = require('./main-features');
+  FEATURES.init({ smoke: !!SMOKE, tool, findTool, onToolsChanged: () => { toolCache.clear(); toolNames.clear(); pandocInfoP = null; healthP = null; } });
+} catch (e) { FEATURES = null; console.warn('features', e.message); }
+// round 5: New Window, Arrange All, Switch Windows and the live link between windows (win-* IPC, windows role)
+var mkWindows = null;
+try {
+  mkWindows = require('./main-windows')({ START_URL, APP_ROOT, SMOKE: !!SMOKE, getMain: () => win, setMain: w => { win = w; }, bgColor, showContextMenu,
+    saveRecovery: ({ docId, path: p, title, text }) => writeAtomic(recFile(docId), JSON.stringify({ docId: String(docId), path: p || null, title: title || 'Untitled', text: String(text ?? ''), createdAt: Date.now(), savedAt: Date.now(), closedAt: Date.now(), crashed: false, session: SESSION })) });
+} catch (e) { console.warn('windows', e.message); }
+const dlgWin = e => (e && e.sender && BrowserWindow.fromWebContents(e.sender)) || win; // dialogs open over the window that asked
 ipcMain.handle('tools', async (_e, opts = {}) => {
   if (opts && opts.refresh) { toolCache.clear(); toolNames.clear(); pandocInfoP = null; healthP = null; }
   const names = ['pandoc', 'pdf2djvu', 'ddjvu', 'djvutxt', 'djvused'];
@@ -817,7 +885,7 @@ const urlOf = v => (v && typeof v === 'object' ? v.url : v) || null;
 ipcMain.handle('app-info', () => ({
   version: app.getVersion(), userData: app.getPath('userData'), recoveryDir: userData('recovery'), macrosDir: userData('macros'), addonsDir: userData('addons'), platform: process.platform, packaged: app.isPackaged, session: SESSION,
   // portable mode and where the profile lives ('default' | 'portable' | 'env' | 'smoke')
-  portable: USER_DATA_FROM === 'portable', userDataFrom: USER_DATA_FROM, portableInfo: { ...PORTABLE, programDir: programDir() },
+  portable: USER_DATA_FROM === 'portable', userDataFrom: USER_DATA_FROM, portableInfo: { ...PORTABLE, ...(PORTABLE.error ? { error: I18N.t('To keep settings next to Markooj, move the Markooj folder somewhere you can write to, such as Documents or a USB drive. For now your settings are kept in your user profile, and everything works.') } : {}), programDir: programDir() },
   // for Help → About
   name: PKG.productName || 'Markooj', author: PKG.author || null, license: PKG.license || null, copyright: COPYRIGHT(),
   homepage: PKG.homepage || null, bugs: urlOf(PKG.bugs), repository: urlOf(PKG.repository) && String(urlOf(PKG.repository)).replace(/^git\+/, '').replace(/\.git$/, ''),
@@ -834,6 +902,8 @@ ipcMain.handle('app-info', () => ({
 // and make main check every tool again and tell the window ('tools-health' event with reason missing-during-use)
 // copy text for the window's "Copy command" / "Copy details" buttons (works even while the window is not focused)
 ipcMain.handle('clipboard-write', (_e, text) => { require('electron').clipboard.writeText(String(text ?? '').slice(0, 100000)); return true; });
+// the clipboard's plain text for Paste as plain text (Ctrl+Shift+V, Ctrl+Alt+V), also while the window is not focused
+ipcMain.handle('clipboard-read-text', async () => String((await require('electron').clipboard.readText()) || '').slice(0, 5000000));
 // smoke only: the tool check's decision on a given program output, the remedy for a platform, and the messages for
 // file-system errors, so the wording and the decision are tested on every platform
 if (SMOKE) ipcMain.handle('tools-verdict', (_e, id, probe) => toolAnswered(String(id), probe || {}));
@@ -878,8 +948,8 @@ ipcMain.handle('user-addons', () => {
   }
   return { dir, list };
 });
-ipcMain.handle('addon-install', async () => {
-  const r = await dialog.showOpenDialog(win, { title: 'Install an add-in', properties: ['openFile'], filters: [{ name: 'Markooj add-in (JavaScript)', extensions: ['js'] }] });
+ipcMain.handle('addon-install', async (_e) => {
+  const r = await dialog.showOpenDialog(dlgWin(_e), { title: I18N.t('Install an add-in'), properties: ['openFile'], filters: [{ name: I18N.t('Markooj add-in (JavaScript)'), extensions: ['js'] }] });
   if (r.canceled || !r.filePaths[0]) return null;
   const src = r.filePaths[0];
   const name = path.basename(src).replace(/[^\w.-]/g, '_');
@@ -888,32 +958,33 @@ ipcMain.handle('addon-install', async () => {
   return name;
 });
 ipcMain.handle('reveal', (_e, p) => { if (p) shell.showItemInFolder(path.resolve(p)); });
-ipcMain.handle('open-folder', async (_e, p) => { if (!p) return; fs.mkdirSync(p, { recursive: true }); const err = await shell.openPath(path.resolve(p)); if (err) throw userError(`Open the folder yourself in your file manager: ${path.resolve(p)}`, { actions: [ACT.copy('Copy folder path', path.resolve(p))], details: err }); });
+ipcMain.handle('open-folder', async (_e, p) => { if (!p) return; fs.mkdirSync(p, { recursive: true }); const err = await shell.openPath(path.resolve(p)); if (err) throw userError(I18N.t('Open the folder yourself in your file manager: {path}', { path: path.resolve(p) }), { actions: [ACT.copy(I18N.t('Copy folder path'), path.resolve(p))], details: err }); });
 ipcMain.handle('open-external', (_e, url) => {
   const u = String(url || '');
-  if (!/^(https?:\/\/|mailto:)/i.test(u)) throw userError('Copy the link and open it in your browser if you trust it. Markooj opens only web (http, https) and email links itself.', { actions: [ACT.copy('Copy link', u.slice(0, 2000))] });
+  if (!/^(https?:\/\/|mailto:)/i.test(u)) throw userError(I18N.t('Copy the link and open it in your browser if you trust it. Markooj opens only web (http, https) and email links itself.'), { actions: [ACT.copy(I18N.t('Copy link'), u.slice(0, 2000))] });
   return shell.openExternal(u);
 });
 
-const OPEN_FILTERS = [
-  { name: 'All supported', extensions: [...OPENABLE_EXT] },
+// built each time (the names are in the interface language)
+const openFilters = () => [
+  { name: I18N.t('All supported'), extensions: [...OPENABLE_EXT] },
   { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'mkdn', 'mdwn', 'mdx', 'rmd', 'qmd'] },
-  { name: 'Word and OpenDocument', extensions: ['docx', 'odt', 'rtf'] },
+  { name: I18N.t('Word and OpenDocument'), extensions: ['docx', 'odt', 'rtf'] },
   { name: 'PDF', extensions: ['pdf'] }, { name: 'DjVu', extensions: ['djvu', 'djv'] }, { name: 'EPUB', extensions: ['epub'] },
-  { name: 'Web page', extensions: ['html', 'htm'] }, { name: 'LaTeX', extensions: ['tex', 'latex'] }, { name: 'Text', extensions: ['txt'] },
-  { name: 'All files', extensions: ['*'] },
+  { name: I18N.t('Web page'), extensions: ['html', 'htm'] }, { name: 'LaTeX', extensions: ['tex', 'latex'] }, { name: I18N.t('Text@@file type'), extensions: ['txt'] },
+  { name: I18N.t('All files'), extensions: ['*'] },
 ];
 ipcMain.handle('open-dialog', async (_e, opts = {}) => {
-  const r = await dialog.showOpenDialog(win, { title: (opts && opts.title) || 'Open', defaultPath: opts && opts.defaultPath, properties: ['openFile', 'multiSelections'], filters: OPEN_FILTERS });
+  const r = await dialog.showOpenDialog(dlgWin(_e), { title: (opts && opts.title) || I18N.t('Open@@dialog title'), defaultPath: opts && opts.defaultPath, properties: ['openFile', 'multiSelections'], filters: openFilters() });
   return r.canceled ? [] : r.filePaths;
 });
 ipcMain.handle('pick-file', async (_e, filters, opts = {}) => {
   const f = Array.isArray(filters) ? filters : filters && Array.isArray(filters.filters) ? filters.filters : undefined;
-  const r = await dialog.showOpenDialog(win, { title: (opts && opts.title) || (filters && filters.title) || 'Choose a file', properties: ['openFile'], filters: f, defaultPath: (opts && opts.defaultPath) || (filters && filters.defaultPath) });
+  const r = await dialog.showOpenDialog(dlgWin(_e), { title: (opts && opts.title) || (filters && filters.title) || I18N.t('Choose a file'), properties: ['openFile'], filters: f, defaultPath: (opts && opts.defaultPath) || (filters && filters.defaultPath) });
   return r.canceled ? null : r.filePaths[0];
 });
 ipcMain.handle('save-dialog', async (_e, { defaultPath, filters, title } = {}) => {
-  const r = await dialog.showSaveDialog(win, { defaultPath, filters, title });
+  const r = await dialog.showSaveDialog(dlgWin(_e), { defaultPath, filters, title });
   return r.canceled ? null : r.filePath;
 });
 ipcMain.handle('read-text', (_e, p) => { try { return readText(p); } catch (e) { throw friendlyError(e, 'open the file'); } });
@@ -922,9 +993,9 @@ ipcMain.handle('read-text', (_e, p) => { try { return readText(p); } catch (e) {
 // path of <name>.md, so a save never touches the shipped file. Plain fs calls only: they also read inside the asar.
 ipcMain.handle('sample-open', (_e, name) => {
   name = String(name || '');
-  if (!/^[a-z0-9][a-z0-9-]{0,60}$/.test(name)) throw userError('Choose a sample from the Welcome screen.', { code: 'NO_SAMPLE' });
+  if (!/^[a-z0-9][a-z0-9-]{0,60}$/.test(name)) throw userError(I18N.t('Choose a sample from the Welcome screen.'), { code: 'NO_SAMPLE' });
   const src = path.join(APP_ROOT, 'samples', name), dst = userData('samples', name), md = path.join(dst, name + '.md');
-  if (!fs.existsSync(path.join(src, name + '.md'))) throw userError('Click File → New and pick Research paper to try Markooj on a sample. This copy of Markooj does not include the sample files.', { code: 'NO_SAMPLE' });
+  if (!fs.existsSync(path.join(src, name + '.md'))) throw userError(I18N.t('Click File → New and pick Research paper to try Markooj on a sample. This copy of Markooj does not include the sample files.'), { code: 'NO_SAMPLE' });
   if (!fs.existsSync(md)) {
     const copy = (from, to) => {
       fs.mkdirSync(to, { recursive: true });
@@ -948,7 +1019,7 @@ ipcMain.handle('file-info', (_e, p) => {
 // Derived from what Markooj opens, so the two lists cannot drift apart.
 const FOREIGN = new Set([...[...OPENABLE_EXT].filter(x => !MARKDOWN_EXT.includes(x)), 'doc', 'pptx', 'xlsx']);
 ipcMain.handle('write-text', (_e, p, text, opts = {}) => {
-  if (FOREIGN.has(extOf(p))) throw userError(`Use Save As to keep your work: pick Markdown for a copy you can keep editing, or ${extOf(p).toUpperCase()} to write that kind of file. Markooj never writes Markdown over “${path.basename(p)}”, so the original stays safe.`, { actions: [{ id: 'choose-format', label: 'Save As…' }], code: 'NOT_MARKDOWN' });
+  if (FOREIGN.has(extOf(p))) throw userError(I18N.t('Use Save As to keep your work: pick Markdown for a copy you can keep editing, or {format} to write that kind of file. Markooj never writes Markdown over “{name}”, so the original stays safe.', { format: extOf(p).toUpperCase(), name: path.basename(p) }), { actions: [{ id: 'choose-format', label: I18N.t('Save As…') }], code: 'NOT_MARKDOWN' });
   // a file that changed on disk since it was opened (co-author, Dropbox/OneDrive) is not overwritten silently
   if (opts && opts.expectMtime != null) {
     let cur = null; try { cur = fs.statSync(p).mtimeMs; } catch {}
@@ -1021,10 +1092,10 @@ async function readEpub(p) {
   const JSZip = require('jszip');
   const zip = await JSZip.loadAsync(fs.readFileSync(p));
   const container = zip.file('META-INF/container.xml');
-  if (!container) throw userError('Try another copy of this EPUB, or open it in an e-book app and save it again. This one looks damaged, so Markooj could not read it.', { actions: [ACT.openFile], details: 'EPUB: no META-INF/container.xml' });
+  if (!container) throw userError(I18N.t('Try another copy of this EPUB, or open it in an e-book app and save it again. This one looks damaged, so Markooj could not read it.'), { actions: [ACT.openFile], details: 'EPUB: no META-INF/container.xml' });
   const opfPath = ((await container.async('string')).match(/full-path="([^"]+)"/) || [])[1];
   const opfFile = opfPath && zip.file(opfPath);
-  if (!opfFile) throw userError('Try another copy of this EPUB, or open it in an e-book app and save it again. This one looks damaged, so Markooj could not read it.', { actions: [ACT.openFile], details: 'EPUB: no package (.opf) file' });
+  if (!opfFile) throw userError(I18N.t('Try another copy of this EPUB, or open it in an e-book app and save it again. This one looks damaged, so Markooj could not read it.'), { actions: [ACT.openFile], details: 'EPUB: no package (.opf) file' });
   const opf = await opfFile.async('string');
   const dir = path.posix.dirname(opfPath);
   const items = {};
@@ -1094,13 +1165,13 @@ function openError(e, p) {
   if (fe !== e) return fe;
   const raw = String(e.toolOutput || e.message || e);
   const ext = extOf(String(p || '')) || 'this';
-  return userError(`Try opening it again. If it still does not open, the file may be damaged: try another copy, or save it again from the program that made it. Markooj could not read this .${ext} file.`, { actions: [ACT.retry, ACT.openFile, ACT.details(raw)], details: raw, code: 'OPEN_FAILED' });
+  return userError(I18N.t('Try opening it again. If it still does not open, the file may be damaged: try another copy, or save it again from the program that made it. Markooj could not read this .{ext} file.', { ext }), { actions: [ACT.retry, ACT.openFile, ACT.details(raw)], details: raw, code: 'OPEN_FAILED' });
 }
 async function readFileFor(p) {
   p = path.resolve(String(p || ''));
   let st;
   try { st = fs.statSync(p); } catch (e) { throw friendlyError(e, 'open the file'); }
-  if (st.isDirectory()) throw userError('Choose a file inside that folder. Markooj opens files, and this is a folder.', { actions: [ACT.openFile] });
+  if (st.isDirectory()) throw userError(I18N.t('Choose a file inside that folder. Markooj opens files, and this is a folder.'), { actions: [ACT.openFile] });
   const ext = extOf(p);
   const base = { path: p, ext, mtime: st.mtimeMs };
   if (ext === 'pdf') { const buf = fs.readFileSync(p); return { ...base, kind: 'pdf', data: buf.toString('base64'), meta: await pdfMeta(buf) }; }
@@ -1125,14 +1196,14 @@ async function readFileFor(p) {
     try { md = await pandocToMarkdown(p, from); } catch (e) {
       if (e && e.plain) throw e;
       const raw = (e && (e.toolOutput || e.message)) || String(e);
-      throw userError(`Try opening it again. If it still does not open, save it from its own program as Word (.docx) or Markdown and open that copy. Markooj could not turn this .${ext} file into Markdown.`, { actions: [ACT.retry, ACT.openFile, ACT.details(raw)], details: raw });
+      throw userError(I18N.t('Try opening it again. If it still does not open, save it from its own program as Word (.docx) or Markdown and open that copy. Markooj could not turn this .{ext} file into Markdown.', { ext }), { actions: [ACT.retry, ACT.openFile, ACT.details(raw)], details: raw });
     }
     if (md == null) {
       if (['tex', 'latex', 'ltx', 'rst', 'org', 'textile', 'wiki', 'mediawiki', 'csv', 'tsv', 'typ', 'muse', 't2t'].includes(ext)) {
         // plain-text formats still open as text, so nothing is lost
         return { ...base, kind: 'markdown', text: ext === 'tex' || ext === 'latex' || ext === 'ltx' ? '```latex\n' + readText(p) + '\n```\n' : readText(p), convertedFrom: ext, via: 'text' };
       }
-      throw toolNeeded('pandoc', `open .${ext} files`);
+      throw toolNeeded('pandoc', I18N.t('open .{ext} files', { ext }));
     }
     return { ...base, kind: 'markdown', text: md, meta: yamlMeta(md), convertedFrom: ext, via: 'pandoc' };
   }
@@ -1188,7 +1259,7 @@ ipcMain.handle('djvu-page', async (_e, p, pageIndex = 0, dpi = 100) => {
 });
 ipcMain.handle('djvu-text', async (_e, p) => {
   const t = await toolPath('djvutxt');
-  if (!t) throw toolNeeded('djvutxt', 'get the text of DjVu files');
+  if (!t) throw toolNeeded('djvutxt', I18N.t('get the text of DjVu files'));
   try { return (await run(t, [p], { timeout: 120000 })).replace(/\r\n/g, '\n'); }
   catch (e) { throw djvuFileError(e, 'read the text of this file'); }
 });
@@ -1198,7 +1269,7 @@ function djvuFileError(e, what) {
   const fe = friendlyError(e, 'open the file');
   if (fe !== e) return fe;
   const raw = String(e.toolOutput || e.message || e);
-  return userError(`Try again. If it still does not work, the file may be damaged: try another copy of it. DjVuLibre could not ${what}.`, { actions: [ACT.retry, ACT.openFile, ACT.details(raw)], details: raw, code: 'DJVU_FAILED' });
+  return userError(I18N.t('Try again. If it still does not work, the file may be damaged: try another copy of it. DjVuLibre could not {action}.', { action: actionText(what) }), { actions: [ACT.retry, ACT.openFile, ACT.details(raw)], details: raw, code: 'DJVU_FAILED' });
 }
 
 // ---------- export ----------
@@ -1624,35 +1695,40 @@ function mdToPlain(md) {
     .replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, '').replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }
 
+// labels are English (tm marks them for the i18n scanner); export-formats sends them translated
+const tm = s => s;
 const BUILTIN = [
-  { id: 'md', label: 'Markdown', ext: 'md' }, { id: 'pdf', label: 'PDF', ext: 'pdf' }, { id: 'docx', label: 'Word document', ext: 'docx' },
-  { id: 'epub', label: 'EPUB e-book', ext: 'epub' }, { id: 'html', label: 'Web page', ext: 'html' }, { id: 'txt', label: 'Plain text', ext: 'txt' },
+  { id: 'md', label: 'Markdown', ext: 'md' }, { id: 'pdf', label: 'PDF', ext: 'pdf' }, { id: 'docx', label: tm('Word document'), ext: 'docx' },
+  { id: 'epub', label: tm('EPUB e-book'), ext: 'epub' }, { id: 'html', label: tm('Web page'), ext: 'html' }, { id: 'txt', label: tm('Plain text'), ext: 'txt' },
 ];
 const PANDOC_OUT = [
-  { id: 'latex', label: 'LaTeX', ext: 'tex', to: 'latex' }, { id: 'odt', label: 'OpenDocument text', ext: 'odt', to: 'odt' },
-  { id: 'rtf', label: 'Rich Text', ext: 'rtf', to: 'rtf' }, { id: 'pptx', label: 'PowerPoint slides', ext: 'pptx', to: 'pptx' },
+  { id: 'latex', label: 'LaTeX', ext: 'tex', to: 'latex' }, { id: 'odt', label: tm('OpenDocument text'), ext: 'odt', to: 'odt' },
+  { id: 'rtf', label: tm('Rich Text'), ext: 'rtf', to: 'rtf' }, { id: 'pptx', label: tm('PowerPoint slides'), ext: 'pptx', to: 'pptx' },
   { id: 'jats', label: 'JATS XML', ext: 'xml', to: 'jats' }, { id: 'rst', label: 'reStructuredText', ext: 'rst', to: 'rst' },
-  { id: 'org', label: 'Org mode', ext: 'org', to: 'org' }, { id: 'asciidoc', label: 'AsciiDoc', ext: 'adoc', to: 'asciidoc' },
-  { id: 'mediawiki', label: 'MediaWiki', ext: 'wiki', to: 'mediawiki' }, { id: 'ipynb', label: 'Jupyter notebook', ext: 'ipynb', to: 'ipynb' },
+  { id: 'org', label: tm('Org mode'), ext: 'org', to: 'org' }, { id: 'asciidoc', label: 'AsciiDoc', ext: 'adoc', to: 'asciidoc' },
+  { id: 'mediawiki', label: 'MediaWiki', ext: 'wiki', to: 'mediawiki' }, { id: 'ipynb', label: tm('Jupyter notebook'), ext: 'ipynb', to: 'ipynb' },
   { id: 'typst', label: 'Typst', ext: 'typ', to: 'typst' },
 ];
 ipcMain.handle('export-formats', async () => {
   const info = await pandocInfo();
   const pdf2djvu = await toolPath('pdf2djvu');
+  // a tool Markooj can download is "Install … from File → Options → Features" (main-features.js)
+  const canGet = id => { const f = FEATURES && FEATURES.remedyFor(id); return f && f.available ? f : null; };
+  const pf = canGet('pandoc'), df = canGet('pdf2djvu');
   return [
-    ...BUILTIN.map(f => ({ ...f, available: true, via: 'built-in', engine: (f.id === 'docx' || f.id === 'epub') && info ? 'pandoc' : f.id === 'txt' && info ? 'pandoc' : 'built-in' })),
+    ...BUILTIN.map(f => ({ ...f, label: I18N.t(f.label), available: true, via: 'built-in', engine: (f.id === 'docx' || f.id === 'epub') && info ? 'pandoc' : f.id === 'txt' && info ? 'pandoc' : 'built-in' })),
     // `needs` names the tool; `reason` is the short line Save As shows under a format that cannot be used yet
     ...PANDOC_OUT.map(f => {
       const available = !!(info && info.outputs.has(f.to));
-      return { id: f.id, label: f.label, ext: f.ext, available, via: 'pandoc', needs: 'pandoc', ...(available ? {} : { reason: info ? `Get a newer Pandoc to use this (Help → Check Tools)` : 'Get Pandoc to use this (Help → Check Tools)' }) };
+      return { id: f.id, label: I18N.t(f.label), ext: f.ext, available, via: 'pandoc', needs: 'pandoc', ...(available ? {} : { reason: info ? I18N.t('Get a newer Pandoc to use this (Help → Check Tools)') : pf ? I18N.t('Install {name} from File → Options → Features to use this', { name: pf.name }) : I18N.t('Get {name} to use this (Help → Check Tools)', { name: 'Pandoc' }) }) };
     }),
-    { id: 'djvu', label: 'DjVu', ext: 'djvu', available: !!pdf2djvu, via: 'djvulibre', needs: 'pdf2djvu', ...(pdf2djvu ? {} : { reason: 'Get pdf2djvu to use this (Help → Check Tools)' }) },
+    { id: 'djvu', label: 'DjVu', ext: 'djvu', available: !!pdf2djvu, via: 'djvulibre', needs: 'pdf2djvu', ...(pdf2djvu ? {} : { reason: df ? I18N.t('Install {name} from File → Options → Features to use this', { name: df.name }) : I18N.t('Get {name} to use this (Help → Check Tools)', { name: 'pdf2djvu' }) }) },
   ];
 });
 
 ipcMain.handle('export', async (_e, o = {}) => {
   const { format, out, html = '', md = '', title = '', meta = {}, docPath, baseDir: base } = o;
-  if (!out) throw userError('Choose where to save the file, then try again.', { actions: [ACT.retry] });
+  if (!out) throw userError(I18N.t('Choose where to save the file, then try again.'), { actions: [ACT.retry] });
   const M = normMeta(meta, title);
   const baseDir = base || (docPath ? path.dirname(docPath) : path.dirname(out));
   // Layout tab, References → Citation style and File → Render as travel with every Pandoc export
@@ -1704,10 +1780,10 @@ ipcMain.handle('export', async (_e, o = {}) => {
       return await epubBuiltIn(html, out, M);
     }
     const f = PANDOC_OUT.find(x => x.id === format || x.to === format || x.ext === format);
-    if (!f) throw userError(`Choose another format: Markooj does not know how to save as “${format}”. Your document is unchanged.`, { actions: [ACT.chooseFormat] });
+    if (!f) throw userError(I18N.t('Choose another format: Markooj does not know how to save as “{format}”. Your document is unchanged.', { format }), { actions: [ACT.chooseFormat] });
     const info = await pandocInfo();
-    if (!info) throw toolNeeded('pandoc', `save as ${f.label}`);
-    if (!info.outputs.has(f.to)) throw userError(`Choose another format, or install a newer Pandoc and check again. The Pandoc Markooj found (${info.version}) cannot write ${f.label}. Everything else works.`, { actions: [ACT.chooseFormat, ACT.url('Get Pandoc', TOOL_INFO.pandoc.url), ACT.checkTools], tool: 'pandoc' });
+    if (!info) throw toolNeeded('pandoc', I18N.t('save as {format}', { format: I18N.t(f.label) }));
+    if (!info.outputs.has(f.to)) throw userError(I18N.t('Choose another format, or install a newer Pandoc and check again. The Pandoc Markooj found ({version}) cannot write {format}. Everything else works.', { version: info.version, format: I18N.t(f.label) }), { actions: [ACT.chooseFormat, ACT.url(TOOL_INFO.pandoc.getLabel, TOOL_INFO.pandoc.url), ACT.checkTools], tool: 'pandoc' });
     await pandocExport({ info, md, html, out, to: f.to, M, baseDir, withTitle: true });
     if (f.to === 'odt') await patchOdtLayout(out, Lx);
     return out;
@@ -1720,13 +1796,14 @@ function exportError(e, format) {
   const fe = friendlyError(e, 'save the exported file');
   if (fe !== e) return fe;
   const raw = String(e.toolOutput || e.message || e);
-  const label = (PANDOC_OUT.find(x => x.id === format) || {}).label || String(format || '').toUpperCase();
+  const f = PANDOC_OUT.find(x => x.id === format);
+  const label = f ? I18N.t(f.label) : String(format || '').toUpperCase();
   const picture = /fetch resource|could not find (image|media)|openBinaryFile|withBinaryFile|does not exist \(No such file/i.test(raw);
   // a missing picture is fixed in the document, not by trying again: say that first
-  const lead = picture
-    ? 'Check that every picture and linked file in the document is still in the same place (or remove the missing one), then save again.'
-    : 'Try again, or choose another format.';
-  return userError(`${lead} Markooj could not finish the ${label} file; your document is unchanged.`,{ actions: [ACT.retry, ACT.chooseFormat, ACT.details(raw), ACT.report], details: raw, code: 'EXPORT_FAILED' });
+  const msg = picture
+    ? I18N.t('Check that every picture and linked file in the document is still in the same place (or remove the missing one), then save again. Markooj could not finish the {format} file; your document is unchanged.', { format: label })
+    : I18N.t('Try again, or choose another format. Markooj could not finish the {format} file; your document is unchanged.', { format: label });
+  return userError(msg, { actions: [ACT.retry, ACT.chooseFormat, ACT.details(raw), ACT.report], details: raw, code: 'EXPORT_FAILED' });
 }
 
 async function epubBuiltIn(html, out, M) {
@@ -1800,7 +1877,7 @@ ipcMain.handle('recovery-list', () => {
     const text = String(e.text || '');
     const body = text.replace(/^---\r?\n[\s\S]*?\r?\n(---|\.\.\.)\r?\n/, '').replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '').replace(/<!--[\s\S]*?-->|[*_`~]{1,3}|!?\[([^\]]*)\]\([^)]*\)/g, (m, t) => t || '');
     return {
-      docId: e.docId, path: e.path || null, title: e.title || 'Untitled', savedAt: e.savedAt || 0, closedAt: e.closedAt || null, createdAt: e.createdAt || e.savedAt || 0,
+      docId: e.docId, path: e.path || null, title: e.title || I18N.t('Untitled'), savedAt: e.savedAt || 0, closedAt: e.closedAt || null, createdAt: e.createdAt || e.savedAt || 0,
       preview: body.replace(/\s+/g, ' ').trim().slice(0, 200), size: Buffer.byteLength(text, 'utf8'), chars: text.length,
       crashed: !!e.crashed || (!e.closedAt && e.session !== SESSION), current: !e.closedAt && e.session === SESSION,
       exists: !!(e.path && fs.existsSync(e.path)),
@@ -1830,7 +1907,7 @@ ipcMain.handle('macros-list', () => {
   return files.map(f => readJson(path.join(macroDir(), f), null)).filter(Boolean).sort((a, b) => String(a.name).localeCompare(String(b.name)));
 });
 ipcMain.handle('macros-save', (_e, m = {}) => {
-  if (!m.name) throw userError('Give the macro a name, then save it again.');
+  if (!m.name) throw userError(I18N.t('Give the macro a name, then save it again.'));
   const prev = readJson(macroFile(m.name), null) || {};
   const o = { name: String(m.name), lang: m.lang || 'js', code: String(m.code ?? ''), shortcut: m.shortcut || '', ribbon: !!m.ribbon, description: m.description || '', createdAt: prev.createdAt || Date.now(), updatedAt: Date.now() };
   for (const [k, v] of Object.entries(m)) if (!(k in o)) o[k] = v;

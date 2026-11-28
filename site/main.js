@@ -241,16 +241,26 @@
   // ---------- reveal on scroll ----------
   function setupReveal() {
     if (reduceMotion || !('IntersectionObserver' in window)) return;
-    var els = $$('.section .center, .gallery > li, .feat, .lang, .note-card, .step, .credit, .dl, .pillars > li, .support-text, .support-ways > li, .point-list > li');
+    var els = $$('.section .center, .gallery > li, .feat, .lang, .lang-en, .note-card, .step, .credit, .dl, .pillars > li, .support-text, .support-ways > li, .point-list > li, .modes, .demo');
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {
-        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+        if (!en.isIntersecting) return;
+        var t = en.target;
+        io.unobserve(t);
+        t.classList.add('in');
+        // once it has arrived, hand the element back to its own hover effects
+        var delay = parseFloat(t.style.transitionDelay) || 0;
+        setTimeout(function () { t.classList.remove('reveal', 'in'); t.style.transitionDelay = ''; }, 950 + delay);
       });
     }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
     els.forEach(function (el) {
       // anything already on screen shows at once
       var r = el.getBoundingClientRect();
       if (r.top < window.innerHeight && r.bottom > 0) return;
+      // cards side by side arrive one after another
+      var row = el.parentNode ? Array.prototype.filter.call(el.parentNode.children, function (c) { return els.indexOf(c) >= 0; }) : [];
+      var k = row.indexOf(el);
+      if (k > 0) el.style.transitionDelay = (k % 3) * 90 + 'ms';
       el.classList.add('reveal');
       io.observe(el);
     });

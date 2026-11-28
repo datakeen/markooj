@@ -1,3 +1,4 @@
+/* i18n-aliases: cardAttr, cardText */
 // Markooj — Writing Assistant core (app.writing): checking, spelling, underlines, cards, fixes, thesaurus data.
 // Rules: src/writing/rules.js (shared with the worker). Grammar: Harper in src/writing/worker.js. Spelling: nspell
 // through preload (mk.spell). The UI around it (pane, F7, menus, options, ribbon) is in src/writing/ui.js.
@@ -24,6 +25,7 @@
     ignoredRules: () => new Set(app.settings.get('writingIgnoredRules', []) || []),
     dict: () => (app.settings.get('writingDictionary', []) || []).filter(w => typeof w === 'string'),
     autocomplete: () => app.settings.get('writingAutocomplete', false) === true,
+    domainWords: () => app.settings.get('writingDomainWords', true) !== false,
     synonymsOnDoubleClick: () => app.settings.get('writingSynonymsOnDoubleClick', true) !== false,
   };
 
@@ -71,7 +73,9 @@
     if (/^en\b/i.test(code)) return LANGS.get(/^en-(GB|UK|AU|NZ|IE|ZA|IN|PK)/i.test(want) ? 'en-GB' : 'en-US');
     const base = code.split('-')[0];
     for (const l of LANGS.values()) if (l.code.split('-')[0] === base) return l;
-    return { code, name: code, dir: 'ltr', english: false, dialect: null, unsupported: true, rules: [] };
+    // a readable name ("Urdu", not "ur") for the pane and messages
+    let name = code; try { name = new Intl.DisplayNames(['en'], { type: 'language' }).of(code) || code; } catch {}
+    return { code, name, dir: 'ltr', english: false, dialect: null, unsupported: true, rules: [] };
   };
 
   // =================================================================== personal dictionary
@@ -81,9 +85,126 @@
     const words = S.dict();
     // the app's own name and the key names its manual and tutorials use are always known words
     dictSet = new Set([...words.map(w => w.toLowerCase()), 'markooj', 'ctrl']);
-    try { mk.spell?.setPersonal?.(words); } catch {}
+    // technical terms and place names (data/words-technical-en.txt, data/places-en.txt) go in beside the personal words;
+    // only the ones the dictionary does not know already, so turning the list off never removes a dictionary word
+    const extra = S.domainWords() ? domainNew() : [];
+    try { mk.spell?.setPersonal?.(extra.length ? [...new Set([...words, ...extra])] : words); } catch {}
     wordCache.clear();
+    spIndex.clear(); spBuild.clear();
   }
+
+  // =================================================================== technical terms and place names (always on; Options → Writing)
+  // Two word lists shipped in data/: hydraulics, hydropower, river engineering, fluid mechanics, engineering software and
+  // units; US states and places, countries and major cities of the world, and Pakistan's provinces, regions, cities,
+  // rivers, dams and barrages. Case matters like in the dictionary: "Lahore" is fine, "lahore" is marked.
+  const domain = { words: null, set: null, lower: null, fresh: null, loading: null };
+  function parseWordList(text) {
+    const out = [];
+    for (const line of String(text || '').split(/\r?\n/)) {
+      const l = line.trim(); if (!l || l[0] === '#') continue;
+      for (const tok of l.split(/\s+/)) {
+        const m = /^(.+?)(?:\/(s|es))?$/.exec(tok); if (!m || m[1].length < 2) continue;
+        out.push(m[1]); if (m[2]) out.push(m[1] + m[2]);
+      }
+    }
+    return out;
+  }
+  W.parseWordList = parseWordList;
+  function loadDomain() {
+    if (domain.loading) return domain.loading;
+    domain.loading = Promise.all(['../data/words-technical-en.txt', '../data/places-en.txt'].map(p => fetch(new URL(p, location.href)).then(r => (r.ok ? r.text() : '')).catch(() => '')))
+      .then(texts => {
+        const words = [...new Set(texts.flatMap(parseWordList))];
+        domain.words = words; domain.set = new Set(words); domain.lower = new Set(words.map(w => w.toLowerCase())); domain.fresh = null;
+        applyDictionary();
+        for (const d of app.docs.list()) if (d.kind === 'markdown') schedule(d, 200);
+        return words.length;
+      });
+    return domain.loading;
+  }
+  /** The listed words the bundled dictionaries do not know yet (worked out once; the personal words are set aside first). */
+  function domainNew() {
+    if (!domain.words) return [];
+    if (domain.fresh) return domain.fresh;
+    let bad = [];
+    try { mk.spell?.setPersonal?.(S.dict()); bad = mk.spell?.check?.('en-US', domain.words) || []; } catch { bad = []; }
+    domain.fresh = bad.map(i => domain.words[i]);
+    return domain.fresh;
+  }
+  W.domainWords = {
+    load: loadDomain, list: () => (domain.words || []).slice(), added: () => (S.domainWords() ? domainNew().slice() : []),
+    /** true when `word` is one of the listed terms or places, with the case rule of the dictionary */
+    has(word) {
+      if (!S.domainWords() || !domain.set) return false;
+      const w = String(word || '').replace(/['’]s$/, ''); if (domain.set.has(w)) return true;
+      const l = w.toLowerCase();
+      if (w.length > 1 && w === w.toUpperCase() && domain.lower.has(l)) return true; // PENSTOCK, LAHORE
+      return w === l.charAt(0).toUpperCase() + l.slice(1) && domain.set.has(l); // a listed lower-case word at a sentence start
+    },
+  };
+
+  // =================================================================== how common an English word is (ranks spelling suggestions)
+  const freq = { map: null, loading: null };
+  function loadFreq() {
+    if (freq.loading) return freq.loading;
+    freq.loading = fetch(new URL('../data/words-rank-en.txt', location.href)).then(r => (r.ok ? r.text() : '')).catch(() => '').then(text => {
+      const m = new Map();
+      for (const l of text.split(/\r?\n/)) { if (!l || l[0] === '#') continue; const parts = l.split(' '); const k = +parts[0]; for (let i = 1; i < parts.length; i++) m.set(parts[i], k); }
+      freq.map = m; return m.size;
+    });
+    return freq.loading;
+  }
+  /** 0–9: how common a lower-case word (or the word it is built from) is. */
+  function freqTier(w) {
+    const m = freq.map; if (!m) return 0;
+    if (m.has(w)) return m.get(w);
+    for (const [re, r] of [[/ies$/, 'y'], [/ied$/, 'y'], [/([b-df-hj-np-tv-z])\1(?:ed|ing)$/, '$1'], [/(?:ed|ing)$/, 'e'], [/(?:ed|ing|es|s|ly|er|est|ness|ity|ment)$/, '']]) {
+      const b = w.replace(re, r); if (b !== w && m.has(b)) return m.get(b) - 0.5;
+    }
+    const lm = W.lemmas ? W.lemmas(w) : [];
+    for (const b of lm || []) if (b !== w && m.has(b)) return m.get(b) - 0.5;
+    return 0;
+  }
+  W.wordFreq = freqTier;
+
+  // =================================================================== spelling suggestion index (dictionary stems + listed terms)
+  const spIndex = new Map(); // language code → R.spellIndex
+  const spBuild = new Map(); // language code → a build in idle time {b, words, at}
+  function spellWords(lang) {
+    let words = [];
+    try { words = mk.spell?.words?.(lang.code) || []; } catch { words = []; }
+    if (!words.length) return [];
+    if (S.domainWords() && domain.words) words = words.concat(domain.words);
+    return words.concat(S.dict());
+  }
+  function spellIndexFor(lang) {
+    let idx = spIndex.get(lang.code);
+    if (idx) return idx;
+    const job = spBuild.get(lang.code);
+    if (job) { R.spellIndexAdd(job.b, job.words, job.at, job.words.length); spBuild.delete(lang.code); idx = R.spellIndexEnd(job.b); spIndex.set(lang.code, idx); return idx; }
+    const words = spellWords(lang); if (!words.length) return null;
+    idx = R.spellIndex(words);
+    spIndex.set(lang.code, idx);
+    return idx;
+  }
+  /** Build the suggestion index in small slices while the window is idle (about 0.3 s of work in all). */
+  function warmSpellIndex(lang) {
+    if (!lang || !lang.english || spIndex.has(lang.code) || spBuild.has(lang.code)) return;
+    const words = spellWords(lang); if (!words.length) return;
+    const job = { b: R.spellIndexStart(), words, at: 0 }; spBuild.set(lang.code, job);
+    const idle = fn => (typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 30));
+    const step = () => {
+      if (spBuild.get(lang.code) !== job) return; // replaced, finished early or the lists changed
+      const t = performance.now();
+      while (job.at < words.length && performance.now() - t < 8) { R.spellIndexAdd(job.b, words, job.at, job.at + 1000); job.at += 1000; }
+      if (job.at < words.length) idle(step);
+      else { spBuild.delete(lang.code); spIndex.set(lang.code, R.spellIndexEnd(job.b)); }
+    };
+    idle(step);
+  }
+  W.warmSpelling = (code = 'en-US') => warmSpellIndex(LANGS.get(norm(code)));
+  /** Get the spelling helpers ready (word lists, frequency tiers, suggestion index); resolves when they are. */
+  W.spellReady = async (code = 'en-US') => { await Promise.all([loadDomain(), loadFreq()]); const lang = LANGS.get(norm(code)) || LANGS.get('en-US'); spellIndexFor(lang); return true; };
   W.dictionary = {
     list: () => S.dict(),
     add(word) { const w = String(word || '').trim(); if (!w || w.length > 80) return false; const list = S.dict(); if (!list.includes(w)) app.settings.set('writingDictionary', [...list, w].sort((a, b) => a.localeCompare(b))); mk.invoke?.('spell-add', w).catch?.(() => {}); return true; },
@@ -264,9 +385,11 @@
       if (cache.get(w) !== false) continue;
       // a word in another script (Urdu in an English document, English in an Urdu one) is not this dictionary's business
       if (want && scriptOfWord(w) !== want) continue;
+      // units and formulas with superscript or subscript digits (m³, km², s⁻¹, H₂O) are not misspellings
+      if (/[²³¹⁰-₟]/.test(w)) continue;
       const l = w.toLowerCase();
       if (dictSet.has(l) || ignoredWords.has(l)) continue;
-      out.push({ rule: 'spelling', source: 'spelling', cat: 'correctness', start: s + a, end: s + b, text: w, title: 'Spelling', message: `“${w}” is not in the ${lang.name} dictionary.`, replacements: [], suggest: true, safe: false });
+      out.push({ rule: 'spelling', source: 'spelling', cat: 'correctness', start: s + a, end: s + b, text: w, title: 'Spelling', message: `“${w}” is not in the ${lang.name} dictionary.`, replacements: [], suggest: true, safe: false, vk: 'spelling', vv: { w, lang: lang.name } });
     }
     return { findings: out, missing };
   }
@@ -284,14 +407,35 @@
     const push = s => { if (!s) return; const v = R.matchCase(word, s); if (v.toLowerCase() !== String(word).toLowerCase() && !out.some(x => x.toLowerCase() === v.toLowerCase())) out.push(v); };
     const lw = String(word || '').toLowerCase();
     const english = /^en\b|^en-/i.test(lang.code || '');
-    if (english && COMMON_TYPOS[lw]) push(COMMON_TYPOS[lw]);
-    // two neighboring letters swapped (teh → the, thier → their): the most common typing slip, so it comes first
-    if (lw.length >= 3 && lw.length <= 24) {
-      const cands = [];
-      for (let i = 0; i < lw.length - 1; i++) { const c = lw.slice(0, i) + lw[i + 1] + lw[i] + lw.slice(i + 2); if (c !== lw && !cands.includes(c)) cands.push(c); }
-      try { const bad = new Set(mk.spell?.check?.(lang.code, cands) || cands.map((_c, i) => i)); cands.forEach((c, i) => { if (!bad.has(i)) push(c); }); } catch {}
+    const check = list => { if (!list.length) return new Set(); try { const bad = new Set(mk.spell?.check?.(lang.code, list) || list.map((_c, i) => i)); return new Set(list.filter((_c, i) => !bad.has(i))); } catch { return new Set(); } };
+    if (!english) {
+      // other Hunspell languages (packs with aff/dic): swapped neighbors first, then the dictionary's own list
+      if (lw.length >= 3 && lw.length <= 24) { const sw = []; for (let i = 0; i < lw.length - 1; i++) { const c = lw.slice(0, i) + lw[i + 1] + lw[i] + lw.slice(i + 2); if (c !== lw && !sw.includes(c)) sw.push(c); } for (const c of check(sw)) push(c); }
+      try { for (const s of mk.spell?.suggest?.(lang.code, word, 6) || []) push(s); } catch {}
+      return out.slice(0, 6);
     }
-    try { for (const s of mk.spell?.suggest?.(lang.code, word, 6) || []) push(s); } catch {}
+    // English: candidates from several places, then one ranking (R.spellRank): a weighted edit distance (swapped letters,
+    // a missed double letter and one vowel for another cost little), the sound key and how common the word is
+    loadFreq(); loadDomain();
+    const cands = [];
+    if (COMMON_TYPOS[lw]) cands.push({ w: COMMON_TYPOS[lw], d: -5 });
+    if (lw.length >= 3 && lw.length <= 24) {
+      const sw = []; for (let i = 0; i < lw.length - 1; i++) { const c = lw.slice(0, i) + lw[i + 1] + lw[i] + lw.slice(i + 2); if (c !== lw && !sw.includes(c)) sw.push(c); }
+      for (const c of check(sw)) cands.push({ w: c });
+    }
+    const idx = lw.length >= 2 && lw.length <= 30 ? spellIndexFor(lang) : null;
+    if (idx) {
+      for (const x of R.spellNear(idx, lw)) cands.push({ w: x.w, d: x.d });
+      const morph = R.spellMorph(idx, lw); const ok = check(morph.map(x => x.form));
+      for (const x of morph) if (ok.has(x.form)) cands.push({ w: x.form, d: x.d });
+    }
+    let ranked = R.spellRank(word, cands, { freq: freqTier, max: 6, withScore: true });
+    // Hunspell's own list (slow on long words) only when Markooj's candidates are not convincing
+    if (!(ranked.length >= 3 && ranked[0].d <= 0.6)) {
+      try { for (const s of mk.spell?.suggest?.(lang.code, word, 10) || []) cands.push({ w: s }); } catch {}
+      ranked = R.spellRank(word, cands, { freq: freqTier, max: 6, withScore: true });
+    }
+    for (const x of ranked) push(x.w);
     return out.slice(0, 6);
   };
   W.isWordCorrect = (word, lang) => {
@@ -302,12 +446,13 @@
   const states = new Map();
   const state = doc => { let s = states.get(doc.id); if (!s) states.set(doc.id, s = { all: [], findings: [], dismissed: new Set(), words: 0, score: 100, status: 'idle', text: null, seq: 0, harper: 'idle' }); return s; };
   W.state = doc => state(doc || app.docs.active());
+  // words in the personal dictionary (or ignored for this session) are never flagged, by Harper either; nor are the listed
+  // technical terms and places (Harper's "penstock should be pen stock")
+  const knownWord = f => (f.source === 'harper' || f.source === 'spelling') && /^[\p{L}\p{M}\p{N}'’‌-]+$/u.test(f.text || '') && (dictSet.has(f.text.toLowerCase()) || ignoredWords.has(f.text.toLowerCase()) || (f.source === 'harper' && W.domainWords.has(f.text)));
   const ctxKey = (f, text) => f.rule + '|' + f.text + '|' + text.slice(Math.max(0, f.start - 24), f.start).replace(/\s+/g, ' ').slice(-16);
   function visible(list, doc, text) {
     const cats = S.cats(), ign = S.ignoredRules(), st = state(doc);
-    // words in the personal dictionary (or ignored for this session) are never flagged, by Harper either
-    const known = f => (f.source === 'harper' || f.source === 'spelling') && /^[\p{L}\p{M}\p{N}'’\u200C-]+$/u.test(f.text || '') && (dictSet.has(f.text.toLowerCase()) || ignoredWords.has(f.text.toLowerCase()));
-    return list.filter(f => !known(f) && cats[f.cat] !== false && !ign.has(f.rule) && !ign.has(f.rule + ':' + (f.sub || '')) && !(f.source === 'harper' && ign.has('harper:' + f.harperRule)) && !st.dismissed.has(ctxKey(f, text)) && (f.rule !== 'spelling' || S.spell()) && (f.rule === 'spelling' || S.on()));
+    return list.filter(f => !knownWord(f) && cats[f.cat] !== false && !ign.has(f.rule) && !ign.has(f.rule + ':' + (f.sub || '')) && !(f.source === 'harper' && ign.has('harper:' + f.harperRule)) && !st.dismissed.has(ctxKey(f, text)) && (f.rule !== 'spelling' || S.spell()) && (f.rule === 'spelling' || S.on()));
   }
   function counts(list) { const c = { correctness: 0, clarity: 0, engagement: 0, delivery: 0, total: list.length }; for (const f of list) c[f.cat] = (c[f.cat] || 0) + 1; return c; }
   let fid = 0;
@@ -315,7 +460,7 @@
     if (doc.text !== text) return false;
     const sp = S.spell() ? spellFindings(text, res.blocks || [], lang) : { findings: [], missing: false };
     if (sp.missing) needAllTokens = true;
-    const all = R.dedupe((res.findings || []).concat(sp.findings));
+    const all = R.vary(R.dedupe((res.findings || []).concat(sp.findings)));
     for (const f of all) { f.id = 'w' + (++fid); if (!f.title) f.title = R.RULES[f.rule]?.title || 'Suggestion'; }
     st.all = all; st.text = text; st.words = res.words || 0;
     st.findings = visible(all, doc, text);
@@ -369,7 +514,7 @@
     if (sp.missing) { needAllTokens = true; res = (await engineCheck(String(text || ''), ctx)) || res; sp = opts.spelling === false ? { findings: [] } : spellFindings(String(text || ''), res.blocks || [], lang); }
     // near-miss words in the personal dictionary or ignored for this session are dropped, like nspell's
     const nmKnown = f => f.nearMiss && (dictSet.has(String(f.text).toLowerCase()) || ignoredWords.has(String(f.text).toLowerCase()));
-    const all = R.dedupe((res.findings || []).filter(f => !nmKnown(f)).concat(sp.findings));
+    const all = R.vary(R.dedupe((res.findings || []).filter(f => !nmKnown(f) && !(f.source === 'harper' && W.domainWords.has(f.text))).concat(sp.findings)));
     for (const f of all) { f.id = 'w' + (++fid); if (!f.title) f.title = R.RULES[f.rule]?.title || 'Suggestion'; }
     return all;
   };
@@ -408,7 +553,7 @@
   app.events.on('doc:active', doc => { if (doc?.kind !== 'markdown') { clearPaint(); return; } lastText.set(doc.id, doc.text); const st = state(doc); if (st.text !== doc.text) schedule(doc, 120); else { emitChanged(doc); } });
   app.events.on('doc:closed', doc => { states.delete(doc.id); lastText.delete(doc.id); clearTimeout(timers.get(doc.id)); });
   app.events.on('settings:changed', ({ key } = {}) => {
-    if (key === 'writingDictionary') { applyDictionary(); app.docs.list().forEach(d => schedule(d, 60)); }
+    if (key === 'writingDictionary' || key === 'writingDomainWords') { applyDictionary(); app.docs.list().forEach(d => schedule(d, 60)); }
     else if (/^(proofingLanguage|writingGoals|writingLongSentence)$/.test(key)) app.docs.list().forEach(d => schedule(d, 60));
     else if (/^(writingCategories|writingIgnoredRules)$/.test(key)) W.refilter();
     else if (key === 'writingAssistant' || key === 'spellcheck') { W.applySpellcheckAttr(); app.docs.list().forEach(d => { refilter(d); schedule(d, 60); }); schedulePaint(); }
@@ -572,10 +717,10 @@
       if (/collection of linters|^A rule that\b/i.test(d) && !/for example/i.test(d)) d = '';
       // an example only when it belongs to this rule (a kind's example was written for one rule of that kind)
       const ex = (R.HARPER_EXAMPLES || {})[f.harperRule] || (R.HARPER_KIND_RULE?.[f.kind] === f.harperRule ? [k[3], k[4]] : null);
-      return { text: (d ? d + ' ' : '') + k[2], wrong: ex ? ex[0] : '', right: ex ? ex[1] : '', source: 'Harper grammar checker' };
+      return { text: (d ? d + ' ' : '') + k[2], wrong: ex ? ex[0] : '', right: ex ? ex[1] : '', source: app.tm('Harper grammar checker') };
     }
     const r = R.RULES[f.rule] || (f.rule.startsWith('lang:') ? { explain: f.explain || f.message, wrong: f.wrong, right: f.right } : R.RULES.harper);
-    return { text: r.explain || '', wrong: f.wrong || r.wrong, right: f.right || r.right };
+    return { text: f.explain || r.explain || '', wrong: f.wrong || r.wrong, right: f.right || r.right };
   };
   function fixesFor(f) {
     if (f.rule === 'spelling') { if (!f._sugg) f._sugg = W.suggest(f.text, state(app.docs.active()).lang); return f._sugg; }
@@ -584,7 +729,7 @@
   }
   W.fixesFor = fixesFor;
   function fixLabel(f, rep) {
-    if (rep === '') return '<span class="mkw-del">' + esc(f.text.trim()) + '</span> <span class="mkw-rm">Remove</span>';
+    if (rep === '') return '<span class="mkw-del">' + esc(f.text.trim()) + '</span> <span class="mkw-rm">' + app.th('Remove') + '</span>';
     const t = f.text.length > 40 ? '' : '<span class="mkw-del">' + esc(f.text) + '</span> ';
     return t + '<b>' + esc(rep) + '</b>';
   }
@@ -593,19 +738,21 @@
     const doc = opts.doc || app.docs.active();
     const ex = W.explain(f);
     const fixes = fixesFor(f);
-    box.innerHTML = `<div class="mkw-c-head"><span class="mkw-dot" style="background:${CAT_COLOR[f.cat]}"></span><span class="mkw-c-cat">${esc(R.CAT_LABEL[f.cat] || '')}</span><span class="mkw-c-title">${esc(f.title || '')}</span></div>
+    // the card's own words follow the interface language; the rule's title, message and explanation stay English this round
+    const cardAttr = x => esc(app.t(x)), cardText = x => app.th(x);
+    box.innerHTML = `<div class="mkw-c-head"><span class="mkw-dot" style="background:${CAT_COLOR[f.cat]}"></span><span class="mkw-c-cat">${esc(R.CAT_LABEL[f.cat] ? app.t(R.CAT_LABEL[f.cat]) : '')}</span><span class="mkw-c-title">${esc(f.title || '')}</span></div>
       <div class="mkw-c-msg">${esc(f.message || '')}</div>
-      ${fixes.length ? `<div class="mkw-c-fixes" role="group" aria-label="Suggestions">${fixes.map((r, i) => `<button type="button" class="mkw-fix${i === 0 ? ' first' : ''}" data-i="${i}" data-tip="Accept" data-tip-d="Replace the underlined text. Ctrl+Z undoes it.">${fixLabel(f, r)}</button>`).join('')}</div>` : f.rule === 'spelling' ? '<div class="mkw-c-none">No suggestions.</div>' : ''}
+      ${fixes.length ? `<div class="mkw-c-fixes" role="group" aria-label="${cardAttr('Suggestions')}">${fixes.map((r, i) => `<button type="button" class="mkw-fix${i === 0 ? ' first' : ''}" data-i="${i}" data-tip="${cardAttr('Accept')}" data-tip-d="${cardAttr('Replace the underlined text. Ctrl+Z undoes it.')}">${fixLabel(f, r)}</button>`).join('')}</div>` : f.rule === 'spelling' ? `<div class="mkw-c-none">${cardText('No suggestions.')}</div>` : ''}
       <div class="mkw-c-acts">
-        <button type="button" class="mkw-act" data-a="dismiss" data-tip="Dismiss" data-tip-d="Hide this suggestion here. The text stays as it is.">Dismiss</button>
-        ${f.rule === 'spelling' ? '<button type="button" class="mkw-act" data-a="add" data-tip="Add to dictionary" data-tip-d="Teach Markooj this word. It is never marked again, in any document.">Add to dictionary</button><button type="button" class="mkw-act" data-a="ignoreAll" data-tip="Ignore all" data-tip-d="Skip this word everywhere until you close Markooj.">Ignore all</button>' : `<button type="button" class="mkw-act" data-a="ignoreRule" data-tip="Turn off this rule" data-tip-d="Stop showing “${esc(f.title || '')}” suggestions. Turn it back on in File → Options → Writing.">Ignore rule</button>`}
-        <button type="button" class="mkw-act mkw-why" data-a="why" aria-expanded="false" data-tip="Why?" data-tip-d="See what the rule is about, with a wrong and a right example.">Why?</button>
+        <button type="button" class="mkw-act" data-a="dismiss" data-tip="${cardAttr('Dismiss')}" data-tip-d="${cardAttr('Hide this suggestion here. The text stays as it is.')}">${cardText('Dismiss')}</button>
+        ${f.rule === 'spelling' ? `<button type="button" class="mkw-act" data-a="add" data-tip="${cardAttr('Add to dictionary')}" data-tip-d="${cardAttr('Teach Markooj this word. It is never marked again, in any document.')}">${cardText('Add to dictionary')}</button><button type="button" class="mkw-act" data-a="ignoreAll" data-tip="${cardAttr('Ignore all')}" data-tip-d="${cardAttr('Skip this word everywhere until you close Markooj.')}">${cardText('Ignore all')}</button>` : `<button type="button" class="mkw-act" data-a="ignoreRule" data-tip="${cardAttr('Turn off this rule')}" data-tip-d="${esc(app.t('Stop showing “{rule}” suggestions. Turn it back on in File → Options → Writing.', { rule: f.title || '' }))}">${cardText('Ignore rule')}</button>`}
+        <button type="button" class="mkw-act mkw-why" data-a="why" aria-expanded="false" data-tip="${cardAttr('Why?')}" data-tip-d="${cardAttr('See what the rule is about, with a wrong and a right example.')}">${cardText('Why?')}</button>
       </div>
       <div class="mkw-c-explain" hidden>
         <p>${esc(ex.text)}</p>
-        ${ex.wrong ? `<div class="mkw-ex wrong"><span aria-label="Wrong">✕</span>${esc(ex.wrong)}</div>` : ''}
-        ${ex.right ? `<div class="mkw-ex right"><span aria-label="Right">✓</span>${esc(ex.right)}</div>` : ''}
-        ${ex.source ? `<div class="mkw-ex-src">${esc(ex.source)}</div>` : ''}
+        ${ex.wrong ? `<div class="mkw-ex wrong"><span aria-label="${cardAttr('Wrong')}">✕</span>${esc(ex.wrong)}</div>` : ''}
+        ${ex.right ? `<div class="mkw-ex right"><span aria-label="${cardAttr('Right@@correct')}">✓</span>${esc(ex.right)}</div>` : ''}
+        ${ex.source ? `<div class="mkw-ex-src">${esc(app.t(ex.source))}</div>` : ''}
       </div>`;
     box.querySelectorAll('.mkw-fix').forEach(b => b.addEventListener('click', async e => { e.stopPropagation(); app.ui.ripple?.(b); const ok = await W.accept(f, fixes[+b.dataset.i], doc); if (ok) opts.onDone?.('accept'); }));
     box.querySelectorAll('.mkw-act').forEach(b => b.addEventListener('click', e => {
@@ -623,11 +770,12 @@
   };
   function ensureCard() {
     if (card) return card;
-    card = document.createElement('div'); card.className = 'mkw-card'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'Writing suggestion');
+    card = document.createElement('div'); card.className = 'mkw-card'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', app.t('Writing suggestion'));
     card.addEventListener('mouseenter', () => clearTimeout(leaveTimer));
     card.addEventListener('mouseleave', () => { leaveTimer = setTimeout(hideCard, 350); });
     card.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideCard(true); } });
     document.body.appendChild(card);
+    app.events.on('i18n:changed', () => { card.setAttribute('aria-label', app.t('Writing suggestion')); if (W.cardOpen()) hideCard(); });
     return card;
   }
   function placeCard(rect) {
@@ -704,7 +852,7 @@
     if (!doc || doc.readOnly || rep == null) return false;
     try { if (doc === app.docs.active()) app.editors.active()?.flush?.(); } catch {}
     const at = locate(doc.text, f);
-    if (!at) { app.ui.toast('Try the fix again in a moment. The text changed, so Markooj is checking it again.', { kind: 'info' }); schedule(doc, 0); return false; }
+    if (!at) { app.ui.toast(app.t('Try the fix again in a moment. The text changed, so Markooj is checking it again.'), { kind: 'info' }); schedule(doc, 0); return false; }
     const next = doc.text.slice(0, at[0]) + rep + doc.text.slice(at[1]);
     doc.setText(next, 'writing');
     const st = state(doc); st.all = st.all.filter(x => x.id !== f.id); st.findings = st.findings.filter(x => x.id !== f.id); st.counts = counts(st.findings); st.score = R.score(st.findings, st.words);
@@ -733,10 +881,10 @@
     const id = typeof f === 'string' ? f : f.source === 'harper' ? 'harper:' + f.harperRule : f.rule;
     const list = app.settings.get('writingIgnoredRules', []) || [];
     if (!list.includes(id)) app.settings.set('writingIgnoredRules', [...list, id]);
-    app.ui.toast(`“${(typeof f === 'string' ? f : f.title) || id}” is off. Turn it back on in File → Options → Writing.`, { kind: 'info' });
+    app.ui.toast(app.t('“{rule}” is off. Turn it back on in File → Options → Writing.', { rule: (typeof f === 'string' ? f : f.title) || id }), { kind: 'info' });
   };
   W.resetIgnoredRules = () => app.settings.set('writingIgnoredRules', []);
-  W.addToDictionary = function addToDictionary(word) { W.dictionary.add(word); app.ui.toast(`Added “${word}” to your dictionary.`); };
+  W.addToDictionary = function addToDictionary(word) { W.dictionary.add(word); app.ui.toast(app.t('Added “{word}” to your dictionary.', { word })); };
   W.ignoreWord = function ignoreWord(word) { ignoredWords.add(String(word).toLowerCase()); W.refilter(); };
   W.ignoredWords = ignoredWords;
 
@@ -880,7 +1028,7 @@
   // =================================================================== status text (shell's Spelling button)
   W.statusText = function statusText(doc = app.docs.active()) {
     if (!doc || doc.kind !== 'markdown') return null;
-    if (!S.on() && !S.spell()) return 'Checking off';
+    if (!S.on() && !S.spell()) return app.t('Checking off');
     const st = state(doc); if (st.text == null) return null;
     return st.findings.length;
   };
@@ -895,5 +1043,7 @@
     W.applySpellcheckAttr();
     // warm up the grammar checker and the dictionary while the user reads
     setTimeout(() => { try { const l = W.languageFor(app.docs.active()); if (S.on()) W.engine.warm(l.dialect); spellAvailable(l); } catch {} const d = app.docs.active(); if (d) schedule(d, 50); }, 800);
+    // the technical and place-name lists and the word-frequency tiers (small text files, read once)
+    setTimeout(() => { Promise.all([loadDomain(), loadFreq()]).then(() => { if (S.spell()) warmSpellIndex(W.languageFor(app.docs.active())); }); }, 1200);
   });
 })();

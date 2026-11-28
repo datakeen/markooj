@@ -1,6 +1,6 @@
 # Open and export
 
-Your documents are Markdown files. Markooj can also open many other formats, and save a copy of your work in almost any format people ask for. Pandoc, pdf2djvu and DjVuLibre come inside Markooj, so none of this needs another program.
+Your documents are Markdown files. Markooj can also open many other formats, and save a copy of your work in almost any format people ask for. Most of it is built in. Pandoc (for LaTeX, OpenDocument, Rich Text and more) and the DjVu tools are optional features: install them once from **File → Options → Features**, and Markooj offers them the first time you need one. The Windows portable zip includes them.
 
 ## Open
 
@@ -42,7 +42,7 @@ Click **File → Save As / Export** (Ctrl+Shift+S) and pick a format. Your Markd
 | **Web page** (`.html`) | One self-contained file, pictures and math included. |
 | **Plain text** | No formatting at all. |
 
-### With the bundled Pandoc
+### With Pandoc (an optional feature)
 
 | Format | Good for |
 | --- | --- |
@@ -58,7 +58,7 @@ Click **File → Save As / Export** (Ctrl+Shift+S) and pick a format. Your Markd
 | **Jupyter notebook** (`.ipynb`) | Opens in Jupyter. |
 | **Typst** (`.typ`) | Modern typesetting. |
 
-### With the bundled DjVuLibre and pdf2djvu
+### With the DjVu tools (an optional feature)
 
 | Format | Good for |
 | --- | --- |
@@ -90,4 +90,4 @@ Markooj reads every Markdown flavor on screen. For exports through Pandoc, you c
 
 ## If a format is grayed out
 
-The format says which tool it needs. Most often **Check again** in Markooj's message, or running the installer again, brings it back; [Problems and answers](troubleshooting.md) has the steps for each system. The other formats keep working meanwhile.
+The format says which feature it needs. Click its card and choose **Install**, or open **File → Options → Features**; on a computer without internet, use **Install from file…** there. If the feature is installed, **Check again** in Markooj's message usually brings it back; [Problems and answers](troubleshooting.md) has the steps for each system. The other formats keep working meanwhile.

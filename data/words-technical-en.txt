@@ -1,0 +1,68 @@
+# Markooj — technical words the English spelling check accepts (File → Options → Writing → "Accept technical terms and place names").
+# Compiled for Markooj by its authors (AGPL-3.0-or-later, like the rest of Markooj). Facts only: no third-party word list was copied.
+# Format: words separated by spaces or new lines; "/s" adds a plural with -s, "/es" with -es. Case matters: "Manning" accepts
+# "Manning" and "MANNING" but not "manning" (unless the dictionary already knows it). A word the dictionary already knows is skipped.
+
+# ---- hydraulics, hydropower and dams
+penstock/s feedwater/s tailrace/s headrace/s tailwater/s headwater/s headworks forebay/s afterbay/s spillway/s cofferdam/s
+riprap riprapped gabion/s revetment/s weir/s barrage/s sluiceway/s sluicegate/s floodgate/s intake/s outfall/s culvert/s
+standpipe/s drawdown/s backwater/s freeboard overtopping underseepage seepage uplift tailings stilling dissipator/s
+ogee/s chute/s baffle/s plunge flip bucket/s afflux sequent hydropower hydroelectric hydroelectricity hydroturbine/s
+hydrogenerator/s pumpback turbinate turbining Kaplan Pelton Turgo Francis Deriaz Banki Michell bulb impeller/s volute/s
+wicket/s runner/s guidevane/s draft cavitation cavitating supercavitation supercavitating waterhammer surge surging
+airvent/s aerator/s aeration deaerator/s deaeration rockfill earthfill concrete-faced roller-compacted buttress/es
+abutment/s plinth/s parapet/s shotcrete grouting adit/s portal/s diversion/s headpond/s pondage tailpond/s storages
+impoundment/s reservoir/s desilting desander/s desanding desiltation flushing dredger/s dredging sluicing sedimentation
+groyne/s groin/s spur/s dike/s dyke/s bund/s embankment/s levee/s floodwall/s floodway/s floodplain/s floodplains
+distributary distributaries aqueduct/s superpassage/s siphon/s syphon/s regulator/s headregulator/s canal/s canalization
+lined unlined lining/s watercourse/s
+# ---- river engineering, sediment and geomorphology
+fluvial alluvial alluvium aggradation aggrading degradation avulsion/s thalweg/s meander/s meandering braided braiding
+anabranch/es anabranching riparian geomorphology geomorphic geomorphological morphodynamic/s morphodynamics morphometric
+sediment/s sedimentological sedimentology siltation silting bedload/s washload/s saltation saltating armoring armouring
+scour/s scouring entrainment deposition turbidity turbid flocculation flocculate granulometry granulometric sieve/s
+suspended cohesive noncohesive cohesionless imbrication imbricated paleochannel/s palaeochannel/s oxbow/s chute
+bankfull bankline/s streambank/s streambed/s riverbed/s riverbank/s channelization channelized channelised sinuosity
+hydrograph/s hyetograph/s isohyet/s isohyetal hydrometric hydrometry hydrometeorology hydrometeorological
+streamflow/s streamgage/s streamgauge/s gage/s gauging stage-discharge baseflow/s interflow runoff/s snowmelt
+evapotranspiration infiltration percolation interception groundwater/s aquifer/s aquitard/s aquiclude/s transmissivity
+storativity permeameter/s porosity wellfield/s phreatic vadose unsaturated watershed/s catchment/s subcatchment/s
+subbasin/s subwatershed/s hyporheic ecohydraulics ecohydraulic ecohydrology hydrogeology hydrogeological hydrologic
+hydrological hydrology hydrologist/s hydraulician/s hydraulically hydroinformatics hydromechanics hydrotechnical
+Thiessen Muskingum Cunge Horton Kirpich Lacey Bligh Khosla Kutter Rehbock Parshall Shields Exner Rouse Hjulström
+Meyer-Peter Einstein Ackers Engelund Hansen Yang Rubey Wilcock Parker Leopold Wolman Lane Schumm
+# ---- fluid mechanics and heat
+hydrodynamic/s hydrodynamics hydrostatic/s hydrostatics thermohydraulic/s thermohydraulics thermal-hydraulic
+thermodynamic/s thermodynamics thermodynamically thermofluid/s thermophysical hydrothermal thermosiphon/s thermosyphon/s
+enthalpy enthalpies entropy exergy anergy polytropic isentropic isobaric isochoric isothermal adiabatic diabatic
+microchannel/s multiphase subcooled subcooling superheated superheat superheater/s desuperheater/s economizer/s
+economiser/s reheater/s preheater/s condensate/s blowdown/s boiloff setpoint/s flowrate/s flowmeter/s piezometer/s
+piezometric manometer/s tensiometer/s venturi venturis venturimeter/s rotameter/s flume/s velocimetry velocimeter/s
+anemometer/s inclinometer/s extensometer/s viscometer/s rheometer/s dimensionless nondimensional nondimensionalized
+supercritical subcritical transcritical vorticity irrotational inviscid incompressible compressibility viscoelastic
+viscoplastic turbulent laminar eddies streamline/s streamtube/s streamwise spanwise crossflow/s backflow/s outflow/s
+inflow/s underflow/s overflow/s throughflow upwelling downwelling stratification stratified pycnocline thermocline
+Manning Chezy Chézy Darcy Weisbach Darcy-Weisbach Hazen Colebrook Moody Reynolds Froude Weber Strouhal Euler Bernoulli
+Navier Stokes Navier-Stokes Saint-Venant Venant Prandtl Kármán Karman Nikuradse Blasius Boussinesq Rayleigh Nusselt
+Grashof Peclet Péclet Schmidt Sherwood Biot Fourier Mach Knudsen Richardson Rossby Ekman Kolmogorov Taylor Couette
+Poiseuille Hagen Lagrange Laplace Helmholtz Kelvin Joule Clausius Carnot Rankine Brayton Stirling Ericsson Otto Diesel
+# ---- computation and engineering practice
+discretization discretize/s discretized discretizing discretisation discretise/s discretised meshing remeshing
+unstructured multigrid preconditioner/s preconditioned preconditioning solver/s timestep/s upwind upwinding
+Smagorinsky Courant Lagrangian Eulerian Galerkin Runge Kutta Runge-Kutta Crank Nicolson Crank-Nicolson Raphson
+Newton-Raphson Seidel Gauss-Seidel Jacobi Dirichlet Neumann Laplacian Hessian Jacobian Cholesky Krylov GMRES
+workflow/s preprocessing postprocessing postprocessor/s preprocessor/s georeferenced georeferencing geospatial
+geodatabase/s shapefile/s raster/s rasterize/s rasterized vectorize/s vectorized orthophoto/s orthomosaic/s
+photogrammetry photogrammetric bathymetry bathymetric topobathymetric hillshade/s geotechnical geotextile/s
+geomembrane/s geogrid/s geosynthetic/s piezocone/s consolidometer/s oedometer/s triaxial
+# ---- engineering software, languages and file formats (all-capital names such as ANSYS, MATLAB, HEC-RAS, SWMM and QGIS,
+# and mixed-case names such as OpenFOAM, AutoCAD and ArcGIS, are never marked; these are the ones that would be)
+Simulink Fluent Python Jupyter Matplotlib Scikit Pandas Numpy Scipy Revit Abaqus Delft Telemac Tecplot Gmsh Salome
+Arduino Raspberry Fortran Scilab Mathematica Maple Octave Overleaf Zotero Mendeley Markdown Pandoc Obsidian Typora
+Modelica Dymola Aspen Primavera Navisworks Civil Rhino Grasshopper Blender Inkscape Gimp Linux Ubuntu Debian Fedora
+Kubernetes Docker GitHub Gitlab Bitbucket Javascript Typescript Golang Rust Julia Haskell Matlab Ansys Fluent's
+Simulink's Python's Excel's Jupyter's
+# ---- units and their short names
+cumec/s cusec/s megawatt/s gigawatt/s terawatt/s kilowatt/s megawatt-hour/s kilopascal/s megapascal/s gigapascal/s
+pascal/s hectopascal/s millibar/s hectare/s tonne/s kilonewton/s meganewton/s newton/s joule/s kilojoule/s megajoule/s
+mm cm km kg mg ml rpm psi cfs cms mph kph kmph kwh mwh gwh mgd lpcd

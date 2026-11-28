@@ -48,20 +48,18 @@
     function readOnlyHint() {
       if (Date.now() - lastToast < 1500 || app.tests?.current) return;
       lastToast = Date.now();
-      app.ui.toast?.('Read mode is for reading. Press Esc or click Edit to make changes.', { kind: 'info' });
+      app.ui.toast?.(app.t('Read mode is for reading. Press Esc or click Edit to make changes.'), { kind: 'info' });
     }
     function build() {
       injectCss();
       root = document.createElement('div'); root.className = 'mk-read'; root.tabIndex = -1;
-      root.setAttribute('aria-label', 'Document, read mode');
+      root.setAttribute('aria-label', app.t('Document, read mode'));
       sheet = document.createElement('div'); sheet.className = 'mk-sheet';
       page = document.createElement('article'); page.className = 'mk-page mk-read-page';
       page.setAttribute('data-mk-surface', 'read'); page.setAttribute('role', 'document');
       sheet.appendChild(page); root.appendChild(sheet);
       const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'mk-read-edit';
-      btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit <kbd>Esc</kbd>';
-      btn.title = 'Back to editing (Esc)'; btn.setAttribute('aria-label', 'Back to editing');
-      btn.setAttribute('data-tip-title', 'Back to editing'); btn.setAttribute('data-tip-desc', 'Leave Read mode and continue in the editing mode you used before.'); btn.setAttribute('data-tip-key', 'Esc');
+      labelEditButton(btn);
       btn.addEventListener('click', backToEditing);
       root.appendChild(btn);
       page.addEventListener('click', onClick);
@@ -72,6 +70,13 @@
       // typing in Read mode: say how to edit instead of doing nothing
       root.addEventListener('keypress', e => { if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && e.key !== ' ') readOnlyHint(); });
     }
+    /** The Edit button's text and tips; drawn again when the interface language changes. */
+    function labelEditButton(btn) {
+      if (!btn) return;
+      btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' + app.th('Edit@@leave read mode') + ' <kbd>Esc</kbd>';
+      btn.title = app.t('Back to editing (Esc)'); btn.setAttribute('aria-label', app.t('Back to editing'));
+      btn.setAttribute('data-tip-title', app.t('Back to editing')); btn.setAttribute('data-tip-desc', app.t('Leave Read mode and continue in the editing mode you used before.')); btn.setAttribute('data-tip-key', 'Esc');
+    }
     function onClick(e) {
       const a = e.target.closest('a[href]');
       if (a) {
@@ -81,7 +86,7 @@
         if (/^(https?:|mailto:)/i.test(href)) { app.mk?.invoke?.('open-external', href)?.catch?.(() => {}); return; }
         if (doc?.path && !/^[a-z][\w+.-]*:/i.test(href)) {
           const sep = doc.path.includes('\\') ? '\\' : '/'; const dir = doc.path.replace(/[\\/][^\\/]*$/, '');
-          app.docs.open(dir + sep + decodeURIComponent(href.split('#')[0]).replace(/\//g, sep)).catch(err => (app.ui.fail ? app.ui.fail(err, { lead: `Check that the linked file “${href}” is next to this document, or fix the link.`, hideReason: true }) : app.ui.toast(`Check that the linked file “${href}” is next to this document, or fix the link.`, { kind: 'error' })));
+          app.docs.open(dir + sep + decodeURIComponent(href.split('#')[0]).replace(/\//g, sep)).catch(err => (app.ui.fail ? app.ui.fail(err, { lead: app.t('Check that the linked file “{href}” is next to this document, or fix the link.', { href }), hideReason: true }) : app.ui.toast(app.t('Check that the linked file “{href}” is next to this document, or fix the link.', { href }), { kind: 'error' })));
         }
       }
     }
@@ -123,6 +128,7 @@
         build(); host.appendChild(root);
         offs.push(app.events.on('doc:changed', ({ doc: dd }) => { if (dd === doc) rerenderSoon(); }));
         offs.push(app.events.on('zoom:changed', applyLayout));
+        offs.push(app.events.on('i18n:changed', () => { root?.setAttribute('aria-label', app.t('Document, read mode')); labelEditButton(root?.querySelector('.mk-read-edit')); }));
         offs.push(app.events.on('layout:changed', applyLayout));
         offs.push(app.events.on('settings:changed', ({ key }) => { if (/^(fontFamily|fontSize)$/.test(key)) applyLayout(); if (key === 'mathMacros') render(); }));
         offs.push(app.events.on('theme:changed', () => { page?.querySelectorAll('pre.mermaid[data-done]').forEach(p => { p.removeAttribute('data-done'); p.textContent = p.getAttribute('data-src') || ''; }); Promise.resolve(app.decorate(page, doc)).catch(() => {}); }));

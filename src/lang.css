@@ -38,6 +38,17 @@
 /* math, code and diagrams always read left to right, also inside an Urdu sentence */
 .mk-page :is(.katex,.mk-math,code,kbd,pre,pre.mermaid,.mk-xref){direction:ltr;unicode-bidi:isolate}
 .mk-page pre{text-align:left}
+/* mixed-direction text (lang.js isolateInline / isolateRuns): a piece that reads the other way is isolated, so the words,
+   numbers and punctuation around it keep their order and a selection across it grows in reading order */
+.mk-page [data-mk-iso]{unicode-bidi:isolate}
+.mk-page [data-mk-iso="ltr"]{direction:ltr}
+.mk-page [data-mk-iso="rtl"]{direction:rtl}
+/* lines broken with Shift+Enter (<br>) each find their own direction, like paragraphs */
+.mk-page :is(p,li,h1,h2,h3,h4,h5,h6,td,th,dt,dd,figcaption)[data-mk-autodir][dir="auto"]{unicode-bidi:plaintext}
+
+/* ---------- aarab (aarab.js): the mark buttons on Home → Aarab ---------- */
+#ribbon .ib .mk-aarab-glyph,.mk-aarab-glyph{font:400 25px/1 var(--mk-font-ar),var(--font);color:var(--text);display:inline-block;transform:translateY(3px)}
+#ribbon .ib:has(.mk-aarab-glyph){min-width:26px}
 /* a direction block written as ::: {dir="rtl"} has no box of its own */
 .mk-page div[data-mk-dir]{margin:0;padding:0;border:0;background:none}
 /* Word mode shows a faint marker in the margin so people can see the paragraph direction is set */

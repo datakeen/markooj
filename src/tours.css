@@ -17,7 +17,7 @@
 @keyframes mktIn{from{opacity:0;transform:translateY(6px) scale(.985)}to{opacity:1;transform:none}}
 .mkt-card.nudge{animation:mktNudge .36s var(--ease)}
 @keyframes mktNudge{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
-.mkt-head{display:flex;align-items:center;gap:8px;margin:-2px -6px 2px 0}
+.mkt-head{display:flex;align-items:center;gap:8px;margin:-2px 0 2px;margin-inline-end:-6px}
 .mkt-count{flex:1;font-size:11px;color:var(--text-3);letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mkt-x{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--text-3);transition:background .15s,color .15s}
 .mkt-x:hover{background:var(--hover);color:var(--text)}

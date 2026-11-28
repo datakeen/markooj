@@ -1,7 +1,7 @@
 {
   "name": "markooj",
   "productName": "Markooj",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "A calm, Word-like Markdown editor and viewer for researchers.",
   "homepage": "https://datakeen.github.io/markooj/",
   "bugs": {
@@ -44,10 +44,15 @@
       "preload.js",
       "main-langpacks.js",
       "main-addins.js",
+      "main-windows.js",
+      "main-features.js",
+      "main-i18n.js",
+      "locales/**/*.json",
       "package.json",
       "src/**",
       "addons/**",
       "build/icon.png",
+      "build/features-manifest.json",
       "data/**",
       "fonts/**",
       "docs/help/**",
@@ -70,6 +75,20 @@
       "!node_modules/harper.js/dist/harper_wasm_slim_bg.wasm",
       "!node_modules/@fontsource/**",
       "!node_modules/wordnet-db/**",
+      "!node_modules/pyodide/**",
+      "!node_modules/dictionary-fa/**",
+      "!node_modules/mermaid/node_modules/**",
+      "!node_modules/{d3,d3-*,@types,es-toolkit,dayjs,@upsetjs,@iconify,cose-base,layout-base,robust-predicates,delaunator,khroma,stylis,marked,import-meta-resolve,package-manager-detector,tinyexec,@antfu,internmap,rw,hachure-fill,points-on-curve,points-on-path,path-data-parser,ts-dedent,@braintree}/**",
+      "!node_modules/pdf-lib/{dist,es,src,ts3.4}/**",
+      "!node_modules/highlight.js/{es,scss}/**",
+      "!node_modules/highlight.js/styles/base16/**",
+      "!node_modules/mathlive/{mathlive.js,mathlive.mjs,mathlive.min.js,mathlive-ssr.min.mjs}",
+      "!node_modules/pdfjs-dist/build/*.min.mjs",
+      "!node_modules/katex/src/**",
+      "!node_modules/katex/dist/katex.mjs",
+      "!node_modules/katex/dist/fonts/*.{ttf,woff}",
+      "!node_modules/**/*.{ts,mts,cts}",
+      "!node_modules/**/{README,CHANGELOG,CHANGES,HISTORY}*.md",
       "!vendor/**",
       "!vendor-src/**",
       "!private/**",
@@ -128,12 +147,6 @@
           ]
         }
       ],
-      "extraResources": [
-        {
-          "from": "vendor/win32",
-          "to": "vendor"
-        }
-      ],
       "icon": "build/icon.ico",
       "artifactName": "${productName}-${version}-win-${arch}-portable.${ext}"
     },
@@ -154,13 +167,7 @@
       "gatekeeperAssess": false,
       "darkModeSupport": true,
       "minimumSystemVersion": "12.0",
-      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
-      "extraResources": [
-        {
-          "from": "vendor/darwin-${arch}",
-          "to": "vendor"
-        }
-      ]
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
     },
     "dmg": {
       "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
@@ -194,18 +201,12 @@
       "maintainer": "Ahmed Bilal",
       "vendor": "Ahmed Bilal",
       "synopsis": "A calm, Word-like Markdown editor and viewer for researchers",
-      "description": "Markooj is a Word-like Markdown editor and viewer for researchers. It edits Markdown in Word, Inline, Simple and Read modes, with equations, citations, cross-references, diagrams, a writing assistant and exports to PDF, DOCX, ODT, HTML, EPUB, LaTeX and DjVu. Pandoc is included; install djvulibre-bin and pdf2djvu for DjVu files.",
+      "description": "Markooj is a Word-like Markdown editor and viewer for researchers. It edits Markdown in Word, Inline, Simple and Read modes, with equations, citations, cross-references, diagrams, a writing assistant and exports to PDF, DOCX, ODT, HTML, EPUB, LaTeX and DjVu. Pandoc and Python macros are optional features you can add in File > Options > Features; install djvulibre-bin and pdf2djvu for DjVu files.",
       "mimeTypes": [
         "text/markdown",
         "text/x-markdown"
       ],
-      "artifactName": "${productName}-${version}-linux-${arch}.${ext}",
-      "extraResources": [
-        {
-          "from": "vendor/linux-${arch}",
-          "to": "vendor"
-        }
-      ]
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
     },
     "appImage": {
       "artifactName": "${productName}-${version}-linux-x86_64.${ext}"
@@ -229,8 +230,33 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
+      "include": "build/installer.nsh",
+      "multiLanguageInstaller": true,
+      "installerLanguages": [
+        "en_US",
+        "zh_CN",
+        "ja_JP",
+        "ar_SA",
+        "sv_SE",
+        "es_ES",
+        "fr_FR",
+        "pt_BR"
+      ],
       "artifactName": "${productName}-${version}-win-${arch}-setup.${ext}"
     },
+    "electronLanguages": [
+      "en-US",
+      "zh-CN",
+      "ur",
+      "ar",
+      "ja",
+      "sv",
+      "es",
+      "fr",
+      "pt-BR",
+      "fa"
+    ],
+    "afterPack": "scripts/after-pack.js",
     "artifactBuildCompleted": "build/portable-zip.js"
   },
   "dependencies": {

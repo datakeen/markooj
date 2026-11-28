@@ -1,13 +1,17 @@
 # Problems and answers
 
-**Markooj asks for Pandoc or DjVuLibre.**
-These free tools come inside Markooj for Windows, and Markooj tells you when a feature you use needs one. Try these in order:
+**Markooj asks for Pandoc, the DjVu tools or Python.**
+These are optional features: Markooj installs small and downloads them only when you want them. Markooj tells you when something you use needs one. Try these in order:
 
-1. Click **Check again** in the message. A tool that was busy or blocked for a moment is often found the second time.
-2. If you installed Markooj, run the installer (`Markooj-…-setup.exe`) again. Your documents and settings stay as they are.
-3. If you use the portable zip, unzip the **whole** zip again into a new, empty folder and run `Markooj.exe` from there. The tools sit in the `resources` folder beside it, so `Markooj.exe` on its own is not enough.
-4. Some antivirus programs move `pandoc.exe` or `ddjvu.exe` into quarantine. Restore it there, or allow it.
-5. If the tool is there and Markooj still cannot use it, click **Report this** (or **Help → Report a Problem**). Open **Technical details** in the message and copy them into the report.
+1. Click **Install** in the message, or open **File → Options → Features** and click **Install** next to the feature. It downloads once (Pandoc about 40 MB, the DjVu tools about 15 MB, Python macros about 6 MB), is checked, and then works offline.
+2. No internet on this computer? On the [download page](https://github.com/datakeen/markooj/releases/tag/tools), download the feature file for your system (`markooj-feature-…zip`) on another computer, copy it over, and choose **Install from file…** in **File → Options → Features**. Or use the Windows portable zip, which includes every feature.
+3. Click **Check again** in the message. A tool that was busy or blocked for a moment is often found the second time.
+4. If you use the portable zip, unzip the **whole** zip again into a new, empty folder and run `Markooj.exe` from there. The features sit in the `resources` folder beside it, so `Markooj.exe` on its own is not enough.
+5. Some antivirus programs move `pandoc.exe` or `ddjvu.exe` into quarantine. Restore it there, or allow it.
+6. If the tool is there and Markooj still cannot use it, click **Report this** (or **Help → Report a Problem**). Open **Technical details** in the message and copy them into the report.
+
+**A feature does not download.**
+Check your internet connection and click **Try again**. If GitHub cannot be reached from your network, download the feature file yourself (step 2 above) and choose **Install from file…**. Markooj checks every download against the SHA-256 checksum it shipped with: a damaged or changed file is never installed, and nothing changes until a download passes every check. **Cancel** in the progress card stops a download and keeps nothing. To free the space again, click **Remove** next to the feature.
 
 Everything else keeps working while you sort it out: writing, saving Markdown, PDF, web pages, printing, and Word and EPUB files from the built-in writers. **Help → Check Tools** opens **Your tools are ready** or **Almost everything is ready**: each tool, what it is for, its version and where it was found, and either **Ready** or its fix. Markooj never warns about DjVu tools when it starts; it helps when you open a DjVu file or pick DjVu in Save As.
 
@@ -18,7 +22,7 @@ Click **More info**, then **Run anyway**. You only need to do this once. Windows
 Right-click Markooj in Applications and choose **Open**, then **Open** again. Or open **System Settings → Privacy & Security** and click **Open Anyway**. You only need to do this once. macOS asks because Markooj is not signed with an Apple certificate yet.
 
 **To open DjVu files on macOS or Linux, install DjVuLibre.**
-The Mac and Linux copies include Pandoc but not the DjVu tools. Install them once, then click **Check again** in the message (or start Markooj again):
+On macOS and Linux the DjVu tools come from your package manager (Pandoc and Python macros install from **File → Options → Features**). Install them once, then click **Check again** in the message (or start Markooj again):
 
 - **macOS** (with [Homebrew](https://brew.sh)): `brew install djvulibre pdf2djvu`
 - **Debian and Ubuntu:** `sudo apt install djvulibre-bin pdf2djvu`

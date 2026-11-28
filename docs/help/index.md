@@ -7,7 +7,7 @@ New here? Start with **[Getting started](getting-started.md)**. It takes about t
 ## Learn
 
 - [Getting started](getting-started.md): your first document, from a blank page to a PDF.
-- [The window](the-window.md): the ribbon, pinning it, KeyTips, document tabs, the outline, the status bar and the four editing modes.
+- [The window](the-window.md): the ribbon, pinning it, KeyTips, document tabs, the outline, the status bar, the four editing modes, Split, View Side by Side, New Window, and the ruler.
 - [Writing and formatting](writing-and-formatting.md): text, headings, lists, styles, fonts, pictures, links and page layout.
 - [Markdown for Word users](markdown-for-word-users.md): what each Word feature becomes in Markdown.
 - [Tutorials](tutorials.md): step-by-step walkthroughs of the main tasks.
@@ -19,12 +19,12 @@ New here? Start with **[Getting started](getting-started.md)**. It takes about t
 - [Figures and tables](figures-and-tables.md): pictures, captions, diagrams and the table editor.
 - [Citations and references](citations-and-references.md): BibTeX libraries, citations, the bibliography, footnotes and the table of contents.
 - [Writing Assistant](writing-assistant.md): spelling, grammar, clarity and style checks, with an explanation for each.
-- [Languages and right-to-left text](languages-and-rtl.md): English (US and UK), Urdu, Arabic, Persian, Punjabi (Shahmukhi) and language packs.
+- [Languages and right-to-left text](languages-and-rtl.md): English (US and UK), Urdu, Arabic, Persian, Punjabi (Shahmukhi), the built-in keyboards, aarab, and language packs.
 - [Comments and notes](comments-and-notes.md): comments, hidden notes and comparing with the saved version.
 
 ## Files
 
-- [Open and export](open-and-export.md): every format Markooj opens and saves.
+- [Open and export](open-and-export.md): every format Markooj opens and saves, and the optional features (Pandoc, the DjVu tools) that add more.
 - [Recover unsaved work](recover.md): getting back text you closed without saving.
 
 ## Going further

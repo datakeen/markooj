@@ -2,7 +2,7 @@
 
 Markooj uses Word's shortcuts wherever Markdown has the same thing. Rows marked **Word** work as they do in Microsoft Word. The **Command** column is the name to use with `run(...)` in a macro (see [Macros and scripting](macros-and-scripting.md)).
 
-The same list is in **File → Options → Keyboard**, where you can search by name or by key. **Ctrl+/** shows it too.
+The same list is in **File → Options → Keyboard shortcuts**, where you can search by name or by key. **Ctrl+/** shows it too.
 
 ## File
 
@@ -27,6 +27,7 @@ The same list is in **File → Options → Keyboard**, where you can search by n
 | `Ctrl+G` | Go To | Word | `edit.goTo` |
 | `Ctrl+Shift+V` or `Ctrl+Alt+V` | Paste as plain text | Word | `edit.pastePlain` |
 | `Ctrl+Y` or `Ctrl+Shift+Z` | Redo | Word | `edit.redo` |
+| `Ctrl+A` | Select all (the document only) | Word | `edit.selectAll` |
 | `F4` | Repeat | Word | `edit.repeat` |
 | `Ctrl+H` | Replace | Word | `edit.replace` |
 | `Ctrl+Z` | Undo | Word | `edit.undo` |
@@ -83,7 +84,10 @@ The same list is in **File → Options → Keyboard**, where you can search by n
 | Keys | Does | Word | Command |
 | --- | --- | --- | --- |
 | `Ctrl+Alt+C` | Code block |  | `insert.codeBlock` |
-| `Alt+Shift+D` | Date and time | Word | `insert.dateTime` |
+| `Alt+Shift+D` | Insert date (in the last format) | Word | `insert.date` |
+| `Alt+Shift+T` | Insert time | Word | `insert.time` |
+|  | Date and time dialog |  | `insert.dateTime` |
+|  | Insert Hijri date |  | `insert.hijriDate` |
 | `Alt+=` | Equation | Word | `insert.equation` |
 | `Ctrl+Alt+F` or `Ctrl+Alt+D` | Insert footnote | Word | `ref.footnote` |
 |  | Link |  | `insert.link` |
@@ -129,12 +133,39 @@ The same list is in **File → Options → Keyboard**, where you can search by n
 | `Ctrl+Alt+=` | Zoom in | Word | `view.zoomIn` |
 | `Ctrl+-` or `Ctrl+Alt+-` | Zoom out | Word | `view.zoomOut` |
 
+## Keyboards and aarab
+
+Type Urdu, Arabic, Persian and Punjabi (Shahmukhi) without installing a keyboard. See [Languages and right-to-left text](languages-and-rtl.md).
+
+| Keys | Does | Word | Command |
+| --- | --- | --- | --- |
+| `Ctrl+Shift+K` | Switch the keyboard between English and the last right-to-left keyboard |  | `keyboard.toggle` |
+| `Ctrl+Alt+Shift+A` | Zabar ◌َ on the letter before the cursor |  | `aarab.zabar` |
+| `Ctrl+Alt+Shift+I` | Zer ◌ِ |  | `aarab.zer` |
+| `Ctrl+Alt+Shift+U` | Pesh ◌ُ |  | `aarab.pesh` |
+| `Ctrl+Alt+Shift+S` | Shadd ◌ّ |  | `aarab.shadd` |
+| `Ctrl+Alt+Shift+J` | Jazm ◌ْ |  | `aarab.jazm` |
+| `Ctrl+Alt+Shift+N` | Tanween zabar ◌ً |  | `aarab.tanweenZabar` |
+| `Ctrl+Alt+Shift+K` | Khari zabar ◌ٰ |  | `aarab.khariZabar` |
+| `Ctrl+Alt+Shift+R` | Remove aarab (selection, or the whole document) |  | `aarab.remove` |
+| `Ctrl+Alt+Shift+H` | Hide or show aarab (Read mode) |  | `aarab.toggleView` |
+| `Ctrl+Alt+Shift+W` | Add aarab from the word list |  | `aarab.fromWordList` |
+
+Tanween zer and tanween pesh have no shortcut: use **Home → Aarab**, the KeyTips (`Alt`, `H`, `D`, then `E` or `P`), or the on-screen keyboard. With the Urdu Phonetic keyboard on, the marks are on Shift: `Shift+Y` zabar, `Shift+I` zer, `Shift+P` pesh, `Shift+W` shadd, `Shift+Q` jazm, `Shift+E` khari zabar, `` Shift+` `` tanween zabar, `` ` `` tanween zer, `Shift+,` tanween pesh.
+
 ## Window
 
 | Keys | Does | Word | Command |
 | --- | --- | --- | --- |
 | `Ctrl+Tab` or `Ctrl+PageDown` | Next document |  | `tab.next` |
 | `Ctrl+Shift+Tab` or `Ctrl+PageUp` | Previous document |  | `tab.prev` |
+| `Ctrl+Alt+S` | Split (again: back to one pane) | Word | `view.split` |
+| `Ctrl+F6` | Next window | Word | `view.nextWindow` |
+| `Ctrl+Shift+F6` | Previous window | Word | `view.prevWindow` |
+| `Ctrl+1` to `Ctrl+4`, `Ctrl+Shift+M` (in the second pane) | Editing mode of that pane only |  | `view.splitPaneMode` |
+| `Ctrl+S` (in the right pane of View Side by Side) | Save the document in that pane |  |  |
+| Arrow keys, `Enter`, `Esc` (on the split divider) | Move it, make the panes equal, close the split |  |  |
+| Arrow keys, `Shift`+arrows, `Delete`, `Enter` (on a guide) | Nudge it a small or a whole step, remove it, type a position |  |  |
 
 ## Developer
 
@@ -167,7 +198,16 @@ The same list is in **File → Options → Keyboard**, where you can search by n
 | `Tab` / `Shift+Tab` in a list | Move the list item in or out one level. |
 | `Tab` / `Shift+Tab` in a table | Move to the next or previous cell. Tab in the last cell adds a row. |
 | `Enter` or `Shift+Enter` in a table cell | A new line inside the cell, as in Word. Down in the last row leaves the table. |
+| `Ctrl+V` with a table from Word, Excel or Google Sheets | Paste it as a Markdown table. In a table cell, the copied cells fill the table from that cell on. |
+| `Ctrl+C` on selected table cells | Copy them so Word and Excel paste a real table (Table Design → Copy for Word/Excel copies the whole table). |
 | `Ctrl+K` | Insert or edit a link (while typing in the page). |
+| `(` `[` `{` `"` `'` | Add the closing bracket or quote; type it again to step over it. Backspace removes an empty pair. |
+| `/today`, `/time`, `/hijri` + `Space` or `Enter` | Insert the date, the time or the Hijri date. `/date` opens the Date and time dialog. |
+| `Ctrl+D` (Simple mode) | Select the word, then each next match with one more cursor. |
+| `Alt+F3` (Simple mode) | A cursor on every match. `Ctrl+Shift+L` does the same while several cursors are on. |
+| `Ctrl+Alt+Up` / `Ctrl+Alt+Down` (Simple mode) | Add a cursor on the line above or below. |
+| `Alt` + click (Simple mode) | Add a cursor where you click. `Esc` goes back to one cursor. |
+| `Ctrl+Shift+D` (Simple mode) | Duplicate the line. |
 | `Tab` or `Right arrow` | Accept a word suggestion (when Suggest words as I type is on). |
 | `Esc` | Hide a word suggestion, close a card or menu, leave Read mode or Focus. |
 | `Ctrl` + click on a cross-reference | Jump to the figure, table, equation or heading it points to. |
@@ -214,7 +254,7 @@ Press `Alt` on its own, or `F10`, to show a letter on every ribbon tab: **F** Fi
 | `Ctrl+1` | Single line spacing | In Markooj Ctrl+1 to Ctrl+4 switch the editing mode (Word, Inline, Simple, Read). Use Layout → Line spacing. |
 | `Ctrl+2` | Double line spacing | Ctrl+2 is Inline mode in Markooj. Use Layout → Line spacing. |
 | `Ctrl+Shift+M` | Decrease indent | Ctrl+Shift+M switches the editing mode in Markooj. Use Alt+Shift+Left, or Shift+Tab in a list. |
-| `Ctrl+D` | Font dialog | Markdown has one font per document: use Home → Font. |
+| `Ctrl+D` | Font dialog | Markdown has one font per document: use Home → Font. In Simple mode Ctrl+D selects the next match for multiple cursors. |
 | `Ctrl+Shift+A` | All caps | Use Change Case (Shift+F3) to make the text UPPERCASE. |
 | `Ctrl+Shift+C` | Copy formatting | Ctrl+Shift+C inserts a citation in Markooj. To copy formatting, use Home → Format Painter. |
 | `Ctrl+Shift+E` | Track changes | Ctrl+Shift+E opens Export in Markooj. Markdown has no tracked changes; use comments (Ctrl+Alt+M). |
@@ -222,6 +262,7 @@ Press `Alt` on its own, or `F10`, to show a letter on every ribbon tab: **F** Fi
 | `Ctrl+Alt+R` | Registered sign ® | Ctrl+Alt+R inserts a cross-reference in Markooj. Use Insert → Symbol for ®. |
 | `Ctrl+Alt+P` | Print Layout view | Ctrl+Alt+P opens the Python console in Markooj. Word mode always shows the page. |
 | `Ctrl+Shift+P` | Font size box | Ctrl+Shift+P opens the command search in Markooj (like Alt+Q). Use the size box on Home → Font. |
+| `Ctrl+Shift+K` | Small caps | Ctrl+Shift+K switches the keyboard between English and Urdu, Arabic, Persian or Punjabi in Markooj. Markdown has no small caps. |
 
 Other editors use some of these keys for other things. Markooj follows Word:
 

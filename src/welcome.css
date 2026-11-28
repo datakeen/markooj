@@ -15,12 +15,12 @@
 .mkwel-head > div{flex:1;min-width:0}
 .mkwel-head h2{margin:2px 0 4px;font:650 22px/1.2 var(--font);letter-spacing:-.02em}
 .mkwel-sub{margin:0;color:var(--text-2);font-size:13.5px;line-height:1.5;max-width:56ch}
-.mkwel-x{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--text-3);flex:none;margin:-4px -6px 0 0;transition:background .15s,color .15s}
+.mkwel-x{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--text-3);flex:none;margin:-4px 0 0;margin-inline-end:-6px;transition:background .15s,color .15s}
 .mkwel-x:hover{background:var(--hover);color:var(--text)}
 
 .mkwel-body{padding:14px 24px 6px;overflow:auto;min-height:0}
 .mkwel-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:10px}
-.mkwel-card{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;border-radius:12px;background:var(--surface);
+.mkwel-card{display:flex;align-items:center;gap:12px;padding:12px;padding-inline-start:14px;border-radius:12px;background:var(--surface);
   border:.5px solid var(--line);transition:border-color .15s,box-shadow .15s}
 .mkwel-card:hover,.mkwel-card:focus-within{border-color:var(--accent-ring);box-shadow:0 2px 10px rgba(0,0,0,.05)}
 .mkwel-ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;color:var(--accent);background:var(--accent-soft)}
@@ -58,5 +58,5 @@
 
 /* the manual's "Open the Welcome screen" button (src/help.js decorate) */
 .mkh-doc .mkh-welcome-btn{display:inline-flex;align-items:center;gap:6px;margin:-2px 0 10px;vertical-align:middle}
-.mkh-doc li .mkh-welcome-btn{margin:0 0 0 4px}
+.mkh-doc li .mkh-welcome-btn{margin:0;margin-inline-start:4px}
 .mkh-doc .mkh-welcome-btn .i,.mkh-doc .mkh-welcome-btn svg{width:14px;height:14px}

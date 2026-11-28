@@ -288,7 +288,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     };
   }
   const fmtNum = n => Number(n || 0).toLocaleString('en-US');
-  function fmtMin(m) { if (!m) return '0 min'; if (m < 1) return '< 1 min'; const r = Math.round(m); return r >= 60 ? `${Math.floor(r / 60)} h ${r % 60} min` : `${r} min`; }
+  function fmtMin(m) { if (!m) return app.t('{minutes} min', { minutes: 0 }); if (m < 1) return app.t('< 1 min'); const r = Math.round(m); return r >= 60 ? app.t('{hours} h {minutes} min', { hours: Math.floor(r / 60), minutes: r % 60 }) : app.t('{minutes} min', { minutes: r }); }
 
   // ---- table of contents
   const TOC_OPEN = /<!--\s*toc\s*-->/i, TOC_CLOSE = /<!--\s*\/toc\s*-->/i;
@@ -337,7 +337,7 @@ html.mkr-hide-comments .mk-comment{display:none}
 
   // =================================================================== document + editor helpers
   const activeDoc = () => { const d = app.docs.active(); return d && d.kind === 'markdown' ? d : null; };
-  function needDoc() { const d = activeDoc(); if (!d) app.ui.toast('Open or create a Markdown document first.', { kind: 'warn', actions: [{ label: 'New document', run: () => app.commands.run('file.new') }] }); return d; }
+  function needDoc() { const d = activeDoc(); if (!d) app.ui.toast(app.t('Open or create a Markdown document first.'), { kind: 'warn', actions: [{ label: app.t('New document'), run: () => app.commands.run('file.new') }] }); return d; }
   const editor = () => app.editors.active();
   const isActive = doc => app.docs.active() === doc;
   function caret(doc) {
@@ -539,7 +539,7 @@ html.mkr-hide-comments .mk-comment{display:none}
       const loc = c.getAttribute('data-locator') || '';
       const missing = keys.filter(k => !bib[k]);
       c.classList.toggle('mkr-missing', missing.length > 0);
-      c.title = missing.length ? `Add ${missing.map(k => '@' + k).join(', ')} to your bibliography, or double-click to pick a key from the list. (Not in your library yet.)` : keys.map(k => noDot(bib[k].title)).join(' · ');
+      c.title = missing.length ? app.t('Add {keys} to your bibliography, or double-click to pick a key from the list. (Not in your library yet.)', { keys: missing.map(k => '@' + k).join(', ') }) : keys.map(k => noDot(bib[k].title)).join(' · ');
       let txt;
       if (style === 'ieee') {
         const ns = keys.map(k => (bib[k] ? num(k) : null));
@@ -603,7 +603,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     const tw = document.createTreeWalker(el, NodeFilter.SHOW_COMMENT);
     const found = []; while (tw.nextNode()) if (/^\s*comment:/i.test(tw.currentNode.data)) found.push(tw.currentNode);
     for (const c of found) { const s = document.createElement('span'); s.className = 'mk-comment'; s.setAttribute('data-text', c.data.replace(/^\s*comment:\s*/i, '').trim()); c.replaceWith(s); }
-    el.querySelectorAll('.mk-comment').forEach(c => { c.setAttribute('contenteditable', 'false'); c.setAttribute('role', 'note'); c.setAttribute('aria-label', 'Comment: ' + (c.getAttribute('data-text') || '')); c.title = c.getAttribute('data-text') || ''; });
+    el.querySelectorAll('.mk-comment').forEach(c => { c.setAttribute('contenteditable', 'false'); c.setAttribute('role', 'note'); c.setAttribute('aria-label', app.t('Comment: {text}', { text: c.getAttribute('data-text') || '' })); c.title = c.getAttribute('data-text') || ''; });
     // equation / figure / table numbers and their anchors: src/xref.js (app.xref) — one numbering system
     styleCitations(el, doc);
     applySpell();
@@ -646,42 +646,42 @@ html.mkr-hide-comments .mk-comment{display:none}
   const mdOnly = () => !!activeDoc();
 
   cmd('ref.toc', {
-    label: 'Table of contents', icon: 'toc', isEnabled: mdOnly,
+    label: app.tm('Table of contents'), icon: 'toc', isEnabled: mdOnly,
     async run() {
       const doc = needDoc(); if (!doc) return;
       syncFromEditor(doc);
       if (findTocRegion(doc.text)) return app.commands.run('ref.tocUpdate');
       const block = tocBlock(doc.text);
-      if (!block) { app.ui.toast('Add some headings first (Home → Styles → Heading 1). The table lists them.', { kind: 'warn' }); return; }
+      if (!block) { app.ui.toast(app.t('Add some headings first (Home → Styles → Heading 1). The table lists them.'), { kind: 'warn' }); return; }
       insertMd(doc, `\n\n${block}\n\n`);
-      app.ui.toast('Table of contents added. Use Update table after you change headings.');
+      app.ui.toast(app.t('Table of contents added. Use Update table after you change headings.'));
     },
   });
   cmd('ref.tocUpdate', {
-    label: 'Update table of contents', icon: 'toc', isEnabled: mdOnly,
+    label: app.tm('Update table of contents'), icon: 'toc', isEnabled: mdOnly,
     run() {
       const doc = needDoc(); if (!doc) return;
       const text = syncFromEditor(doc);
       const next = updateTocText(text);
-      if (next == null) { app.ui.toast('Click Contents to add a table of contents first.', { kind: 'warn', actions: [{ label: 'Add contents', run: () => app.commands.run('ref.toc') }] }); return; }
+      if (next == null) { app.ui.toast(app.t('Click Contents to add a table of contents first.'), { kind: 'warn', actions: [{ label: app.t('Add contents'), run: () => app.commands.run('ref.toc') }] }); return; }
       if (next !== text) doc.setText(next, 'research');
-      app.ui.toast('Table of contents updated');
+      app.ui.toast(app.t('Table of contents updated'));
     },
   });
 
   cmd('ref.footnote', {
-    label: 'Insert footnote', icon: 'foot', shortcut: 'Ctrl+Alt+F', isEnabled: mdOnly,
+    label: app.tm('Insert footnote'), icon: 'foot', shortcut: 'Ctrl+Alt+F', isEnabled: mdOnly,
     async run() {
       const doc = needDoc(); if (!doc) return;
       const n = nextFootnoteNumber(syncFromEditor(doc));
       if (app.mode === 'word') {
-        const note = await app.ui.prompt('Footnote ' + n, 'Footnote text', '');
+        const note = await app.ui.prompt(app.t('Footnote {number}', { number: n }), app.t('Footnote text'), '');
         if (note == null) return;
         insertMd(doc, `[^${n}]`);
         await sleep(30);
         const t = syncFromEditor(doc);
         doc.setText(appendFootnote(t.includes(`[^${n}]`) ? t : t.replace(/\s*$/, '') + `[^${n}]`, n, note.trim() || 'Note.'), 'research');
-        app.ui.toast(`Footnote ${n} added`);
+        app.ui.toast(app.t('Footnote {number} added', { number: n }));
         return;
       }
       insertMd(doc, `[^${n}]`);
@@ -707,7 +707,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     const surf = app.mode === 'word' ? surface() : null;
     if (surf) {
       const list = [...surf.querySelectorAll(kind === 'fn' ? 'sup.footnote-ref, .footnote-ref' : '.mk-comment')];
-      if (!list.length) return app.ui.toast(kind === 'fn' ? 'Add a footnote with References → Footnote. This document has none yet.' : 'Add a comment with Review → New Comment. This document has none yet.', { kind: 'info' });
+      if (!list.length) return app.ui.toast(kind === 'fn' ? app.t('Add a footnote with References → Footnote. This document has none yet.') : app.t('Add a comment with Review → New Comment. This document has none yet.'), { kind: 'info' });
       const s = getSelection(); const here = s && s.rangeCount && surf.contains(s.anchorNode) ? s.getRangeAt(0) : null;
       const cmp = el => { try { return here ? here.comparePoint(el, 0) : (dir > 0 ? 1 : -1); } catch { return 0; } };
       const target = (dir > 0 ? list.find(el => cmp(el) === 1) : [...list].reverse().find(el => cmp(el) === -1)) || list[dir > 0 ? 0 : list.length - 1];
@@ -719,7 +719,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     }
     const text = doc.text, A = analyze(text);
     const spots = kind === 'fn' ? A.fnRefs : A.comments.filter(c => /^<!--\s*comment:/i.test(c[2]));
-    if (!spots.length) return app.ui.toast(kind === 'fn' ? 'Add a footnote with References → Footnote. This document has none yet.' : 'Add a comment with Review → New Comment. This document has none yet.', { kind: 'info' });
+    if (!spots.length) return app.ui.toast(kind === 'fn' ? app.t('Add a footnote with References → Footnote. This document has none yet.') : app.t('Add a comment with Review → New Comment. This document has none yet.'), { kind: 'info' });
     const c = caret(doc);
     let k = dir > 0 ? spots.findIndex(x => x[0] >= (c ? c.end : 0)) : spots.map(x => x[1] <= (c ? c.start : text.length)).lastIndexOf(true);
     if (k < 0) k = dir > 0 ? 0 : spots.length - 1;
@@ -727,8 +727,8 @@ html.mkr-hide-comments .mk-comment{display:none}
     selectSource(doc, a, b);
     try { editor()?.scrollToLine?.(lineOf(text, a)); } catch {}
   }
-  cmd('ref.nextFootnote', { label: 'Next footnote', icon: 'foot', isEnabled: mdOnly, run: () => navigate('fn', 1) });
-  cmd('ref.prevFootnote', { label: 'Previous footnote', icon: 'foot', isEnabled: mdOnly, run: () => navigate('fn', -1) });
+  cmd('ref.nextFootnote', { label: app.tm('Next footnote'), icon: 'foot', isEnabled: mdOnly, run: () => navigate('fn', 1) });
+  cmd('ref.prevFootnote', { label: app.tm('Previous footnote'), icon: 'foot', isEnabled: mdOnly, run: () => navigate('fn', -1) });
 
   // ---- citations dialog
   async function citeDialog(preset = {}) {
@@ -739,21 +739,21 @@ html.mkr-hide-comments .mk-comment{display:none}
     const picked = [...(preset.keys || [])]; let act = 0, shown = [];
     const body = document.createElement('div'); body.className = 'mkr-dlg';
     body.innerHTML = `
-      <label class="mkr-field">${icon('search')}<input class="q" placeholder="Search by author, year, title or key" spellcheck="false" aria-label="Search references"></label>
+      <label class="mkr-field">${icon('search')}<input class="q" placeholder="${app.th('Search by author, year, title or key')}" spellcheck="false" aria-label="${app.th('Search references')}"></label>
       <div class="mkr-list" role="listbox" aria-multiselectable="true" tabindex="-1"></div>
-      <div class="mkr-foot"><label>Page or section <input class="loc" placeholder="e.g. 4 or ch. 2"></label><span class="grow"></span><span class="pv"></span></div>
-      <div class="mkr-note">${st.files.length ? `Library: ${esc(st.files.map(baseName).join(', '))} · ${fmtNum(all.length)} references` : 'Click Library to link a .bib file; no library is linked to this document yet.'} Click to pick several; they are cited together.</div>`;
+      <div class="mkr-foot"><label>${app.th('Page or section')} <input class="loc" placeholder="${app.th('e.g. 4 or ch. 2')}"></label><span class="grow"></span><span class="pv"></span></div>
+      <div class="mkr-note">${st.files.length ? app.th('Library: {files} · {references}', { files: st.files.map(baseName).join(', '), references: app.tn('{count} references', all.length) }) : app.th('Click Library to link a .bib file; no library is linked to this document yet.')} ${app.th('Click to pick several; they are cited together.')}</div>`;
     const q = body.querySelector('.q'), listEl = body.querySelector('.mkr-list'), loc = body.querySelector('.loc'), pv = body.querySelector('.pv');
     const keysNow = () => (picked.length ? picked : (shown[act] ? [shown[act].key] : (/^[\w:.#$%&\-+?<>~/]+$/.test(q.value.trim()) && q.value.trim() && !all.length ? [q.value.trim()] : [])));
-    const preview = () => { const k = keysNow(); pv.innerHTML = k.length ? `Inserts <code>${esc(citeMarkdown(k, loc.value))}</code>` : ''; };
+    const preview = () => { const k = keysNow(); pv.innerHTML = k.length ? `${app.th('Inserts')} <code>${esc(citeMarkdown(k, loc.value))}</code>` : ''; };
     function draw() {
       const words = q.value.toLowerCase().split(/\s+/).filter(Boolean);
       shown = all.filter(e => { const hay = `${e.key} ${e.author} ${e.year} ${e.title} ${e.journal || ''} ${e.booktitle || ''}`.toLowerCase(); return words.every(w => hay.includes(w)); }).slice(0, 300);
       act = Math.min(act, Math.max(0, shown.length - 1));
       if (!all.length) {
-        listEl.innerHTML = `<div class="mkr-empty"><b>No references yet</b>Link a BibTeX (.bib) file from Zotero, Mendeley, JabRef or EndNote, and its references show up here. You can also type a citation key above.<br><button class="mkr-btn primary" data-a="lib">Choose a .bib file…</button></div>`;
+        listEl.innerHTML = `<div class="mkr-empty"><b>${app.th('No references yet')}</b>${app.th('Link a BibTeX (.bib) file from Zotero, Mendeley, JabRef or EndNote, and its references show up here. You can also type a citation key above.')}<br><button class="mkr-btn primary" data-a="lib">${app.th('Choose a .bib file…')}</button></div>`;
         listEl.querySelector('[data-a="lib"]').onclick = async () => { if (await pickLibrary(doc)) { submitDialog(body); setTimeout(() => app.commands.run('ref.cite'), 80); } };
-      } else if (!shown.length) listEl.innerHTML = `<div class="mkr-empty"><b>No matches</b>Try fewer words, or search by year.</div>`;
+      } else if (!shown.length) listEl.innerHTML = `<div class="mkr-empty"><b>${app.th('No matches')}</b>${app.th('Try fewer words, or search by year.')}</div>`;
       else listEl.innerHTML = shown.map((e, i) => {
         const sel = picked.includes(e.key);
         return `<div class="mkr-row${sel ? ' sel' : ''}${i === act ? ' act' : ''}" role="option" aria-selected="${sel}" data-k="${esc(e.key)}" data-i="${i}">
@@ -776,7 +776,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     draw();
     setTimeout(() => q.focus(), 60);
     const editing = typeof preset.onDone === 'function';
-    const v = await app.ui.dialog({ title: editing ? 'Edit citation' : 'Insert citation', body, buttons: [{ label: 'Cancel', value: 'cancel' }, { label: editing ? 'Update' : 'Insert', value: 'ok', primary: true }] });
+    const v = await app.ui.dialog({ title: editing ? app.t('Edit citation') : app.t('Insert citation'), body, buttons: [{ label: app.t('Cancel'), value: 'cancel' }, { label: editing ? app.t('Update') : app.t('Insert@@verb'), value: 'ok', primary: true }] });
     if (v !== 'ok' && v !== true) return;
     const k = keysNow();
     if (editing) return preset.onDone(k, loc.value);
@@ -791,9 +791,9 @@ html.mkr-hide-comments .mk-comment{display:none}
     insertMd(doc, md, opts);
     return md;
   }
-  cmd('ref.cite', { label: 'Insert citation', icon: 'cite', shortcut: 'Ctrl+Shift+C', isEnabled: mdOnly, run: args => citeDialog(args || {}) });
+  cmd('ref.cite', { label: app.tm('Insert citation'), icon: 'cite', shortcut: 'Ctrl+Shift+C', isEnabled: mdOnly, run: args => citeDialog(args || {}) });
   // Word mode double-click on a citation: same dialog with the keys already picked; Update replaces the citation in place
-  cmd('ref.editCitation', { label: 'Edit citation', icon: 'cite', palette: false, isEnabled: mdOnly, run: async (args = {}) => {
+  cmd('ref.editCitation', { label: app.tm('Edit citation'), icon: 'cite', palette: false, isEnabled: mdOnly, run: async (args = {}) => {
     const el = args.element; if (!el || !el.isConnected) return citeDialog({});
     const keys = (el.getAttribute('data-keys') || '').split(/[;,]\s*/).map(k => k.replace(/^@/, '').trim()).filter(Boolean);
     return citeDialog({ keys, locator: el.getAttribute('data-locator') || '', onDone: async (k, locator) => {
@@ -806,14 +806,14 @@ html.mkr-hide-comments .mk-comment{display:none}
 
   async function pickLibrary(doc) {
     let file = null;
-    try { file = await mk.invoke('pick-file', [{ name: 'BibTeX library', extensions: ['bib', 'bibtex'] }, { name: 'All files', extensions: ['*'] }]); }
-    catch (e) { app.ui.fail(e, { lead: 'Try Library again, or type the file name after bibliography: in the front matter.', hideReason: true, retry: () => pickLibrary(doc) }); return false; }
+    try { file = await mk.invoke('pick-file', [{ name: app.t('BibTeX library'), extensions: ['bib', 'bibtex'] }, { name: app.t('All files'), extensions: ['*'] }]); }
+    catch (e) { app.ui.fail(e, { lead: app.t('Try Library again, or type the file name after bibliography: in the front matter.'), hideReason: true, retry: () => pickLibrary(doc) }); return false; }
     if (!file) return false;
     let count = 0;
     try { const src = await mk.invoke('read-text', file); count = Object.keys(mk.parseBib ? mk.parseBib(String(src)) : {}).length; }
-    catch (e) { app.ui.fail(e, { lead: `Choose another .bib file. Markooj can’t read ${baseName(file)}.`, actions: [{ label: 'Choose another file', run: () => pickLibrary(doc) }], still: 'Your citations stay as they are.' }); return false; }
+    catch (e) { app.ui.fail(e, { lead: app.t('Choose another .bib file. Markooj can’t read {file}.', { file: baseName(file) }), actions: [{ label: app.t('Choose another file'), run: () => pickLibrary(doc) }], still: app.t('Your citations stay as they are.') }); return false; }
     if (!count) {
-      const go = await app.ui.dialog({ title: 'Choose a BibTeX file', body: `<p>Choose a .bib file with entries such as @article{…}. ${app.esc(baseName(file))} has no references Markooj can read.</p>`, buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Link anyway', value: 'link' }, { label: 'Choose another…', value: 'again', primary: true }], cancelValue: 'cancel' });
+      const go = await app.ui.dialog({ title: app.t('Choose a BibTeX file'), body: `<p>${app.th('Choose a .bib file with entries such as @article{…}. {file} has no references Markooj can read.', { file: baseName(file) })}</p>`, buttons: [{ label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Link anyway'), value: 'link' }, { label: app.t('Choose another…'), value: 'again', primary: true }], cancelValue: 'cancel' });
       if (go === 'again') return pickLibrary(doc);
       if (go !== 'link') return false;
     }
@@ -822,17 +822,17 @@ html.mkr-hide-comments .mk-comment{display:none}
     const text = syncFromEditor(doc);
     doc.setText(setFrontKey(text, 'bibliography', value), 'research');
     await loadBib(doc, true);
-    app.ui.toast(`Library linked: ${baseName(file)} · ${fmtNum(count)} reference${count === 1 ? '' : 's'}`);
+    app.ui.toast(app.t('Library linked: {file} · {references}', { file: baseName(file), references: app.tn('{count} references', count) }));
     return true;
   }
-  cmd('ref.library', { label: 'Choose citation library (.bib)', icon: 'bib', isEnabled: mdOnly, run: () => { const d = needDoc(); return d && pickLibrary(d); } });
-  cmd('ref.reloadLibrary', { label: 'Reload citation library', icon: 'bib', isEnabled: mdOnly, async run() { const d = needDoc(); if (!d) return; const st = await loadBib(d, true); st && st.files.length ? app.ui.toast(`Reloaded ${fmtNum(Object.keys(st.entries).length)} references`) : app.ui.toast('Click Library to link a .bib file first.', { kind: 'info', actions: [{ label: 'Choose library', run: () => app.commands.run('ref.library') }] }); } });
+  cmd('ref.library', { label: app.tm('Choose citation library (.bib)'), icon: 'bib', isEnabled: mdOnly, run: () => { const d = needDoc(); return d && pickLibrary(d); } });
+  cmd('ref.reloadLibrary', { label: app.tm('Reload citation library'), icon: 'bib', isEnabled: mdOnly, async run() { const d = needDoc(); if (!d) return; const st = await loadBib(d, true); st && st.files.length ? app.ui.toast(app.tn('Reloaded {count} references', Object.keys(st.entries).length)) : app.ui.toast(app.t('Click Library to link a .bib file first.'), { kind: 'info', actions: [{ label: app.t('Choose library'), run: () => app.commands.run('ref.library') }] }); } });
   cmd('ref.style', {
-    label: 'Citation style', icon: 'cite', isEnabled: mdOnly,
+    label: app.tm('Citation style'), icon: 'cite', isEnabled: mdOnly,
     async run(args) {
       let v = typeof args === 'string' ? args : args && (args.value || args.style);
       if (!v) {
-        v = await app.ui.dialog({ title: 'Citation style', body: 'How citations and the reference list look. Your Markdown keeps the same [@key] citations either way.', buttons: [{ label: 'Cancel', value: null }, ...STYLES.map(s => ({ label: s.label, value: s.value, primary: s.value === citeStyle() }))] });
+        v = await app.ui.dialog({ title: app.t('Citation style'), body: app.t('How citations and the reference list look. Your Markdown keeps the same [@key] citations either way.'), buttons: [{ label: app.t('Cancel'), value: null }, ...STYLES.map(s => ({ label: s.label, value: s.value, primary: s.value === citeStyle() }))] });
         if (!v || v === 'cancel' || v === true) return;
       }
       v = String(v).toLowerCase();
@@ -841,17 +841,17 @@ html.mkr-hide-comments .mk-comment{display:none}
       const d = activeDoc();
       if (d && (d.meta?.['citation-style'] || frontMeta(d.text)['citation-style'])) d.setText(setFrontKey(d.text, 'citation-style', v), 'research');
       refreshEditor();
-      app.ui.toast(`Citation style: ${STYLES.find(s => s.value === v).label}`);
+      app.ui.toast(app.t('Citation style: {style}', { style: STYLES.find(s => s.value === v).label }));
     },
   });
   cmd('ref.bibliography', {
-    label: 'Insert bibliography', icon: 'ol', isEnabled: mdOnly,
+    label: app.tm('Insert bibliography'), icon: 'ol', isEnabled: mdOnly,
     run() {
       const doc = needDoc(); if (!doc) return;
       const has = outline(doc.text).some(h => /^(references|bibliography|works cited|literature( cited)?)$/i.test(h.text.trim()));
-      if (has) { app.ui.toast('This document already has a References heading. The list appears under it.'); return; }
+      if (has) { app.ui.toast(app.t('This document already has a References heading. The list appears under it.')); return; }
       insertMd(doc, '\n\n## References\n\n');
-      app.ui.toast(Object.keys(entriesFor(doc)).length ? 'References heading added. Every cited source is listed under it.' : 'References heading added. Link a .bib library to fill it.');
+      app.ui.toast(Object.keys(entriesFor(doc)).length ? app.t('References heading added. Every cited source is listed under it.') : app.t('References heading added. Link a .bib library to fill it.'));
     },
   });
 
@@ -862,29 +862,29 @@ html.mkr-hide-comments .mk-comment{display:none}
   }
   function legacyTargets(text) {
     const A = analyze(text), out = [];
-    for (const h of outline(text)) out.push({ kind: 'Heading', label: h.text, md: `[${h.text.replace(/([[\]])/g, '\\$1')}](#${h.slug})`, sub: 'Level ' + h.level });
+    for (const h of outline(text)) out.push({ kind: app.t('Heading'), label: h.text, md: `[${h.text.replace(/([[\]])/g, '\\$1')}](#${h.slug})`, sub: app.t('Level {level}', { level: h.level }) });
     let n = 0;
     for (const d of A.displayMath) {
       if (/\\(tag|notag|nonumber)\b/.test(d[2]) || d[3]) continue; n++;
-      out.push({ kind: 'Equation', label: `Equation (${n})`, md: `[Equation (${n})](#eq-${n})`, sub: d[2].replace(/\s+/g, ' ').trim().slice(0, 90) });
+      out.push({ kind: app.t('Equation'), label: app.t('Equation ({number})', { number: n }), md: `[Equation (${n})](#eq-${n})`, sub: d[2].replace(/\s+/g, ' ').trim().slice(0, 90) });
     }
     let f = 0;
-    for (const [a, b] of A.images) { const s = text.slice(a, b); const alt = (/!\[([^\]]*)\]/.exec(s) || /alt="([^"]*)"/i.exec(s) || [])[1] || ''; f++; out.push({ kind: 'Figure', label: `Figure ${f}`, md: `[Figure ${f}](#fig-${f})`, sub: alt || s.slice(0, 80) }); }
+    for (const [a, b] of A.images) { const s = text.slice(a, b); const alt = (/!\[([^\]]*)\]/.exec(s) || /alt="([^"]*)"/i.exec(s) || [])[1] || ''; f++; out.push({ kind: app.t('Figure'), label: app.t('Figure {number}', { number: f }), md: `[Figure ${f}](#fig-${f})`, sub: alt || s.slice(0, 80) }); }
     const lines = A.masked.split('\n'); let tb = 0;
     for (let i = 0; i + 1 < lines.length; i++) {
       if (/\|/.test(lines[i]) && /^ {0,3}\|?[ \t]*:?-{2,}:?[ \t]*(\|[ \t]*:?-{2,}:?[ \t]*)*\|?[ \t]*$/.test(lines[i + 1]) && lines[i + 1].includes('-')) {
         tb++;
         let j = i + 2; while (j < lines.length && lines[j].includes('|')) j++;
         const cap = [lines[j] || '', lines[j + 1] || '', lines[i - 1] || '', lines[i - 2] || ''].map(s => s.trim()).find(s => /^(table|:\s)/i.test(s)) || lines[i].replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
-        out.push({ kind: 'Table', label: `Table ${tb}`, md: `[Table ${tb}](#tbl-${tb})`, sub: cap.replace(/^:\s*/, '').slice(0, 90) });
+        out.push({ kind: app.t('Table'), label: app.t('Table {number}', { number: tb }), md: `[Table ${tb}](#tbl-${tb})`, sub: cap.replace(/^:\s*/, '').slice(0, 90) });
         i = j;
       }
     }
     return out;
   }
   // the old dialog lived here; the Word-like Cross-reference dialog is xref.crossref
-  cmd('ref.crossref', { label: 'Insert cross-reference', icon: 'xref', palette: false, isEnabled: mdOnly, run: a => (app.commands.get('xref.crossref') ? app.commands.run('xref.crossref', a) : app.ui.toast('Restart Markooj to use cross-references. The cross-reference tools did not load this time.', { kind: 'warn' })) });
-  cmd('ref.numberEquations', { label: 'Number all equations', icon: 'sigma', palette: false, isActive: () => !!app.xref?.config?.().numberAll, run: a => app.commands.run('xref.numberAll', a) });
+  cmd('ref.crossref', { label: app.tm('Insert cross-reference'), icon: 'xref', palette: false, isEnabled: mdOnly, run: a => (app.commands.get('xref.crossref') ? app.commands.run('xref.crossref', a) : app.ui.toast(app.t('Restart Markooj to use cross-references. The cross-reference tools did not load this time.'), { kind: 'warn' })) });
+  cmd('ref.numberEquations', { label: app.tm('Number all equations'), icon: 'sigma', palette: false, isActive: () => !!app.xref?.config?.().numberAll, run: a => app.commands.run('xref.numberAll', a) });
 
   // =================================================================== commands: Review
   // F7 (Spelling and Grammar), Check spelling as you type and the Proofing group: src/writing/ui.js
@@ -900,44 +900,44 @@ html.mkr-hide-comments .mk-comment{display:none}
     const draw = () => {
       const st = scope === 'sel' ? stats(selText, { markdown: !!(doc && caret(doc)) }) : stats(docText);
       const row = (k, v) => `<div class="mkr-stat"><span>${k}</span><b>${v}</b></div>`;
-      body.innerHTML = `<div class="mkr-seg"><button data-s="doc"${scope === 'doc' ? ' class="on"' : ''}>Document</button><button data-s="sel"${scope === 'sel' ? ' class="on"' : ''}${selText.trim() ? '' : ' disabled title="Select some text first"'}>Selection</button></div>
+      body.innerHTML = `<div class="mkr-seg"><button data-s="doc"${scope === 'doc' ? ' class="on"' : ''}>${app.th('Document')}</button><button data-s="sel"${scope === 'sel' ? ' class="on"' : ''}${selText.trim() ? '' : ` disabled title="${app.th('Select some text first')}"`}>${app.th('Selection')}</button></div>
         <div class="mkr-stats">
-          ${row('Words', fmtNum(st.words))}${row('Characters (with spaces)', fmtNum(st.characters))}
-          ${row('Characters (no spaces)', fmtNum(st.charactersNoSpaces))}${row('Paragraphs', fmtNum(st.paragraphs))}
-          ${row('Lines', fmtNum(st.lines))}${row('Sentences', fmtNum(st.sentences))}
-          ${row('Equations', fmtNum(st.equations) + (st.equations ? ` <span style="font-weight:400;color:var(--text-3)">(${st.displayEquations} display)</span>` : ''))}${row('Citations', fmtNum(st.citations))}
-          ${row('Footnotes', fmtNum(st.footnotes))}${row('Reading time', fmtMin(st.readingMinutes))}
-          ${row('Speaking time', fmtMin(st.speakingMinutes))}${row('Readability (Flesch)', st.flesch == null ? '–' : `${st.flesch} · grade ${st.grade}`)}
+          ${row(app.t('Words'), fmtNum(st.words))}${row(app.t('Characters (with spaces)'), fmtNum(st.characters))}
+          ${row(app.t('Characters (no spaces)'), fmtNum(st.charactersNoSpaces))}${row(app.t('Paragraphs'), fmtNum(st.paragraphs))}
+          ${row(app.t('Lines'), fmtNum(st.lines))}${row(app.t('Sentences'), fmtNum(st.sentences))}
+          ${row(app.t('Equations'), fmtNum(st.equations) + (st.equations ? ` <span style="font-weight:400;color:var(--text-3)">${app.th('({count} display)', { count: st.displayEquations })}</span>` : ''))}${row(app.t('Citations'), fmtNum(st.citations))}
+          ${row(app.t('Footnotes'), fmtNum(st.footnotes))}${row(app.t('Reading time'), fmtMin(st.readingMinutes))}
+          ${row(app.t('Speaking time'), fmtMin(st.speakingMinutes))}${row(app.t('Readability (Flesch)'), st.flesch == null ? '–' : app.th('{score} · grade {grade}', { score: st.flesch, grade: st.grade }))}
         </div>
-        <div class="mkr-note">Counts leave out the title block (front matter), code, equations, web addresses and citation keys. Reading time uses 238 words per minute; speaking time 130.</div>`;
+        <div class="mkr-note">${app.th('Counts leave out the title block (front matter), code, equations, web addresses and citation keys. Reading time uses 238 words per minute; speaking time 130.')}</div>`;
     };
     body.addEventListener('click', e => { const b = e.target.closest('.mkr-seg button'); if (b && !b.disabled) { scope = b.dataset.s; draw(); } });
     draw();
-    await app.ui.dialog({ title: 'Word count', body, buttons: [{ label: 'Close', value: 'ok', primary: true }] });
+    await app.ui.dialog({ title: app.t('Word count'), body, buttons: [{ label: app.t('Close'), value: 'ok', primary: true }] });
   }
-  cmd('review.wordCount', { label: 'Word count', icon: 'count', shortcut: 'Ctrl+Shift+G', run: wordCountDialog });
+  cmd('review.wordCount', { label: app.tm('Word count'), icon: 'count', shortcut: 'Ctrl+Shift+G', run: wordCountDialog });
   cmd('review.readability', {
-    label: 'Readability', icon: 'sparkle', isEnabled: mdOnly,
+    label: app.tm('Readability'), icon: 'sparkle', isEnabled: mdOnly,
     async run() {
       const doc = needDoc(); if (!doc) return;
       const st = stats(syncFromEditor(doc));
-      const ease = st.flesch == null ? '–' : st.flesch >= 80 ? 'Easy' : st.flesch >= 60 ? 'Plain English' : st.flesch >= 50 ? 'Fairly difficult' : st.flesch >= 30 ? 'Difficult (typical for research)' : 'Very difficult';
+      const ease = st.flesch == null ? '–' : st.flesch >= 80 ? app.t('Easy') : st.flesch >= 60 ? app.t('Plain English') : st.flesch >= 50 ? app.t('Fairly difficult') : st.flesch >= 30 ? app.t('Difficult (typical for research)') : app.t('Very difficult');
       const body = document.createElement('div'); body.className = 'mkr-dlg';
       const row = (k, v) => `<div class="mkr-stat"><span>${k}</span><b>${v}</b></div>`;
-      body.innerHTML = `<div class="mkr-stats">${row('Flesch reading ease', st.flesch ?? '–')}${row('Reads as', ease)}${row('Grade level', st.grade ?? '–')}${row('Words per sentence', st.wordsPerSentence)}${row('Long sentences (30+ words)', fmtNum(st.longSentences))}${row('Sentences', fmtNum(st.sentences))}</div>
-        <div class="mkr-note">Higher reading ease means easier text. Splitting long sentences is the quickest way to raise it.</div>`;
-      await app.ui.dialog({ title: 'Readability', body, buttons: [{ label: 'Close', value: 'ok', primary: true }] });
+      body.innerHTML = `<div class="mkr-stats">${row(app.t('Flesch reading ease'), st.flesch ?? '–')}${row(app.t('Reads as'), ease)}${row(app.t('Grade level'), st.grade ?? '–')}${row(app.t('Words per sentence'), st.wordsPerSentence)}${row(app.t('Long sentences (30+ words)'), fmtNum(st.longSentences))}${row(app.t('Sentences'), fmtNum(st.sentences))}</div>
+        <div class="mkr-note">${app.th('Higher reading ease means easier text. Splitting long sentences is the quickest way to raise it.')}</div>`;
+      await app.ui.dialog({ title: app.t('Readability'), body, buttons: [{ label: app.t('Close'), value: 'ok', primary: true }] });
     },
   });
 
   // ---- comments
   const reviewComments = text => analyze(text).comments.filter(c => /^<!--\s*comment:/i.test(c[2]));
   cmd('review.comment', {
-    label: 'New comment', icon: 'comment', shortcut: 'Ctrl+Alt+M', isEnabled: mdOnly,
+    label: app.tm('New comment'), icon: 'comment', shortcut: 'Ctrl+Alt+M', isEnabled: mdOnly,
     async run(args) {
       const doc = needDoc(); if (!doc) return;
       const c = caret(doc);
-      const t = typeof args === 'string' ? args : await app.ui.prompt('New comment', c && c.text ? `About: “${c.text.slice(0, 60)}${c.text.length > 60 ? '…' : ''}”` : 'Comment', '');
+      const t = typeof args === 'string' ? args : await app.ui.prompt(app.t('New comment'), c && c.text ? app.t('About: “{text}”', { text: c.text.slice(0, 60) + (c.text.length > 60 ? '…' : '') }) : app.t('Comment@@noun'), '');
       if (t == null || !t.trim()) return;
       const md = `<!-- comment: ${t.trim().replace(/--+>?/g, '–')} -->`;
       if (c && c.end > c.start && app.mode === 'simple') insertMd(doc, md, { offset: c.end, direct: true });
@@ -945,14 +945,14 @@ html.mkr-hide-comments .mk-comment{display:none}
       applyCommentView();
     },
   });
-  cmd('review.nextComment', { label: 'Next comment', icon: 'comment', isEnabled: mdOnly, run: () => navigate('comment', 1) });
-  cmd('review.prevComment', { label: 'Previous comment', icon: 'comment', isEnabled: mdOnly, run: () => navigate('comment', -1) });
+  cmd('review.nextComment', { label: app.tm('Next comment'), icon: 'comment', isEnabled: mdOnly, run: () => navigate('comment', 1) });
+  cmd('review.prevComment', { label: app.tm('Previous comment'), icon: 'comment', isEnabled: mdOnly, run: () => navigate('comment', -1) });
   cmd('review.deleteComment', {
-    label: 'Delete comment', icon: 'x', isEnabled: mdOnly,
+    label: app.tm('Delete comment'), icon: 'x', isEnabled: mdOnly,
     run() {
       const doc = needDoc(); if (!doc) return;
       const text = syncFromEditor(doc), list = reviewComments(text);
-      if (!list.length) return app.ui.toast('Add a comment with Review → New Comment. This document has none yet.', { kind: 'info' });
+      if (!list.length) return app.ui.toast(app.t('Add a comment with Review → New Comment. This document has none yet.'), { kind: 'info' });
       let k = -1;
       const surf = app.mode === 'word' ? surface() : null;
       if (surf) {
@@ -964,29 +964,29 @@ html.mkr-hide-comments .mk-comment{display:none}
         const c = caret(doc); const at = c ? c.start : -1;
         k = list.findIndex(x => at >= x[0] && at <= x[1]); if (k < 0) k = list.findIndex(x => x[0] >= at);
       }
-      if (k < 0) return app.ui.toast('Click a comment first, or use Next comment.');
+      if (k < 0) return app.ui.toast(app.t('Click a comment first, or use Next comment.'));
       const [a, b] = list[k];
       let s = a, e = b; if (text[e] === '\n' && (s === 0 || text[s - 1] === '\n')) e++; else if (text[s - 1] === ' ') s--;
       doc.setText(text.slice(0, s) + text.slice(e), 'research');
       navigate.last = null;
-      app.ui.toast('Comment deleted');
+      app.ui.toast(app.t('Comment deleted'));
     },
   });
   cmd('review.deleteComments', {
-    label: 'Delete all comments', icon: 'x', isEnabled: mdOnly,
+    label: app.tm('Delete all comments'), icon: 'x', isEnabled: mdOnly,
     async run() {
       const doc = needDoc(); if (!doc) return;
       const text = syncFromEditor(doc), list = reviewComments(text);
-      if (!list.length) return app.ui.toast('Add a comment with Review → New Comment. This document has none yet.', { kind: 'info' });
-      if (!(await app.ui.confirm('Delete all comments?', `This removes ${list.length} comment${list.length === 1 ? '' : 's'}. Undo (Ctrl+Z) brings them back.`))) return;
+      if (!list.length) return app.ui.toast(app.t('Add a comment with Review → New Comment. This document has none yet.'), { kind: 'info' });
+      if (!(await app.ui.confirm(app.t('Delete all comments?'), app.tn('This removes {count} comments. Undo (Ctrl+Z) brings them back.', list.length)))) return;
       let out = text;
       for (const [a, b] of [...list].reverse()) { let s = a, e = b; if (out[e] === '\n' && (s === 0 || out[s - 1] === '\n')) e++; else if (out[s - 1] === ' ') s--; out = out.slice(0, s) + out.slice(e); }
       doc.setText(out, 'research');
-      app.ui.toast(`${list.length} comment${list.length === 1 ? '' : 's'} deleted`);
+      app.ui.toast(app.tn('{count} comments deleted', list.length));
     },
   });
   cmd('review.showComments', {
-    label: 'Show comments', icon: 'comment', isActive: () => app.settings.get('showComments', true) !== false,
+    label: app.tm('Show comments'), icon: 'comment', isActive: () => app.settings.get('showComments', true) !== false,
     run() { app.settings.set('showComments', !(app.settings.get('showComments', true) !== false)); applyCommentView(); },
   });
 
@@ -1027,18 +1027,18 @@ html.mkr-hide-comments .mk-comment{display:none}
     return out.reverse();
   }
   cmd('review.compare', {
-    label: 'Compare with saved version', icon: 'copy', isEnabled: mdOnly,
+    label: app.tm('Compare with saved version'), icon: 'copy', isEnabled: mdOnly,
     async run() {
       const doc = needDoc(); if (!doc) return;
       const now = syncFromEditor(doc);
       let saved = doc.savedText || '', from = 'the last save';
       if (doc.path && !doc.convertedFrom) { try { saved = String(await mk.invoke('read-text', doc.path)); from = 'the file on disk'; } catch {} }
-      else if (!doc.path) { app.ui.toast('Save the document first. Compare shows what changed since the last save.', { kind: 'warn', actions: [{ label: 'Save', run: () => app.commands.run('file.save') }] }); return; }
+      else if (!doc.path) { app.ui.toast(app.t('Save the document first. Compare shows what changed since the last save.'), { kind: 'warn', actions: [{ label: app.t('Save'), run: () => app.commands.run('file.save') }] }); return; }
       const d = diffLines(saved.replace(/\r\n/g, '\n').split('\n'), now.replace(/\r\n/g, '\n').split('\n'));
       const adds = d.filter(x => x.t === '+').length, dels = d.filter(x => x.t === '-').length;
       const body = document.createElement('div'); body.className = 'mkr-dlg';
       if (!adds && !dels) {
-        body.innerHTML = `<div class="mkr-empty"><b>No changes</b>The document matches ${from}.</div>`;
+        body.innerHTML = `<div class="mkr-empty"><b>${app.th('No changes')}</b>${app.th('The document matches {source}.', { source: from })}</div>`;
       } else {
         let o = 0, n = 0, html = '';
         const keep = new Array(d.length).fill(false);
@@ -1047,14 +1047,14 @@ html.mkr-hide-comments .mk-comment{display:none}
         d.forEach((x, i) => {
           if (x.t !== '+') o++; if (x.t !== '-') n++;
           if (!keep[i]) { gap++; return; }
-          if (gap) { html += `<div class="mkr-dl gap">⋯ ${gap} unchanged line${gap === 1 ? '' : 's'}</div>`; gap = 0; }
+          if (gap) { html += `<div class="mkr-dl gap">⋯ ${esc(app.tn('{count} unchanged lines', gap))}</div>`; gap = 0; }
           html += `<div class="mkr-dl${x.t === '+' ? ' add' : x.t === '-' ? ' del' : ''}"><span class="ln">${x.t !== '+' ? o : ''}</span><span class="ln">${x.t !== '-' ? n : ''}</span><span class="sg">${x.t === ' ' ? '' : x.t === '+' ? '+' : '−'}</span><span class="tx">${esc(x.s) || ' '}</span></div>`;
         });
-        if (gap) html += `<div class="mkr-dl gap">⋯ ${gap} unchanged line${gap === 1 ? '' : 's'}</div>`;
-        body.innerHTML = `<div class="mkr-sum"><span class="a">+${fmtNum(adds)} added</span><span class="d">−${fmtNum(dels)} removed</span><span>Compared with ${from}</span></div><div class="mkr-diff">${html}</div>`;
+        if (gap) html += `<div class="mkr-dl gap">⋯ ${esc(app.tn('{count} unchanged lines', gap))}</div>`;
+        body.innerHTML = `<div class="mkr-sum"><span class="a">${app.th('+{count} added', { count: fmtNum(adds) })}</span><span class="d">${app.th('−{count} removed', { count: fmtNum(dels) })}</span><span>${app.th('Compared with {source}', { source: from })}</span></div><div class="mkr-diff">${html}</div>`;
       }
-      const v = await app.ui.dialog({ title: 'Changes since saved', body, buttons: (adds || dels) ? [{ label: 'Go back to saved version', value: 'revert', danger: true }, { label: 'Close', value: 'ok', primary: true }] : [{ label: 'Close', value: 'ok', primary: true }] });
-      if (v === 'revert' && await app.ui.confirm('Go back to the saved version?', 'Your unsaved changes are replaced by the saved text. Undo (Ctrl+Z) brings them back, and a recovery copy is kept.')) {
+      const v = await app.ui.dialog({ title: app.t('Changes since saved'), body, buttons: (adds || dels) ? [{ label: app.t('Go back to saved version'), value: 'revert', danger: true }, { label: app.t('Close'), value: 'ok', primary: true }] : [{ label: app.t('Close'), value: 'ok', primary: true }] });
+      if (v === 'revert' && await app.ui.confirm(app.t('Go back to the saved version?'), app.t('Your unsaved changes are replaced by the saved text. Undo (Ctrl+Z) brings them back, and a recovery copy is kept.'))) {
         mk.invoke('recovery-save', { docId: doc.recoveryId, path: doc.path, title: doc.title, text: now }).catch(() => {});
         doc.setText(saved, 'research');
       }
@@ -1068,28 +1068,29 @@ html.mkr-hide-comments .mk-comment{display:none}
       if (this.el) return;
       injectCss();
       const el = this.el = document.createElement('div');
-      el.className = 'mkr-find'; el.setAttribute('role', 'search'); el.setAttribute('aria-label', 'Find and replace');
+      el.className = 'mkr-find'; el.setAttribute('role', 'search');
       el.innerHTML = `
         <div class="mkr-frow">
-          <button class="mkr-ib" data-a="toggle" title="Show Replace (Ctrl+H)">${icon('chev', 'right')}</button>
-          <label class="mkr-field">${icon('search')}<input class="q" placeholder="Find" spellcheck="false" aria-label="Find"></label>
+          <button class="mkr-ib" data-a="toggle">${icon('chev', 'right')}</button>
+          <label class="mkr-field">${icon('search')}<input class="q" spellcheck="false"></label>
           <span class="mkr-count" aria-live="polite"></span>
-          <button class="mkr-ib" data-a="prev" title="Previous (Shift+Enter)">${icon('chev', 'up')}</button>
-          <button class="mkr-ib" data-a="next" title="Next (Enter)">${icon('chev')}</button>
-          <button class="mkr-ib" data-a="close" title="Close (Esc)">${icon('x')}</button>
+          <button class="mkr-ib" data-a="prev">${icon('chev', 'up')}</button>
+          <button class="mkr-ib" data-a="next">${icon('chev')}</button>
+          <button class="mkr-ib" data-a="close">${icon('x')}</button>
         </div>
         <div class="mkr-opts">
-          <button class="mkr-opt" data-o="caseSensitive" title="Match upper and lower case (Alt+C)" aria-pressed="false">Match case</button>
-          <button class="mkr-opt" data-o="wholeWord" title="Whole words only (Alt+W)" aria-pressed="false">Whole words</button>
-          <button class="mkr-opt" data-o="regex" title="Use a pattern (regular expression) (Alt+R)" aria-pressed="false">Pattern .*</button>
+          <button class="mkr-opt" data-o="caseSensitive" aria-pressed="false"></button>
+          <button class="mkr-opt" data-o="wholeWord" aria-pressed="false"></button>
+          <button class="mkr-opt" data-o="regex" aria-pressed="false"></button>
         </div>
         <div class="mkr-frow mkr-rep">
-          <label class="mkr-field">${icon('redo')}<input class="r" placeholder="Replace with" spellcheck="false" aria-label="Replace with"></label>
-          <button class="mkr-btn" data-a="one" title="Replace this match (Ctrl+Shift+1)">Replace</button>
-          <button class="mkr-btn" data-a="all" title="Replace every match (Ctrl+Alt+Enter)">Replace all</button>
+          <label class="mkr-field">${icon('redo')}<input class="r" spellcheck="false"></label>
+          <button class="mkr-btn" data-a="one"></button>
+          <button class="mkr-btn" data-a="all"></button>
         </div>`;
       document.body.appendChild(el);
       this.q = el.querySelector('.q'); this.r = el.querySelector('.r'); this.countEl = el.querySelector('.mkr-count');
+      this.relabel();
       el.addEventListener('click', e => {
         const b = e.target.closest('[data-a],[data-o]'); if (!b) return;
         if (b.dataset.o) return this.toggleOpt(b.dataset.o);
@@ -1111,6 +1112,21 @@ html.mkr-hide-comments .mk-comment{display:none}
         e.stopPropagation();
       });
       addEventListener('resize', () => this.place());
+    },
+    /** Titles, placeholders and button text in the interface language (on build and on every language change). */
+    relabel() {
+      const el = this.el; if (!el) return;
+      const set = (sel, title, text) => { const b = el.querySelector(sel); if (!b) return; if (title) b.title = app.t(title); if (text) b.textContent = app.t(text); };
+      el.setAttribute('aria-label', app.t('Find and replace'));
+      set('[data-a="toggle"]', app.tm('Show Replace (Ctrl+H)'));
+      set('[data-a="prev"]', app.tm('Previous (Shift+Enter)')); set('[data-a="next"]', app.tm('Next (Enter)')); set('[data-a="close"]', app.tm('Close (Esc)'));
+      set('[data-o="caseSensitive"]', app.tm('Match upper and lower case (Alt+C)'), app.tm('Match case'));
+      set('[data-o="wholeWord"]', app.tm('Whole words only (Alt+W)'), app.tm('Whole words'));
+      set('[data-o="regex"]', app.tm('Use a pattern (regular expression) (Alt+R)'), app.tm('Pattern .*'));
+      set('[data-a="one"]', app.tm('Replace this match (Ctrl+Shift+1)'), app.tm('Replace'));
+      set('[data-a="all"]', app.tm('Replace every match (Ctrl+Alt+Enter)'), app.tm('Replace all'));
+      this.q.placeholder = app.t('Find'); this.q.setAttribute('aria-label', app.t('Find'));
+      this.r.placeholder = app.t('Replace with'); this.r.setAttribute('aria-label', app.t('Replace with'));
     },
     place() {
       if (!this.el) return;
@@ -1165,13 +1181,13 @@ html.mkr-hide-comments .mk-comment{display:none}
       if (!this.open) return;
       const field = this.q.closest('.mkr-field'); field.classList.remove('bad');
       let re = null;
-      try { re = this.regex(); } catch { field.classList.add('bad'); this.setCount('Check pattern', true); this.clearHighlights(); return; }
+      try { re = this.regex(); } catch { field.classList.add('bad'); this.setCount(app.t('Check pattern'), true); this.clearHighlights(); return; }
       if (this.backend === 'viewer') {
         if (!re) { app.viewers?.clearFind?.(); this.setCount(''); return; }
         const r = await (app.viewers?.find?.(this.q.value, { ...this.opts }) || { count: 0 });
-        if (r.error) { field.classList.add('bad'); this.setCount('Check pattern', true); return; }
+        if (r.error) { field.classList.add('bad'); this.setCount(app.t('Check pattern'), true); return; }
         this.count = r.count; this.cur = r.index;
-        this.setCount(r.count ? `${r.index + 1} of ${fmtNum(r.count)}` : 'No results', !r.count);
+        this.setCount(r.count ? app.t('{index} of {count}', { index: r.index + 1, count: fmtNum(r.count) }) : app.t('No results'), !r.count);
         return;
       }
       const doc = activeDoc();
@@ -1181,7 +1197,7 @@ html.mkr-hide-comments .mk-comment{display:none}
       const surf = app.mode === 'word' ? surface() : null;
       this.ranges = surf ? domMatches(surf, re) : [];
       this.count = surf ? this.ranges.length : this.srcMatches.length;
-      if (!this.count) { this.cur = -1; this.clearHighlights(); this.setCount('No results', true); return; }
+      if (!this.count) { this.cur = -1; this.clearHighlights(); this.setCount(app.t('No results'), true); return; }
       if (reset || prevCur < 0) {
         // start from the caret
         if (surf) {
@@ -1192,7 +1208,7 @@ html.mkr-hide-comments .mk-comment{display:none}
       this.go(reset);
     },
     go(scroll = true) {
-      this.setCount(`${this.cur + 1} of ${fmtNum(this.count)}`);
+      this.setCount(app.t('{index} of {count}', { index: this.cur + 1, count: fmtNum(this.count) }));
       if (app.mode === 'word' && this.ranges.length) {
         if (window.CSS && CSS.highlights && typeof Highlight !== 'undefined') {
           CSS.highlights.set('mkr-find', new Highlight(...this.ranges.filter((_, i) => i !== this.cur)));
@@ -1208,7 +1224,7 @@ html.mkr-hide-comments .mk-comment{display:none}
       if (!this.open) return this.show();
       if (this.backend === 'viewer') {
         const r = await (app.viewers?.findNext?.(dir) || { count: 0 });
-        this.setCount(r.count ? `${r.index + 1} of ${fmtNum(r.count)}` : 'No results', !r.count);
+        this.setCount(r.count ? app.t('{index} of {count}', { index: r.index + 1, count: fmtNum(r.count) }) : app.t('No results'), !r.count);
         return;
       }
       if (!this.count) return this.search(true);
@@ -1245,11 +1261,11 @@ html.mkr-hide-comments .mk-comment{display:none}
       let re; try { re = this.regex(); } catch { return; }
       if (!re) return;
       const ms = sourceMatches(doc.text, re, app.mode === 'word');
-      if (!ms.length) { this.setCount('No results', true); return; }
+      if (!ms.length) { this.setCount(app.t('No results'), true); return; }
       let out = doc.text;
       for (const m of [...ms].reverse()) out = out.slice(0, m.start) + this.replacement(m, re) + out.slice(m.end);
       doc.setText(out, 'research-find');
-      app.ui.toast(`Replaced ${fmtNum(ms.length)} match${ms.length === 1 ? '' : 'es'}`);
+      app.ui.toast(app.tn('Replaced {count} matches', ms.length));
       setTimeout(() => this.search(true), 260);
     },
   };
@@ -1288,10 +1304,11 @@ html.mkr-hide-comments .mk-comment{display:none}
     }
     return out;
   }
-  cmd('edit.find', { label: 'Find', icon: 'search', shortcut: 'Ctrl+F', run: () => find.show(false) });
-  cmd('edit.replace', { label: 'Replace', icon: 'search', shortcut: 'Ctrl+H', isEnabled: () => !!activeDoc(), run: () => find.show(true) });
-  cmd('edit.findNext', { label: 'Find next', icon: 'search', shortcut: 'F3', run: () => find.step(1) });
-  cmd('edit.findPrev', { label: 'Find previous', icon: 'search', shortcut: 'Shift+F4', run: () => find.step(-1) });
+  app.events.on('i18n:changed', () => find.relabel());
+  cmd('edit.find', { label: app.tm('Find'), icon: 'search', shortcut: 'Ctrl+F', run: () => find.show(false) });
+  cmd('edit.replace', { label: app.tm('Replace'), icon: 'search', shortcut: 'Ctrl+H', isEnabled: () => !!activeDoc(), run: () => find.show(true) });
+  cmd('edit.findNext', { label: app.tm('Find next'), icon: 'search', shortcut: 'F3', run: () => find.step(1) });
+  cmd('edit.findPrev', { label: app.tm('Find previous'), icon: 'search', shortcut: 'Shift+F4', run: () => find.step(-1) });
   app.events.on('doc:active', () => { if (find.open) { const d = app.docs.active(); const be = d && (d.kind === 'pdf' || d.kind === 'djvu') ? 'viewer' : 'text'; find.backend = be; find.el.classList.toggle('noreplace', be === 'viewer'); find.cur = -1; setTimeout(() => find.search(true), 200); } });
   app.events.on('doc:changed', e => { if (find.open && e && e.doc === app.docs.active() && e.origin !== 'research-find') find.refreshSoon(); });
   app.events.on('mode:changed', () => { if (find.open) { find.cur = -1; setTimeout(() => find.search(true), 250); } });
@@ -1300,29 +1317,29 @@ html.mkr-hide-comments .mk-comment{display:none}
   // =================================================================== ribbon
   const big = (command, label, icon) => ({ type: 'big', command, label, icon });
   const small = (command, label, icon) => ({ type: 'small', command, label, icon });
-  app.ribbon.addGroup('references', { id: 'ref-toc', label: 'Table of contents', order: 10, items: [big('ref.toc', 'Contents', 'toc'), big('ref.tocUpdate', 'Update', 'redo')] });
-  app.ribbon.addGroup('references', { id: 'ref-foot', label: 'Footnotes', order: 20, items: [big('ref.footnote', 'Footnote', 'foot'), { type: 'col', items: [small('ref.prevFootnote', 'Previous footnote', 'back'), small('ref.nextFootnote', 'Next footnote', 'xref')] }] });
+  app.ribbon.addGroup('references', { id: 'ref-toc', label: app.tm('Table of contents'), order: 10, items: [big('ref.toc', app.tm('Contents'), 'toc'), big('ref.tocUpdate', app.tm('Update'), 'redo')] });
+  app.ribbon.addGroup('references', { id: 'ref-foot', label: app.tm('Footnotes'), order: 20, items: [big('ref.footnote', app.tm('Footnote'), 'foot'), { type: 'col', items: [small('ref.prevFootnote', app.tm('Previous footnote'), 'back'), small('ref.nextFootnote', app.tm('Next footnote'), 'xref')] }] });
   app.ribbon.addGroup('references', {
-    id: 'ref-cite', label: 'Citations & bibliography', order: 30, items: [
-      big('ref.cite', 'Cite', 'cite'), big('ref.library', 'Library', 'bib'),
+    id: 'ref-cite', label: app.tm('Citations & bibliography'), order: 30, items: [
+      big('ref.cite', app.tm('Cite'), 'cite'), big('ref.library', app.tm('Library'), 'bib'),
       { type: 'col', items: [
-        { type: 'select', command: 'ref.style', label: 'Citation style', options: STYLES, value: () => citeStyle() },
+        { type: 'select', command: 'ref.style', label: app.tm('Citation style'), options: STYLES, value: () => citeStyle() },
         { type: 'custom', render: renderLibChip },
       ] },
-      big('ref.bibliography', 'Bibliography', 'ol'),
+      big('ref.bibliography', app.tm('Bibliography'), 'ol'),
     ],
   });
   // the Captions group (Insert Caption, Cross-reference, numbering style) is added by src/xref.js
   // Review → Proofing and Writing groups: src/writing/ui.js
   app.ribbon.addGroup('review', {
-    id: 'rev-comments', label: 'Comments', order: 20, items: [
-      big('review.comment', 'New comment', 'comment'),
-      { type: 'col', items: [small('review.prevComment', 'Previous comment', 'back'), small('review.nextComment', 'Next comment', 'xref')] },
-      { type: 'col', items: [small('review.deleteComment', 'Delete comment', 'x'), small('review.deleteComments', 'Delete all comments', 'cut')] },
-      big('review.showComments', 'Show', 'side'),
+    id: 'rev-comments', label: app.tm('Comments'), order: 20, items: [
+      big('review.comment', app.tm('New comment'), 'comment'),
+      { type: 'col', items: [small('review.prevComment', app.tm('Previous comment'), 'back'), small('review.nextComment', app.tm('Next comment'), 'xref')] },
+      { type: 'col', items: [small('review.deleteComment', app.tm('Delete comment'), 'x'), small('review.deleteComments', app.tm('Delete all comments'), 'cut')] },
+      big('review.showComments', app.tm('Show'), 'side'),
     ],
   });
-  app.ribbon.addGroup('review', { id: 'rev-versions', label: 'Versions', order: 30, items: [big('review.compare', 'Compare', 'copy')] });
+  app.ribbon.addGroup('review', { id: 'rev-versions', label: app.tm('Versions'), order: 30, items: [big('review.compare', app.tm('Compare'), 'copy')] });
   function renderLibChip(el) {
     const b = document.createElement('button');
     b.className = 'mkr-chip'; b.type = 'button';
@@ -1330,12 +1347,12 @@ html.mkr-hide-comments .mk-comment{display:none}
       const d = activeDoc(); const st = d && bibState.get(d.id);
       const name = st && st.files.length ? st.files.map(baseName).join(', ') : '';
       b.classList.toggle('none', !name);
-      b.innerHTML = `${icon('bib')}<span>${esc(name || 'No library')}</span>`;
-      b.title = name ? `${name} · ${fmtNum(Object.keys(st.entries).length)} references. Click to choose another.` : 'Choose a BibTeX (.bib) library';
+      b.innerHTML = `${icon('bib')}<span>${name ? esc(name) : app.th('No library')}</span>`;
+      b.title = name ? app.t('{library} · {references}. Click to choose another.', { library: name, references: app.tn('{count} references', Object.keys(st.entries).length) }) : app.t('Choose a BibTeX (.bib) library');
     };
     b.onclick = () => app.commands.run('ref.library');
     paint(); el.appendChild(b);
-    const offs = [app.events.on('research:bib', () => (b.isConnected ? paint() : offs.forEach(o => o()))), app.events.on('doc:active', () => (b.isConnected ? paint() : null))];
+    const offs = [app.events.on('research:bib', () => (b.isConnected ? paint() : offs.forEach(o => o()))), app.events.on('doc:active', () => (b.isConnected ? paint() : null)), app.events.on('i18n:changed', () => (b.isConnected ? paint() : null))];
     injectCss();
   }
 
@@ -1345,7 +1362,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     entries: doc => entriesFor(doc || app.docs.active()),
     loadBib: (doc, force) => loadBib(doc || app.docs.active(), force),
     // add-ons (for example a Zotero bridge) can supply references for a document directly
-    setEntries(doc, entries, label = 'Add-on library') {
+    setEntries(doc, entries, label = app.t('Add-on library')) {
       doc = doc || app.docs.active(); if (!doc) return;
       const st = bibState.get(doc.id) || { key: '', files: [], errors: [] };
       st.entries = { ...(st.entries || {}), ...(entries || {}) }; if (!st.files.includes(label)) st.files = [...st.files, label];
@@ -1355,7 +1372,7 @@ html.mkr-hide-comments .mk-comment{display:none}
     },
     outline, stats, analyze, slugify, tocBlock, tocList, updateTocText, nextFootnoteNumber, citeMarkdown, captionTargets, diffLines,
     citeStyle, formatEntry: fmtEntry, insertCitation,
-    spelling: { enabled: spellOn, status: () => { const t = app.writing?.statusText?.(); return t != null ? t : spellOn() ? null : 'Spelling off'; } },
+    spelling: { enabled: spellOn, status: () => { const t = app.writing?.statusText?.(); return t != null ? t : spellOn() ? null : app.t('Spelling off'); } },
     find: { show: r => find.show(r), close: () => find.close(), get open() { return find.open; } },
   };
   injectCss();

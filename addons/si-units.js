@@ -66,31 +66,31 @@ function formatUnits(text) {
 }
 
 app.commands.register('siunits.format', {
-  label: 'Format numbers with units',
+  label: app.tm('Format numbers with units'),
   icon: 'sigma',
   run: async () => {
     const d = app.docs.active();
-    if (!d || d.kind !== 'markdown' || d.readOnly) { app.ui.toast('Open an editable Markdown document first.'); return; }
+    if (!d || d.kind !== 'markdown' || d.readOnly) { app.ui.toast(app.t('Open an editable Markdown document first.')); return; }
     const sel = markooj?.doc ? markooj.doc.selection : (app.editors.active()?.getSelection()?.text || '');
     if (sel && sel.trim()) {
       const r = formatUnits(sel);
-      if (!r.count) { app.ui.toast('Select text with numbers and units, like 9.81 m/s2, then try again. The selection has none.'); return; }
+      if (!r.count) { app.ui.toast(app.t('Select text with numbers and units, like 9.81 m/s2, then try again. The selection has none.')); return; }
       if (markooj?.doc) markooj.doc.replace_selection(r.text);
       else app.editors.active()?.replaceSelection(r.text);
-      app.ui.toast(`Formatted ${r.count} ${r.count === 1 ? 'quantity' : 'quantities'}.`);
+      app.ui.toast(app.tn('Formatted {count} quantities.', r.count));
       return;
     }
     const r = formatUnits(d.text);
-    if (!r.count) { app.ui.toast('Type numbers with units, like 9.81 m/s2, then try again. This document has none yet.'); return; }
-    const ok = await app.ui.confirm('Format the whole document?', `Nothing is selected. Format all ${r.count} numbers with units in “${d.title}”? You can undo this.`);
+    if (!r.count) { app.ui.toast(app.t('Type numbers with units, like 9.81 m/s2, then try again. This document has none yet.')); return; }
+    const ok = await app.ui.confirm(app.t('Format the whole document?'), app.th('Nothing is selected. Format all {count} numbers with units in “{title}”? You can undo this.', { count: r.count, title: d.title }));
     if (!ok) return;
     d.setText(r.text, 'addin');
-    app.ui.toast(`Formatted ${r.count} ${r.count === 1 ? 'quantity' : 'quantities'}.`);
+    app.ui.toast(app.tn('Formatted {count} quantities.', r.count));
   },
 });
 app.ribbon.addGroup('addins', {
-  id: 'siunits', label: 'Units', order: 62,
-  items: [{ type: 'big', command: 'siunits.format', label: 'Format units', icon: 'sigma' }],
+  id: 'siunits', label: app.tm('Units'), order: 62,
+  items: [{ type: 'big', command: 'siunits.format', label: app.tm('Format units'), icon: 'sigma' }],
 });
 
 app.tests.register('add-in SI units: formats quantities', () => {

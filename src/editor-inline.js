@@ -205,7 +205,7 @@
     mark.replaceWith(m); m.appendChild(mark);
   }
   function wrapNoteRange(range, first, last) {
-    const span = document.createElement('span'); span.className = 'mk-note'; span.title = 'Hidden note: shows while you edit, never in Read mode, print or export';
+    const span = document.createElement('span'); span.className = 'mk-note'; span.title = app.t('Hidden note: shows while you edit, never in Read mode, print or export');
     span.appendChild(range.extractContents()); range.insertNode(span);
     if (first) markNoteEdge(span, true);
     if (last) markNoteEdge(span, false);
@@ -456,7 +456,7 @@
       root = document.createElement('div'); root.className = 'mk-inline'; root.tabIndex = -1;
       sheet = document.createElement('div'); sheet.className = 'mk-sheet';
       page = document.createElement('article'); page.className = 'mk-page mk-il-page';
-      page.setAttribute('data-mk-surface', 'inline'); page.setAttribute('aria-label', 'Document. Click a paragraph to edit it.');
+      page.setAttribute('data-mk-surface', 'inline'); page.setAttribute('aria-label', app.t('Document. Click a paragraph to edit it.'));
       sheet.appendChild(page); root.appendChild(sheet);
       page.addEventListener('click', onPageClick);
       page.addEventListener('contextmenu', onPageContext);
@@ -564,7 +564,7 @@
       if (el.contentEditable !== 'plaintext-only') el.contentEditable = 'true';
       el.spellcheck = app.settings.get('spellcheck', true) !== false;
       el.setAttribute('role', 'textbox'); el.setAttribute('aria-multiline', 'true');
-      el.setAttribute('aria-label', 'Markdown of this paragraph. Press Esc to finish.');
+      el.setAttribute('aria-label', app.t('Markdown of this paragraph. Press Esc to finish.'));
       el.addEventListener('keydown', onEdKey);
       el.addEventListener('beforeinput', onBeforeInput);
       el.addEventListener('input', onInput);
@@ -708,7 +708,7 @@
     function detachEls(seg) { const els = seg.els.filter(n => n.parentNode === page); return els; }
     function openSeg(seg, a = 0, b = a, opts = {}) {
       if (!seg || !doc) return;
-      if (doc.readOnly) { app.ui.toast?.('Use Edit as text to make an editable copy. This document is read-only.', { kind: 'info' }); return; }
+      if (doc.readOnly) { app.ui.toast?.(app.t('Use Edit as text to make an editable copy. This document is read-only.'), { kind: 'info' }); return; }
       // a table edits cell by cell, like Word (opts.source opens its Markdown instead)
       if (seg.kind === 'table' && !opts.source && app.tables && tryOpenCell(seg, a, b, opts)) return;
       const text = doc.text; const { st, en } = segRange(text, seg);
@@ -863,7 +863,7 @@
       if (doc.readOnly) return;
       const fn = t.closest('section.footnotes li');
       if (fn) { openFootnoteDef(fn); return; }
-      if (t.closest('.mk-bibliography')) { app.ui.toast?.('To change this list, edit the citations in your text. Markooj builds it from them.'); return; }
+      if (t.closest('.mk-bibliography')) { app.ui.toast?.(app.t('To change this list, edit the citations in your text. Markooj builds it from them.')); return; }
       const s = getSelection();
       if (s.rangeCount && !s.isCollapsed && page.contains(s.anchorNode) && String(s).trim()) {
         const r = s.getRangeAt(0); const sa = segOfNode(r.startContainer), sb = segOfNode(r.endContainer);
@@ -927,7 +927,7 @@
       if (/^(https?:|mailto:)/i.test(href)) { app.mk?.invoke?.('open-external', href)?.catch?.(() => {}); return; }
       if (doc?.path && !/^[a-z][\w+.-]*:/i.test(href)) {
         const sep = doc.path.includes('\\') ? '\\' : '/'; const dir = doc.path.replace(/[\\/][^\\/]*$/, '');
-        app.docs.open(dir + sep + decodeURIComponent(href.split('#')[0]).replace(/\//g, sep)).catch(err => (app.ui.fail ? app.ui.fail(err, { lead: `Check that the linked file “${href}” is next to this document, or fix the link.`, hideReason: true }) : app.ui.toast(`Check that the linked file “${href}” is next to this document, or fix the link.`, { kind: 'error' })));
+        app.docs.open(dir + sep + decodeURIComponent(href.split('#')[0]).replace(/\//g, sep)).catch(err => (app.ui.fail ? app.ui.fail(err, { lead: app.t('Check that the linked file “{href}” is next to this document, or fix the link.', { href }), hideReason: true }) : app.ui.toast(app.t('Check that the linked file “{href}” is next to this document, or fix the link.', { href }), { kind: 'error' })));
       }
     }
 
@@ -984,7 +984,7 @@
       try { td.contentEditable = 'plaintext-only'; } catch {}
       if (td.contentEditable !== 'plaintext-only') td.contentEditable = 'true';
       td.spellcheck = app.settings.get('spellcheck', true) !== false;
-      td.classList.add('mk-il-cell'); td.setAttribute('role', 'textbox'); td.setAttribute('aria-label', `Table cell, row ${row + 1}, column ${col + 1}. Tab goes to the next cell, Esc finishes.`);
+      td.classList.add('mk-il-cell'); td.setAttribute('role', 'textbox'); td.setAttribute('aria-label', app.t('Table cell, row {row}, column {column}. Tab goes to the next cell, Esc finishes.', { row: row + 1, column: col + 1 }));
       td.addEventListener('keydown', onCellKey); td.addEventListener('input', onCellInput); td.addEventListener('beforeinput', onCellBeforeInput);
       td.addEventListener('paste', onCellPaste); td.addEventListener('compositionstart', onCellCompStart); td.addEventListener('compositionend', onCellCompEnd);
       root.classList.add('mk-il-editing'); kbd = seg.index; markKbd();
@@ -1511,6 +1511,7 @@
           });
         }));
         offs.push(app.events.on('zoom:changed', applyLayout));
+        offs.push(app.events.on('i18n:changed', () => { page?.setAttribute('aria-label', app.t('Document. Click a paragraph to edit it.')); }));
         offs.push(app.events.on('layout:changed', applyLayout));
         offs.push(app.events.on('settings:changed', ({ key }) => { if (/^(fontFamily|fontSize)$/.test(key)) applyLayout(); if (key === 'mathMacros') adapter.refresh(); if (key === 'spellcheck' && open) open.el.spellcheck = app.settings.get('spellcheck', true) !== false; }));
         offs.push(app.events.on('theme:changed', () => { if (!open) { page?.querySelectorAll('pre.mermaid[data-done]').forEach(p => { p.removeAttribute('data-done'); p.textContent = p.getAttribute('data-src') || ''; }); Promise.resolve(app.decorate(page, doc)).catch(() => {}); } }));
@@ -1554,7 +1555,7 @@
         if (block) return adapter.insertBlock(md);
         await op((v, s, e) => Ops.R(v, s, e, md));
       },
-      async insertBlock(md) { if (cell) { app.ui.toast?.('A table cell holds one line of text. Click below the table to add this.'); return; } await op((v, s, e) => insertBlockText(v, s, e, md)); },
+      async insertBlock(md) { if (cell) { app.ui.toast?.(app.t('A table cell holds one line of text. Click below the table to add this.')); return; } await op((v, s, e) => insertBlockText(v, s, e, md)); },
       async wrap(before, after) { await op((v, s, e) => Ops.wrap(v, s, e, before, after ?? before)); },
       async format(kind) {
         if (!doc || doc.readOnly) return;
@@ -1573,7 +1574,7 @@
       },
       async color(c) { if (!c) return op(Ops.clear); await op((v, s, e) => { if (s === e) return null; const t = `<span style="color:${c}">${v.slice(s, e)}</span>`; return Ops.R(v, s, e, t, s, s + t.length); }); },
       async highlightColor(c) { if (!c || /ffd60a|yellow/i.test(c)) return adapter.format('highlight'); await op((v, s, e) => (s === e ? null : Ops.R(v, s, e, `<mark style="background:${c}">${v.slice(s, e)}</mark>`))); },
-      startPainter() { if (!open) { app.ui.toast?.('Click into the text you want to copy the look from first.'); return; } const { s, e } = getEdSel(); painter = Ops.states(open.text, s, e); root.style.cursor = 'copy'; app.ui.toast?.('Select the text to paint. Press Esc to cancel.'); },
+      startPainter() { if (!open) { app.ui.toast?.(app.t('Click into the text you want to copy the look from first.')); return; } const { s, e } = getEdSel(); painter = Ops.states(open.text, s, e); root.style.cursor = 'copy'; app.ui.toast?.(app.t('Select the text to paint. Press Esc to cancel.')); },
       insertTable(rows, cols) {
         const head = '| ' + Array.from({ length: cols }, (_, i) => 'Column ' + (i + 1)).join(' | ') + ' |';
         const sep = '| ' + Array.from({ length: cols }, () => '---').join(' | ') + ' |';
@@ -1622,11 +1623,13 @@
         if (n) doc.setText(out, 'inline-replace');
         return n;
       },
-      undo() { return applyHistory(hist.undo(doc?.text ?? ''), 'Nothing to undo'); },
+      undo() { return applyHistory(hist.undo(doc?.text ?? ''), app.t('Nothing to undo')); },
       redo() { return applyHistory(hist.redo(doc?.text ?? ''), null); },
       canUndo: () => hist.canUndo(), canRedo: () => hist.canRedo(),
       close() { return queue(() => closeBlock()); },
       openAt(start, end) { return adapter.setSelection(start, end); },
+      // typing aids (src/typing-aids.js): replace [a, b) of the open block's text, select [s, e]; one undo step
+      editOpenBlock(a, b, text, s, e = s) { if (!open || doc?.readOnly) return false; const v = open.text; applyBlock(v.slice(0, a) + text + v.slice(b), s, e); return true; },
       _typeText: (t) => { if (open) typeText(t); },
       _enter: (soft) => onEnter(!!soft),
       _segments: () => segs.map(s => ({ kind: s.kind, start: s.cStart, end: s.cEnd })),

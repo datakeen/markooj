@@ -1,6 +1,9 @@
 // Markooj — core: the shared `window.app` every module builds on. See ARCHITECTURE.md.
+/* i18n-aliases: tm */
 (function () {
   'use strict';
+  // marks English for the translation check before app.tm exists (the ribbon draws tab labels through app.t)
+  const tm = s => s;
   const mk = window.mk || { invoke: async () => { throw new Error('No bridge'); }, on() {}, render: t => ({ html: t, meta: {} }), detectFlavor: () => ({ name: 'CommonMark', features: [] }) };
 
   // ---------- events ----------
@@ -42,7 +45,7 @@
       if (!c) {
         console.warn('Unknown command', id);
         // usually a macro or a shortcut that points at an add-in which is off or removed
-        ui.toast(`Turn on the add-in that adds “${id}”, or check the macro or shortcut that runs it. Everything else works.`, { kind: 'warn', actions: [{ label: 'Open Add-ins', run: () => backstage.open('addins') }] });
+        ui.toast(app.t('Turn on the add-in that adds “{id}”, or check the macro or shortcut that runs it. Everything else works.', { id }), { kind: 'warn', actions: [{ label: app.t('Open Add-ins'), run: () => backstage.open('addins') }] });
         return;
       }
       if (c.isEnabled && !c.isEnabled()) return;
@@ -63,7 +66,7 @@
   // Error text for people: no "Error invoking remote method 'x':" or "Error:" prefixes from Electron
   function plainError(e, fallback) {
     const s = String((e && e.message) || e || '').replace(/^Error invoking remote method '[^']+':\s*/, '').replace(/^(?:\w*Error:\s*)+/, '').trim();
-    return s || fallback || 'Try that again.';
+    return s || fallback || app.t('Try that again.');
   }
 
   // ---------- ribbon / backstage / options / status registries ----------
@@ -79,7 +82,7 @@
     removeGroup(tabId, id) { ribbonGroups.set(tabId, (ribbonGroups.get(tabId) || []).filter(g => g.id !== id)); events.emit('ribbon:changed'); },
     tabs() { return [...ribbonTabs.values()].sort((a, b) => a.order - b.order).map(t => ({ ...t, groups: ribbonGroups.get(t.id) || [] })); },
   };
-  [['home', 'Home', 10], ['insert', 'Insert', 20], ['layout', 'Layout', 30], ['references', 'References', 40], ['review', 'Review', 50], ['view', 'View', 60], ['developer', 'Developer', 70], ['addins', 'Add-ins', 80]]
+  [['home', tm('Home'), 10], ['insert', tm('Insert'), 20], ['layout', tm('Layout'), 30], ['references', tm('References'), 40], ['review', tm('Review'), 50], ['view', tm('View'), 60], ['developer', tm('Developer'), 70], ['addins', tm('Add-ins'), 80]]
     .forEach(([id, label, order]) => ribbon.addTab({ id, label, order }));
 
   const pages = new Map();
@@ -90,7 +93,11 @@
     close() { events.emit('backstage:close'); },
   };
   const optionSections = new Map();
-  const options = { addSection(s) { optionSections.set(s.id, { order: 50, ...s }); }, removeSection(id) { return optionSections.delete(id); }, sections() { return [...optionSections.values()].sort((a, b) => a.order - b.order); } };
+  const options = { addSection(s) { optionSections.set(s.id, { order: 50, ...s }); }, removeSection(id) { return optionSections.delete(id); }, sections() { return [...optionSections.values()].sort((a, b) => a.order - b.order); },
+    // 1.2.0: a "lead" card drawn above a section's own card (Options → Language → Interface language comes from src/i18n.js)
+    addLead(sectionId, l) { const list = (optionLeads.get(sectionId) || []).filter(x => x.id !== l.id); list.push({ order: 50, ...l }); list.sort((a, b) => a.order - b.order); optionLeads.set(sectionId, list); },
+    leads(sectionId) { return [...(optionLeads.get(sectionId) || [])]; } };
+  const optionLeads = new Map();
   const statusItems = new Map();
   const status = { addItem(i) { statusItems.set(i.id, { order: 50, side: 'left', ...i }); events.emit('status:changed'); }, removeItem(id) { const had = statusItems.delete(id); if (had) events.emit('status:changed'); return had; }, items() { return [...statusItems.values()].sort((a, b) => a.order - b.order); }, refresh() { events.emit('status:refresh'); } };
 
@@ -131,7 +138,7 @@
   function makeDoc(o) {
     const doc = {
       id: 'd' + (++seq), recoveryId: o.recoveryId || `${Date.now().toString(36)}-${seq}`,
-      path: o.path || null, title: o.title || (o.path ? o.path.split(/[\\/]/).pop().replace(/\.[^.]+$/, '') : `Untitled ${seq}`),
+      path: o.path || null, title: o.title || (o.path ? o.path.split(/[\\/]/).pop().replace(/\.[^.]+$/, '') : app.t('Untitled {n}', { n: seq })),
       ext: (o.ext || (o.path ? o.path.split('.').pop() : 'md')).toLowerCase(), kind: o.kind || 'markdown',
       text: o.text || '', savedText: o.path && !o.convertedFrom ? (o.text || '') : '', convertedFrom: o.convertedFrom || null,
       dirty: false, flavor: { name: 'CommonMark', features: [] }, meta: {}, readOnly: !!o.readOnly,
@@ -194,7 +201,7 @@
       const text = doc.text;
       let r = await mk.invoke('write-text', doc.path, text, opts.force || doc.mtime == null ? undefined : { expectMtime: doc.mtime });
       if (r && typeof r === 'object' && r.conflict) {
-        const v = await ui.dialog({ title: `Choose how to save “${doc.title}”`, body: '<p>Save as Copy keeps both versions. Overwrite replaces the copy on disk.</p><p>Another program, a co-author or a sync service changed this file after you opened it.</p>', buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Overwrite', value: 'overwrite', danger: true }, { label: 'Save as Copy…', value: 'copy', primary: true }], cancelValue: 'cancel' });
+        const v = await ui.dialog({ title: app.t('Choose how to save “{name}”', { name: doc.title }), body: `<p>${app.th('Save as Copy keeps both versions. Overwrite replaces the copy on disk.')}</p><p>${app.th('Another program, a co-author or a sync service changed this file after you opened it.')}</p>`, buttons: [{ label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Overwrite'), value: 'overwrite', danger: true }, { label: app.t('Save as Copy…'), value: 'copy', primary: true }], cancelValue: 'cancel' });
         if (v === 'copy') return docs.saveAs(doc, { copy: true });
         if (v !== 'overwrite') return false;
         r = await mk.invoke('write-text', doc.path, text);
@@ -204,13 +211,13 @@
       if (!doc.dirty) mk.invoke('recovery-delete', doc.recoveryId).catch(() => {});
       else scheduleRecovery(doc);
       events.emit('doc:saved', doc); if (doc.dirty) events.emit('doc:changed', { doc, origin: 'save' });
-      ui.toast(`Saved ${doc.title}`);
+      ui.toast(app.t('Saved {name}', { name: doc.title }));
       return true;
     },
     async saveAs(doc = docs.active(), opts = {}) {
       if (!doc || doc.kind !== 'markdown') return false;
       const base = (doc.path || doc.title).replace(/\.[^.\\/]+$/, '');
-      const out = await mk.invoke('save-dialog', { defaultPath: base + (opts.copy ? ' (copy)' : '') + '.md', filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }, { name: 'Text', extensions: ['txt'] }] });
+      const out = await mk.invoke('save-dialog', { defaultPath: (opts.copy ? app.t('{name} (copy)', { name: base }) : base) + '.md', filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }, { name: app.t('Text@@file type'), extensions: ['txt'] }] });
       if (!out) return false;
       const prev = { path: doc.path, convertedFrom: doc.convertedFrom, ext: doc.ext, title: doc.title, mtime: doc.mtime };
       doc.path = out; doc.convertedFrom = null; doc.ext = out.split('.').pop().toLowerCase();
@@ -224,8 +231,9 @@
     },
     async close(id, opts = {}) {
       const doc = docMap.get(id); if (!doc) return true;
-      if (doc.dirty && !opts.force) {
-        const v = await ui.dialog({ title: `Save changes to “${doc.title}”?`, body: 'If you don’t save, Markooj keeps a recovery copy for ' + settings.get('recoveryDays', 7) + ' days (File → Recover).', buttons: [{ label: 'Don’t Save', value: 'discard', danger: true }, { label: 'Cancel', value: 'cancel' }, { label: 'Save', value: 'save', primary: true }] });
+      // round 5: a document another Markooj window still shows loses nothing when its tab closes here (src/windows.js)
+      if (doc.dirty && !opts.force && !app.windows?.sharedElsewhere?.(doc)) {
+        const v = await ui.dialog({ title: app.t('Save changes to “{name}”?', { name: doc.title }), body: app.tn('If you don’t save, Markooj keeps a recovery copy for {count} days (File → Recover).', settings.get('recoveryDays', 7)), buttons: [{ label: app.t('Don’t Save'), value: 'discard', danger: true }, { label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Save'), value: 'save', primary: true }] });
         if (v === 'cancel' || v == null) return false;
         if (v === 'save' && !(await docs.save(doc))) return false;
         if (v === 'discard') {
@@ -262,7 +270,7 @@
       for (const pre of blocks) {
         const src = pre.getAttribute('data-src') || pre.textContent;
         try { const { svg } = await window.mermaid.render('mk-mmd-' + (++mermaidSeq), src); pre.innerHTML = svg; pre.setAttribute('data-done', '1'); }
-        catch (e) { pre.setAttribute('data-done', 'err'); pre.title = 'Diagram error: ' + e.message; }
+        catch (e) { pre.setAttribute('data-done', 'err'); pre.title = app.t('Diagram error: {message}', { message: e.message }); }
       }
     }
     for (const fn of post) { try { await fn(el, doc); } catch (e) { console.error(e); } }
@@ -277,7 +285,7 @@
     popover() {},
     plainError,
     // shell replaces these with the real toast, dialog and details helpers
-    fail(e, o = {}) { const m = [o.lead, plainError(e, 'Try that again.')].filter(Boolean).join(' '); ui.toast(m, { kind: o.kind || 'error', actions: o.retry ? [{ label: 'Try again', run: o.retry }] : o.actions }); },
+    fail(e, o = {}) { const m = [o.lead, plainError(e, app.t('Try that again.'))].filter(Boolean).join(' '); ui.toast(m, { kind: o.kind || 'error', actions: o.retry ? [{ label: app.t('Try again'), run: o.retry }] : o.actions }); },
     async solution(o = {}) { ui.toast([o.lead, o.still].filter(Boolean).join(' '), { kind: o.kind || 'info' }); return 'close'; },
     friendlyError: () => null,
   };
@@ -323,6 +331,9 @@
     },
     // Pictures next to a saved document: relative (or absolute) file paths → markooj://local/<absolute path>
     assetUrl(doc, src) {
+      // file:///C:/x.png and file:///home/x.png (never file://host/…), and ~/Pictures/x.png (pictures from other editors)
+      if (src && /^file:\/\//i.test(src)) src = String(src).replace(/^file:\/\/(?:localhost)?\/?(?=[A-Za-z]:[\\/])/i, '').replace(/^file:\/\/(?:localhost)?(?=\/[^/\\])/i, '');
+      if (src && /^~[\\/]/.test(src) && mk && mk.homeDir) src = mk.homeDir.replace(/\\/g, '/').replace(/\/+$/, '') + String(src).slice(1);
       if (!src || /^(?:[a-z][\w+.-]*:(?!\\)|\/\/|#)/i.test(src) && !/^[A-Za-z]:[\\/]/.test(src)) return null;
       let p; try { p = decodeURI(String(src)); } catch { p = String(src); }
       p = p.replace(/\\/g, '/');
@@ -337,6 +348,12 @@
     esc: s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; },
   };
+  // interface translations (src/i18n.js, loaded in <head>): app.t, app.tn, app.th, app.tm, app.i18n. English stand-ins when it is missing.
+  try { if (window.mkI18n) window.mkI18n.attach(app); } catch (e) { console.error('[i18n] attach', e); }
+  if (!app.t) {
+    const fill = (s, v) => String(s ?? '').replace(/@@[a-z][a-z0-9 _-]{0,47}$/, '').replace(/\{([A-Za-z_]\w*)\}/g, (m, n) => (v && n in v ? String(v[n]) : m));
+    Object.assign(app, { t: fill, tn: (s, count, v) => fill(s, { ...v, count }), th: (s, v) => fill(s, v && Object.fromEntries(Object.entries(v).map(([k, x]) => [k, app.esc(x)]))), tm: s => s });
+  }
 
   // core tests
   tests.register('core: setMode accepts word, inline, simple and read', () => {

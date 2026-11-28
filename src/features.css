@@ -1,0 +1,79 @@
+/* Markooj — Features: File → Options → Features, the progress card, the Welcome step (src/features.js) */
+
+/* ---------- Options → Features ---------- */
+.mkfeat-intro{margin:12px 0 4px;color:var(--text-2);font-size:12.5px;line-height:1.45}
+.mkfeat-list{display:flex;flex-direction:column}
+.mkfeat-row{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:start;padding:14px 0;border-bottom:.5px solid var(--line)}
+.mkfeat-row:last-child{border-bottom:0}
+.mkfeat-ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.mkfeat-ic .i{width:18px;height:18px}
+.mkfeat-row[data-state="unavailable"] .mkfeat-ic{background:var(--hover);color:var(--text-3)}
+.mkfeat-main{min-width:0;display:flex;flex-direction:column;gap:3px}
+.mkfeat-title{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.mkfeat-title b{font-weight:600;font-size:13px}
+.mkfeat-badge{font-size:11px;line-height:18px;padding:0 8px;border-radius:9px;background:var(--hover);color:var(--text-2);white-space:nowrap}
+.mkfeat-badge.ok{background:rgba(40,167,69,.12);color:var(--green)}
+.mkfeat-badge.busy{background:var(--accent-soft);color:var(--accent)}
+.mkfeat-what{color:var(--text-2);font-size:12px;line-height:1.4}
+.mkfeat-size{color:var(--text-3);font-size:11.5px}
+.mkfeat-size code{font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:5px;background:var(--hover);color:var(--text-2);user-select:all}
+.mkfeat-more{font-size:11.5px;color:var(--text-2)}
+.mkfeat-more summary{cursor:pointer;color:var(--accent);width:max-content;list-style:none}
+.mkfeat-more summary::-webkit-details-marker{display:none}
+.mkfeat-more summary::after{content:"›";display:inline-block;margin-inline-start:5px;transition:transform .15s}
+.mkfeat-more[open] summary::after{transform:rotate(90deg)}
+.mkfeat-more p{margin:4px 0 2px}
+.mkfeat-powers{margin:4px 0 0;padding-inline-start:18px}
+.mkfeat-powers li{margin:2px 0;line-height:1.4}
+.mkfeat-act{display:flex;gap:6px;align-items:center;padding-top:2px}
+.mkfeat-foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 0 4px;border-top:.5px solid var(--line)}
+.mkfeat-foot .btn .i{width:14px;height:14px;margin-inline-end:5px;vertical-align:-2px}
+.mkfeat-grow{flex:1}
+.mkfeat-note{margin:6px 0 12px;font-size:11.5px;color:var(--text-3);line-height:1.45}
+.mkfeat-note a{color:var(--accent)}
+
+/* progress bars (row and card) */
+.mkfeat-bar{height:4px;border-radius:2px;background:var(--hover);overflow:hidden;margin-top:4px;position:relative}
+.mkfeat-bar.off{display:none}
+.mkfeat-bar > span{display:block;height:100%;border-radius:2px;background:var(--accent);transition:width .25s var(--ease)}
+.mkfeat-bar.busy > span{width:30% !important;animation:mkfeat-slide 1.1s ease-in-out infinite}
+@keyframes mkfeat-slide{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+@media (prefers-reduced-motion:reduce){.mkfeat-bar.busy > span{animation:none;width:100% !important;opacity:.45}}
+
+/* ---------- the floating progress card ---------- */
+.mkfeat-prog{position:fixed;inset-inline-end:16px;bottom:40px;z-index:70;width:min(340px,calc(100vw - 32px));background:var(--surface);color:var(--text);
+  border-radius:12px;box-shadow:var(--pop-shadow);padding:10px 12px 12px;opacity:0;transform:translateY(12px);pointer-events:none;
+  transition:opacity .2s,transform .3s var(--ease)}
+.mkfeat-prog.show{opacity:1;transform:none;pointer-events:auto}
+.mkfeat-prog-head{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.mkfeat-prog-head b{flex:1;font-weight:600}
+.mkfeat-prog-ic{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.mkfeat-prog-ic .i{width:13px;height:13px}
+.mkfeat-prog-x{border:0;background:none;color:var(--text-3);width:22px;height:22px;border-radius:6px;display:grid;place-items:center;cursor:default}
+.mkfeat-prog-x:hover{background:var(--hover);color:var(--text)}
+.mkfeat-prog-x .i{width:12px;height:12px}
+.mkfeat-prog-row{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;align-items:center;margin-top:10px}
+.mkfeat-prog-row .mkfeat-bar{grid-column:1;margin-top:5px}
+.mkfeat-prog-row .btn{grid-column:2;grid-row:1 / span 2;font-size:12px}
+.mkfeat-prog-t{display:flex;justify-content:space-between;gap:8px;font-size:12px;min-width:0}
+.mkfeat-prog-t span{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkfeat-prog-t small{color:var(--text-2);white-space:nowrap}
+
+/* ---------- the "Install …?" dialog ---------- */
+.mkfeat-ask .mkfeat-powers{margin:6px 0 8px;font-size:12.5px;color:var(--text-2)}
+
+/* ---------- the Welcome step ---------- */
+.mkfeat-wel{margin:14px 0 6px;padding:12px 14px;border-radius:12px;border:.5px solid var(--line-2);background:var(--accent-soft);transition:opacity .2s}
+.mkfeat-wel.done{opacity:0}
+.mkfeat-wel-head b{display:block;font-size:13.5px;font-weight:600}
+.mkfeat-wel-head small{display:block;color:var(--text-2);font-size:12px;margin-top:2px;line-height:1.4}
+.mkfeat-wel-list{list-style:none;margin:10px 0 6px;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.mkfeat-wel-item{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:9px;background:var(--surface);border:.5px solid var(--line);cursor:default;height:100%;box-sizing:border-box}
+.mkfeat-wel-item input{margin:2px 0 0;flex:none}
+.mkfeat-wel-item b{font-weight:600;font-size:12.5px}
+.mkfeat-wel-item small{display:block;color:var(--text-2);font-size:11.5px;line-height:1.35;margin-top:2px}
+.mkfeat-wel-size{font-size:11px;color:var(--text-3);white-space:nowrap}
+.mkfeat-wel-acts{display:flex;align-items:center;gap:8px;margin-top:4px}
+.mkfeat-wel-busy{color:var(--accent);font-size:12px}
+
+@media (max-width:640px){.mkfeat-row{grid-template-columns:28px minmax(0,1fr)}.mkfeat-act{grid-column:2}.mkfeat-ic{width:28px;height:28px}}

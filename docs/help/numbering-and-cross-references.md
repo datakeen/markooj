@@ -13,6 +13,18 @@ Select a picture, a table or a display equation, then click **References → Ins
 
 Only labeled items get a number, unless you turn on **Number all equations**. To keep one item without a number, add `{-}` after it.
 
+### Inside a table
+
+Equations and pictures inside table cells are numbered too, in document order with all the others:
+
+```
+| Case | Equation                 | Picture                               |
+| ---- | ------------------------ | ------------------------------------- |
+| A    | $$ q = u h $$ {#eq:flow} | ![Flume inlet](inlet.png){#fig:inlet} |
+```
+
+The equation shows its number, such as **(2)**, in the cell. The picture shows its caption under it, **Fig. 1.** *Flume inlet* (the caption is the text in the square brackets). With the cursor in a cell, **Insert → Equation** writes the equation on one line so it fits the cell, and **Insert Caption** captions the picture in that cell rather than the table. Both are listed in the **Cross-reference** dialog like any other item. A `|` inside an equation in a cell is written as `\|`.
+
 ## Refer to an item
 
 1. Put the cursor where the reference should go.
@@ -49,4 +61,4 @@ The style and separator buttons apply to every document. In **Numbering options*
 
 ## In exports
 
-PDF, print and web page exports show the numbers as on screen. Word, LaTeX and the other Pandoc formats get plain numbers in the text, so the file looks right everywhere, even without pandoc-crossref.
+PDF, print and web page exports show the numbers as on screen. Word, LaTeX and the other Pandoc formats get plain numbers in the text, so the file looks right everywhere, even without pandoc-crossref. In Word and LibreOffice files, equations in table cells keep their number and pictures in cells get their caption on the line under them.

@@ -14,7 +14,7 @@
   const LINKEDIN = 'https://www.linkedin.com/in/abilal';
   const AUTHOR = 'Ahmed Bilal';
   const COPYRIGHT = 'Copyright © 2026 Ahmed Bilal and contributors';
-  const TAGLINE = 'A calm, Word-like Markdown editor and viewer for researchers.';
+  const TAGLINE = app.tm('A calm, Word-like Markdown editor and viewer for researchers.');
   const HELP_DIR = 'docs/help/';
   // root files the viewer can open by name (packaged copies carry CHANGELOG.md in the app; the notices and licenses are
   // read from resources/ through app-info, see viewNotices / viewCreditLicense)
@@ -38,6 +38,9 @@
     return e;
   }
   const toast = (m, o) => { try { app.ui.toast(m, o); } catch {} };
+  /** Translated text around one element: around(app.t('Made by {author}', { author: '\u0001' }), node) → [before, node, after]. */
+  const around = (text, node) => { const [a, b = ''] = String(text).split('\u0001'); return [a, node, b]; };
+  const opensIn = url => app.t('{url} (opens in your browser)', { url });
 
   // ---------- icons (symbol ids start with mkh-i-; no element uses these ids) ----------
   const ICONS = {
@@ -106,11 +109,11 @@
   }
 
   function openExternal(url) {
-    return mk.invoke('open-external', url).then(() => true, e => { toast('Copy the link and paste it into your browser. Markooj could not open the browser this time.', { kind: 'warn', actions: [{ label: 'Copy link', run: () => copyText(url, 'Link copied. Paste it into your browser.') }], details: app.ui.plainError ? app.ui.plainError(e) : String(e && e.message || e) }); return false; });
+    return mk.invoke('open-external', url).then(() => true, e => { toast(app.t('Copy the link and paste it into your browser. Markooj could not open the browser this time.'), { kind: 'warn', actions: [{ label: app.t('Copy link'), run: () => copyText(url, app.t('Link copied. Paste it into your browser.')) }], details: app.ui.plainError ? app.ui.plainError(e) : String(e && e.message || e) }); return false; });
   }
   async function copyText(text, msg) {
-    try { await navigator.clipboard.writeText(text); toast(msg || 'Copied'); return true; }
-    catch { toast('Try Copy again, or select the text and press Ctrl+C. The clipboard did not answer this time.', { kind: 'warn' }); return false; }
+    try { await navigator.clipboard.writeText(text); toast(msg || app.t('Copied')); return true; }
+    catch { toast(app.t('Try Copy again, or select the text and press Ctrl+C. The clipboard did not answer this time.'), { kind: 'warn' }); return false; }
   }
 
   // =====================================================================
@@ -199,7 +202,7 @@
     }
     const listed = new Set(sections.flatMap(s => s.keys));
     const extra = [...byKey.keys()].filter(k => !listed.has(k) && !byKey.get(k).missing);
-    if (extra.length) sections.push({ title: 'More', keys: extra });
+    if (extra.length) sections.push({ title: app.tm('More'), keys: extra });
     for (const s of sections) s.keys = s.keys.filter(k => !byKey.get(k)?.missing);
     return { ok: true, index, sections: sections.filter(s => s.keys.length), pages: [...byKey.values()].filter(p => !p.missing), byKey };
   }
@@ -230,7 +233,7 @@
     }
     for (const a of el.querySelectorAll('a[href]')) {
       const href = a.getAttribute('href');
-      if (isExternal(href)) { a.classList.add('mkh-ext'); a.title = href.replace(/^mailto:/, '') + ' (opens in your browser)'; a.setAttribute('rel', 'noreferrer'); }
+      if (isExternal(href)) { a.classList.add('mkh-ext'); a.title = opensIn(href.replace(/^mailto:/, '')); a.setAttribute('rel', 'noreferrer'); }
     }
     // Mermaid diagrams, drawn in the app theme
     const blocks = el.querySelectorAll('pre.mermaid:not([data-done])');
@@ -246,8 +249,8 @@
     // "Welcome and what's new" (getting started) and links to it (Help home): a button that opens the Welcome screen
     if (app.commands.get('help.welcome')) {
       const welcomeBtn = () => {
-        const b = h('button', { type: 'button', class: 'btn sm mkh-welcome-btn', 'data-tip': 'Open the Welcome screen', 'data-tip-d': 'What Markooj can do, with a short guided tour for each feature. Help closes while it shows.' },
-          h('span', { html: icon('sparkle') }), 'Open the Welcome screen');
+        const b = h('button', { type: 'button', class: 'btn sm mkh-welcome-btn', 'data-tip': app.t('Open the Welcome screen'), 'data-tip-d': app.t('What Markooj can do, with a short guided tour for each feature. Help closes while it shows.') },
+          h('span', { html: icon('sparkle') }), app.t('Open the Welcome screen'));
         b.addEventListener('click', () => { close(); setTimeout(() => app.commands.run('help.welcome'), 240); });
         return b;
       };
@@ -267,8 +270,8 @@
       for (const h2 of el.querySelectorAll('h2')) {
         const t = byTitle.get(h2.textContent.trim().toLowerCase());
         if (!t || h2.nextElementSibling?.classList.contains('mkh-starttour')) continue;
-        const b = h('button', { type: 'button', class: 'btn sm mkh-starttour', 'data-tour': t.id, 'data-tip': 'Start this tutorial', 'data-tip-d': `Run “${t.title}” as a guided tour in a practice document. Help closes while it runs.` },
-          h('span', { html: icon('mkh-i-tour') }), 'Start this tutorial');
+        const b = h('button', { type: 'button', class: 'btn sm mkh-starttour', 'data-tour': t.id, 'data-tip': app.t('Start this tutorial'), 'data-tip-d': app.t('Run “{tutorial}” as a guided tour in a practice document. Help closes while it runs.', { tutorial: app.t(t.title) }) },
+          h('span', { html: icon('mkh-i-tour') }), app.t('Start this tutorial'));
         b.addEventListener('click', () => { close(); setTimeout(() => app.tours.start(t.id), 280); });
         h2.after(b);
       }
@@ -289,18 +292,18 @@
   const V = { el: null, key: null, hash: '', back: [], fwd: [], query: '', open: false, seq: 0 };
   function buildViewer() {
     const scrim = h('div', { class: 'mkh-scrim' });
-    const el = h('div', { class: 'mkh-viewer', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Markooj Help', 'data-mk-keys': 'own' });
+    const el = h('div', { class: 'mkh-viewer', role: 'dialog', 'aria-modal': 'true', 'aria-label': app.t('Markooj Help'), 'data-mk-keys': 'own' });
     const btn = (cls, ic, tip, desc, fn, key) => h('button', { class: 'mkh-tb ' + cls, type: 'button', html: icon(ic), 'aria-label': tip, 'data-tip': tip, 'data-tip-d': desc, 'data-key': key || null, onclick: fn });
-    const backB = btn('mkh-back', 'mkh-i-back', 'Back', 'Go to the page you were on before.', () => go(-1), 'Alt+Left');
-    const fwdB = btn('mkh-fwd', 'mkh-i-fwd', 'Forward', 'Go forward again.', () => go(1), 'Alt+Right');
-    const homeB = btn('mkh-home', 'mkh-i-home', 'Help home', 'The list of everything in the manual.', () => show(HELP_DIR + 'index.md'));
-    const title = h('div', { class: 'mkh-title' }, h('span', { class: 'mkh-badge', html: icon('mkh-i-help') }), h('b', { text: 'Markooj Help' }), h('span', { class: 'mkh-crumb' }));
-    const search = h('label', { class: 'mkh-search' }, h('span', { html: icon('mkh-i-search') }), h('input', { type: 'search', placeholder: 'Search help', 'aria-label': 'Search help', spellcheck: 'false' }));
-    const printB = btn('mkh-print', 'mkh-i-print', 'Print this page', 'Print the page you are reading, or save it as PDF.', () => printPage(), 'Ctrl+P');
-    const toursB = btn('mkh-tours-btn', 'mkh-i-tour', 'Tutorials', 'Guided tours on the real buttons. Help closes while a tour runs.', () => { close(); app.commands.run('help.tutorials'); });
-    const closeB = btn('mkh-close', 'mkh-i-x', 'Close Help', 'Back to your document.', () => close(), 'Escape');
+    const backB = btn('mkh-back', 'mkh-i-back', app.t('Back'), app.t('Go to the page you were on before.'), () => go(-1), 'Alt+Left');
+    const fwdB = btn('mkh-fwd', 'mkh-i-fwd', app.t('Forward'), app.t('Go forward again.'), () => go(1), 'Alt+Right');
+    const homeB = btn('mkh-home', 'mkh-i-home', app.t('Help home'), app.t('The list of everything in the manual.'), () => show(HELP_DIR + 'index.md'));
+    const title = h('div', { class: 'mkh-title' }, h('span', { class: 'mkh-badge', html: icon('mkh-i-help') }), h('b', { class: 'mkh-title-t', text: app.t('Markooj Help') }), h('span', { class: 'mkh-crumb' }));
+    const search = h('label', { class: 'mkh-search' }, h('span', { html: icon('mkh-i-search') }), h('input', { type: 'search', placeholder: app.t('Search help'), 'aria-label': app.t('Search help'), spellcheck: 'false' }));
+    const printB = btn('mkh-print', 'mkh-i-print', app.t('Print this page'), app.t('Print the page you are reading, or save it as PDF.'), () => printPage(), 'Ctrl+P');
+    const toursB = btn('mkh-tours-btn', 'mkh-i-tour', app.t('Tutorials'), app.t('Guided tours on the real buttons. Help closes while a tour runs.'), () => { close(); app.commands.run('help.tutorials'); });
+    const closeB = btn('mkh-close', 'mkh-i-x', app.t('Close Help'), app.t('Back to your document.'), () => close(), 'Escape');
     const bar = h('header', { class: 'mkh-bar' }, backB, fwdB, homeB, title, h('span', { class: 'mkh-grow' }), search, toursB, printB, closeB);
-    const side = h('nav', { class: 'mkh-side', 'aria-label': 'Help pages' });
+    const side = h('nav', { class: 'mkh-side', 'aria-label': app.t('Help pages') });
     const article = h('article', { class: 'mk-page mkh-doc', tabindex: '-1' });
     const pager = h('div', { class: 'mkh-pager' });
     const main = h('main', { class: 'mkh-main' }, article, pager);
@@ -335,6 +338,13 @@
     Object.assign(V, { el, scrim, side, article, pager, input, backB, fwdB, crumb: title.querySelector('.mkh-crumb') });
     return el;
   }
+  // a new interface language: draw the Help window again (its pages stay as they are)
+  app.events.on('i18n:changed', () => {
+    if (!V.el) return;
+    const wasOpen = V.open, key = V.key, ret = V.returnFocus;
+    V.el.remove(); V.scrim?.remove(); V.el = null; V.open = false;
+    if (wasOpen) Promise.resolve(open(key)).then(() => { V.returnFocus = ret; }).catch(() => {});
+  });
   async function open(page, opts = {}) {
     if (!V.el) buildViewer();
     if (!V.open) {
@@ -385,14 +395,14 @@
     if (V.query) return; // the search results stay until the box is cleared
     side.innerHTML = '';
     if (!m || !m.ok) {
-      side.append(h('div', { class: 'mkh-side-note', text: 'Read the manual online on the project page: this copy does not include its pages.' }));
+      side.append(h('div', { class: 'mkh-side-note', text: app.t('Read the manual online on the project page: this copy does not include its pages.') }));
       return;
     }
     for (const s of m.sections) {
-      if (s.title) side.append(h('div', { class: 'mkh-sec', text: s.title }));
+      if (s.title) side.append(h('div', { class: 'mkh-sec', text: app.t(s.title) }));
       for (const k of s.keys) {
         const p = m.byKey.get(k);
-        const b = h('button', { type: 'button', class: 'mkh-link' + ((activeKey || V.key) === k ? ' on' : ''), 'data-key': k, text: k === m.index ? 'Help home' : p.title });
+        const b = h('button', { type: 'button', class: 'mkh-link' + ((activeKey || V.key) === k ? ' on' : ''), 'data-key': k, text: k === m.index ? app.t('Help home') : p.title, ...(k === m.index ? {} : { lang: 'en', translate: 'no' }) }); // help pages stay English this round
         b.addEventListener('click', () => show(k));
         side.append(b);
       }
@@ -431,7 +441,7 @@
     if (seq !== V.seq) return;
     title = title || (m?.byKey.get(key)?.title) || titleOf(text, prettyName(key));
     V.crumb.textContent = key === HELP_DIR + 'index.md' ? '' : title;
-    V.el.setAttribute('aria-label', 'Markooj Help: ' + title);
+    V.el.setAttribute('aria-label', app.t('Markooj Help: {page}', { page: title }));
     renderPager(m);
     markActive();
     V.backB.disabled = !V.back.length; V.fwdB.disabled = !V.fwd.length;
@@ -455,7 +465,7 @@
     const order = m.sections.flatMap(s => s.keys);
     const i = order.indexOf(V.key);
     if (i < 0) return;
-    const mk1 = (k, dir) => { const b = h('button', { type: 'button', class: 'mkh-pg ' + dir }, h('small', { text: dir === 'prev' ? 'Previous' : 'Next' }), h('b', { text: k === m.index ? 'Help home' : m.byKey.get(k).title })); b.addEventListener('click', () => show(k)); return b; };
+    const mk1 = (k, dir) => { const b = h('button', { type: 'button', class: 'mkh-pg ' + dir }, h('small', { text: dir === 'prev' ? app.t('Previous') : app.t('Next') }), h('b', k === m.index ? { text: app.t('Help home') } : { text: m.byKey.get(k).title, lang: 'en', translate: 'no' })); b.addEventListener('click', () => show(k)); return b; };
     if (i > 0) V.pager.append(mk1(order[i - 1], 'prev'));
     V.pager.append(h('span', { class: 'mkh-grow' }));
     if (i < order.length - 1) V.pager.append(mk1(order[i + 1], 'next'));
@@ -474,7 +484,7 @@
     const r = resolveKey(href, V.key);
     if (r && /\.(md|markdown)$/i.test(r.key)) { show(r.key, { hash: r.hash }); return; }
     if (r && /^licenses\//.test(r.key)) { viewFile(r.key, r.key.split('/').pop()); return; }
-    toast('Use the Help home page or search to find this topic: the link points to a file outside the help.', { kind: 'info' });
+    toast(app.t('Use the Help home page or search to find this topic: the link points to a file outside the help.'), { kind: 'info' });
   }
 
   // ---------- search ----------
@@ -483,7 +493,7 @@
     if (!searchIndexP) searchIndexP = (async () => {
       const m = await manual();
       if (!m.ok) return [];
-      return m.pages.map(p => ({ key: p.key, title: p.key === m.index ? 'Help home' : p.title, text: plain(p.text || ''), lower: plain(p.text || '').toLowerCase() }));
+      return m.pages.map(p => ({ key: p.key, title: p.key === m.index ? app.t('Help home') : p.title, text: plain(p.text || ''), lower: plain(p.text || '').toLowerCase() }));
     })().catch(() => { searchIndexP = null; return []; });
     return searchIndexP;
   }
@@ -522,8 +532,8 @@
     if (String(V.input.value).trim() !== V.query) return;
     V.side.classList.add('searching');
     V.side.innerHTML = '';
-    V.side.append(h('div', { class: 'mkh-sec', text: res.length ? `${res.length} ${res.length === 1 ? 'page' : 'pages'} found` : 'No pages found' }));
-    if (!res.length) V.side.append(h('div', { class: 'mkh-side-note', text: 'Try fewer or different words. Commands are also in Alt+Q search.' }));
+    V.side.append(h('div', { class: 'mkh-sec', text: res.length ? app.tn('{count} pages found', res.length) : app.t('No pages found') }));
+    if (!res.length) V.side.append(h('div', { class: 'mkh-side-note', text: app.t('Try fewer or different words. Commands are also in Alt+Q search.') }));
     const words = V.query.toLowerCase().split(/\s+/).filter(Boolean);
     for (const r of res.slice(0, 40)) {
       const b = h('button', { type: 'button', class: 'mkh-res' + (r.key === V.key ? ' on' : ''), 'data-key': r.key });
@@ -555,11 +565,11 @@
     } catch {}
   }
   async function printPage() {
-    const title = V.crumb.textContent || 'Markooj Help';
+    const title = V.crumb.textContent || app.t('Markooj Help');
     const css = `body{font:12pt/1.55 Charter,Cambria,Georgia,serif;color:#111;margin:18mm}h1,h2,h3{font-family:-apple-system,"Segoe UI",sans-serif;line-height:1.25}
       code,pre{font-family:Consolas,monospace;font-size:10pt}pre{background:#f5f5f7;padding:8px;border-radius:4px;white-space:pre-wrap}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:4px 8px}img{max-width:100%}a{color:#0a52e0}kbd{border:1px solid #bbb;border-radius:3px;padding:0 4px;font:10pt sans-serif}`;
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${css}</style></head><body>${V.article.innerHTML}</body></html>`;
-    try { await mk.invoke('print', { html, title }); } catch (e) { toast('Try printing again, or check that a printer is set up in your system settings. The help stays open.', { kind: 'error', actions: [{ label: 'Try again', run: () => printPage() }], details: app.ui.plainError ? app.ui.plainError(e) : String(e && e.message || e) }); }
+    try { await mk.invoke('print', { html, title }); } catch (e) { toast(app.t('Try printing again, or check that a printer is set up in your system settings. The help stays open.'), { kind: 'error', actions: [{ label: app.t('Try again'), run: () => printPage() }], details: app.ui.plainError ? app.ui.plainError(e) : String(e && e.message || e) }); }
   }
 
   /** Show a license or notices file in the viewer: Markdown files are drawn, others shown as plain text. */
@@ -567,7 +577,7 @@
     let text = null;
     if (absPath) { try { text = await mk.invoke('read-text', absPath); } catch {} }
     if (text == null) { try { text = await fetchText(pathOrKey); } catch {} }
-    if (text == null) { toast(`Read ${title || 'this file'} on the project page: this copy of Markooj does not include it.`, { kind: 'warn', actions: [{ label: 'Open project page', run: () => app.commands.run('help.projectPage') }] }); return false; }
+    if (text == null) { toast(title ? app.t('Read {file} on the project page: this copy of Markooj does not include it.', { file: title }) : app.t('Read this file on the project page: this copy of Markooj does not include it.'), { kind: 'warn', actions: [{ label: app.t('Open project page'), run: () => app.commands.run('help.projectPage') }] }); return false; }
     const key = 'about:' + pathOrKey;
     virtual.set(key, { title: title || prettyName(pathOrKey), text: /\.md$/i.test(pathOrKey) ? text : text.replace(/\r\n/g, '\n'), kind: /\.md$/i.test(pathOrKey) ? 'md' : 'text' });
     return open(key);
@@ -619,57 +629,57 @@
   function shortcutsHtml(rows = shortcutRows()) {
     let cur = null, body = '';
     for (const r of rows) {
-      if (r.group !== cur) { cur = r.group; body += `<tr class="g"><th colspan="2">${esc(cur)}</th></tr>`; }
-      body += `<tr><td>${esc(r.title)}</td><td>${r.keys.map(k => esc(fmtKey(k))).join(', ')}${r.typing?.length ? ` <i>(while typing: ${r.typing.map(k => esc(fmtKey(k))).join(', ')})</i>` : ''}</td></tr>`;
+      if (r.group !== cur) { cur = r.group; body += `<tr class="g"><th colspan="2">${esc(app.t(cur))}</th></tr>`; }
+      body += `<tr><td>${esc(app.t(r.title))}</td><td>${r.keys.map(k => esc(fmtKey(k))).join(', ')}${r.typing?.length ? ` <i>${app.th('(while typing: {keys})', { keys: r.typing.map(k => fmtKey(k)).join(', ') })}</i>` : ''}</td></tr>`;
     }
     const css = 'body{font:10.5pt/1.4 -apple-system,"Segoe UI",sans-serif;margin:14mm;color:#111}h1{font-size:16pt;margin:0 0 2mm}p{color:#555;margin:0 0 5mm}table{border-collapse:collapse;width:100%}td{padding:2px 6px;border-bottom:.5pt solid #ddd;vertical-align:top}td:last-child{white-space:nowrap;font-family:Consolas,monospace;font-size:9.5pt}tr.g th{text-align:left;padding:8px 6px 3px;font-size:11pt;break-after:avoid}i{color:#666;font-family:-apple-system,sans-serif}tr{break-inside:avoid}';
-    return `<!doctype html><html><head><meta charset="utf-8"><title>Markooj keyboard shortcuts</title><style>${css}</style></head><body><h1>Markooj keyboard shortcuts</h1><p>Most are the same as in Microsoft Word.</p><table>${body}</table></body></html>`;
+    return `<!doctype html><html><head><meta charset="utf-8"><title>${app.th('Markooj keyboard shortcuts')}</title><style>${css}</style></head><body><h1>${app.th('Markooj keyboard shortcuts')}</h1><p>${app.th('Most are the same as in Microsoft Word.')}</p><table>${body}</table></body></html>`;
   }
   function shortcuts(opts = {}) {
     const rows = shortcutRows();
     const wrap = h('div', { class: 'mkh-keys' });
-    const search = h('input', { class: 'txt', type: 'search', placeholder: 'Search by name or key, for example Bold or Ctrl+K', 'aria-label': 'Search shortcuts', spellcheck: 'false' });
-    const list = h('div', { class: 'mkh-keys-cols', role: 'table', 'aria-label': 'Keyboard shortcuts' });
+    const search = h('input', { class: 'txt', type: 'search', placeholder: app.t('Search by name or key, for example Bold or Ctrl+K'), 'aria-label': app.t('Search shortcuts'), spellcheck: 'false' });
+    const list = h('div', { class: 'mkh-keys-cols', role: 'table', 'aria-label': app.t('Keyboard shortcuts') });
     const scroller = h('div', { class: 'mkh-keys-list' }, list);
     const count = h('div', { class: 'mkh-keys-count' });
     const notes = (() => { try { return app.keys?.notes?.() || []; } catch { return []; } })();
     const draw = () => {
       const q = search.value.trim().toLowerCase();
       const qk = q.replace(/\s+/g, '');
-      const hit = r => !q || r.title.toLowerCase().includes(q) || r.group.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q) ||
+      const hit = r => !q || r.title.toLowerCase().includes(q) || r.group.toLowerCase().includes(q) || app.t(r.title).toLowerCase().includes(q) || app.t(r.group).toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q) ||
         [...r.keys, ...(r.typing || [])].some(k => k.toLowerCase().replace(/\s+/g, '').includes(qk) || String(fmtKey(k)).toLowerCase().replace(/\s+/g, '').includes(qk));
       list.innerHTML = '';
       let cur = null, n = 0;
       for (const r of rows.filter(hit)) {
-        if (r.group !== cur) { cur = r.group; list.append(h('div', { class: 'mkh-kg', role: 'rowheader', text: cur })); }
-        const row = h('div', { class: 'mkh-kr', role: 'row', title: r.description || '' },
-          h('span', { class: 'mkh-kt', role: 'cell' }, r.title, r.word ? h('span', { class: 'mkh-word', text: 'Word', title: 'The same key as in Microsoft Word', 'aria-label': 'same as Word' }) : null),
-          h('span', { class: 'mkh-kk', role: 'cell', html: r.keys.map(keyHtml).join('<span class="mkh-or">or</span>') + (r.typing?.length ? `<span class="mkh-typing">while typing ${r.typing.map(keyHtml).join(' ')}</span>` : '') }));
+        if (r.group !== cur) { cur = r.group; list.append(h('div', { class: 'mkh-kg', role: 'rowheader', text: app.t(cur) })); }
+        const row = h('div', { class: 'mkh-kr', role: 'row', title: r.description ? app.t(r.description) : '' },
+          h('span', { class: 'mkh-kt', role: 'cell' }, app.t(r.title), r.word ? h('span', { class: 'mkh-word', text: 'Word', title: app.t('The same key as in Microsoft Word'), 'aria-label': app.t('same as Word') }) : null),
+          h('span', { class: 'mkh-kk', role: 'cell', html: r.keys.map(keyHtml).join(`<span class="mkh-or">${app.th('or')}</span>`) + (r.typing?.length ? `<span class="mkh-typing">${app.th('while typing {keys}', { keys: '\u0001' }).split('\u0001').join(r.typing.map(keyHtml).join(' '))}</span>` : '') }));
         list.append(row); n++;
       }
-      if (!n) list.append(h('div', { class: 'mkh-side-note', text: 'No shortcut matches. Try another word, or press Alt+Q to search every command.' }));
-      count.textContent = `${n} ${n === 1 ? 'shortcut' : 'shortcuts'}`;
+      if (!n) list.append(h('div', { class: 'mkh-side-note', text: app.t('No shortcut matches. Try another word, or press Alt+Q to search every command.') }));
+      count.textContent = app.tn('{count} shortcuts', n);
     };
     search.addEventListener('input', draw);
     wrap.append(h('div', { class: 'mkh-keys-top' }, search, count), scroller);
     if (notes.length) {
-      const d = h('details', { class: 'mkh-keys-notes' }, h('summary', { text: 'Word keys that work differently here' }));
+      const d = h('details', { class: 'mkh-keys-notes' }, h('summary', { text: app.t('Word keys that work differently here') }));
       const ul = h('ul');
-      for (const nt of notes) ul.append(h('li', { html: `${keyHtml(nt.key)} ${esc(nt.note || '')}` }));
+      for (const nt of notes) ul.append(h('li', { html: `${keyHtml(nt.key)} ${esc(nt.note ? app.t(nt.note) : '')}` }));
       d.append(ul); wrap.append(d);
     }
     draw();
     if (opts.query) { search.value = opts.query; draw(); }
     return app.ui.dialog({
-      title: 'Keyboard shortcuts', icon: 'keyboard', wide: 'x', body: wrap,
+      title: app.t('Keyboard shortcuts'), icon: 'keyboard', wide: 'x', body: wrap,
       buttons: [
-        { label: 'Print…', value: 'print', left: true },
-        { label: 'Reference Manual', value: 'manual' },
-        { label: 'Done', value: true, primary: true },
+        { label: app.t('Print…'), value: 'print', left: true },
+        { label: app.t('Reference Manual'), value: 'manual' },
+        { label: app.t('Done'), value: true, primary: true },
       ],
       onOpen: () => setTimeout(() => search.focus(), 40),
     }).then(async v => {
-      if (v === 'print') { try { await mk.invoke('print', { html: shortcutsHtml(rows), title: 'Markooj keyboard shortcuts' }); } catch (e) { toast('Try printing again, or check that a printer is set up in your system settings.', { kind: 'error', actions: [{ label: 'Try again', run: () => mk.invoke('print', { html: shortcutsHtml(rows), title: 'Markooj keyboard shortcuts' }).catch(() => {}) }], details: app.ui.plainError ? app.ui.plainError(e) : String(e && e.message || e) }); } }
+      if (v === 'print') { try { await mk.invoke('print', { html: shortcutsHtml(rows), title: app.t('Markooj keyboard shortcuts') }); } catch (e) { toast(app.t('Try printing again, or check that a printer is set up in your system settings.'), { kind: 'error', actions: [{ label: app.t('Try again'), run: () => mk.invoke('print', { html: shortcutsHtml(rows), title: app.t('Markooj keyboard shortcuts') }).catch(() => {}) }], details: app.ui.plainError ? app.ui.plainError(e) : String(e && e.message || e) }); } }
       if (v === 'manual') { const m = await manual().catch(() => null); const k = m?.pages.find(p => /keyboard/i.test(p.key))?.key; open(k || undefined); }
       return v;
     });
@@ -701,21 +711,21 @@
     const f = await aboutFacts();
     const box = h('div', { class: 'mkh-new' });
     if (!latest) {
-      box.append(h('p', { text: 'Read the list of changes on the project page. This copy does not include it.' }));
-      const v = await app.ui.dialog({ title: 'What’s new', icon: 'mkh-i-new', body: box, buttons: [{ label: 'Project Page', value: 'web', left: true }, { label: 'OK', value: true, primary: true }] });
+      box.append(h('p', { text: app.t('Read the list of changes on the project page. This copy does not include it.') }));
+      const v = await app.ui.dialog({ title: app.t('What’s new'), icon: 'mkh-i-new', body: box, buttons: [{ label: app.t('Project Page'), value: 'web', left: true }, { label: app.t('OK'), value: true, primary: true }] });
       if (v === 'web') openExternal(PROJECT + '/releases');
       return v;
     }
     const head = h('div', { class: 'mkh-new-head' },
       h('b', { text: latest.version ? `Markooj ${latest.version}` : latest.title }),
-      latest.date ? h('span', { text: new Date(latest.date + 'T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) }) : null,
-      latest.version && f.version && latest.version === f.version ? h('span', { class: 'mkh-pill', text: 'This version' }) : null);
+      latest.date ? h('span', { text: app.i18n?.date ? app.i18n.date(new Date(latest.date + 'T12:00:00'), { year: 'numeric', month: 'long', day: 'numeric' }) : new Date(latest.date + 'T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) }) : null,
+      latest.version && f.version && latest.version === f.version ? h('span', { class: 'mkh-pill', text: app.t('This version') }) : null);
     const art = h('div', { class: 'mk-page mkh-doc mkh-new-body' });
     art.innerHTML = await renderMarkdown(latest.body);
     await decorate(art, 'CHANGELOG.md');
     art.addEventListener('click', e => { const a = e.target.closest('a[href]'); if (!a) return; e.preventDefault(); const href = a.getAttribute('href'); if (isExternal(href)) openExternal(href); });
     box.append(head, art);
-    const v = await app.ui.dialog({ title: 'What’s new', icon: 'mkh-i-new', wide: true, body: box, buttons: [{ label: 'All Changes', value: 'all', left: true }, { label: 'OK', value: true, primary: true }] });
+    const v = await app.ui.dialog({ title: app.t('What’s new'), icon: 'mkh-i-new', wide: true, body: box, buttons: [{ label: app.t('All Changes'), value: 'all', left: true }, { label: app.t('OK'), value: true, primary: true }] });
     if (v === 'all') open('CHANGELOG.md');
     return v;
   }
@@ -725,46 +735,46 @@
   // =====================================================================
   // Every bundled component, with its license (see THIRD_PARTY_NOTICES.md and licenses/). ver: how to find the version in the notices.
   const CREDITS = [
-    { group: 'Programs Markooj starts' },
-    { name: 'Pandoc', what: 'Word, OpenDocument, EPUB, LaTeX and other formats', license: 'GPL-2.0-or-later', url: 'https://pandoc.org', file: 'pandoc-COPYING', ver: /^###\s+Pandoc\s+([\d.]+)/m },
-    { name: 'DjVuLibre', what: 'Viewing DjVu files', license: 'GPL-2.0-or-later', url: 'https://djvu.sourceforge.net', file: 'djvulibre-COPYING', ver: /^###\s+DjVuLibre\s+([\d.]+)/m },
-    { name: 'pdf2djvu', what: 'Save As DjVu', license: 'GPL-2.0-only', url: 'https://jwilk.net/software/pdf2djvu', file: 'pdf2djvu-COPYING', ver: /^###\s+pdf2djvu\s+([\d.]+)/m },
-    { group: 'App platform' },
-    { name: 'Electron', what: 'The app runtime', license: 'MIT', url: 'https://www.electronjs.org', file: 'electron-LICENSE.txt', v: 'electron' },
-    { name: 'Chromium', what: 'The web engine inside Electron', license: 'BSD-3-Clause and others', url: 'https://www.chromium.org', v: 'chrome' },
-    { name: 'Node.js', what: 'Inside Electron', license: 'MIT', url: 'https://nodejs.org', v: 'node' },
-    { group: 'Markdown, math and diagrams' },
-    { name: 'markdown-it and plugins', what: 'Reading Markdown', license: 'MIT (markdown-it-anchor: Unlicense)', url: 'https://github.com/markdown-it/markdown-it', npm: 'markdown-it' },
-    { name: 'KaTeX', what: 'Drawing math', license: 'MIT (fonts: OFL-1.1)', url: 'https://katex.org', npm: 'katex' },
-    { name: 'MathLive', what: 'The equation editor', license: 'MIT', url: 'https://cortexjs.io/mathlive/', npm: 'mathlive' },
-    { name: 'Mermaid', what: 'Diagrams', license: 'MIT', url: 'https://mermaid.js.org', npm: 'mermaid' },
-    { name: 'highlight.js', what: 'Code colors', license: 'BSD-3-Clause', url: 'https://highlightjs.org', npm: 'highlight.js' },
-    { name: 'turndown', what: 'Page to Markdown', license: 'MIT', url: 'https://github.com/mixmark-io/turndown', npm: 'turndown' },
-    { name: 'DOMPurify', what: 'Safe HTML', license: 'Apache-2.0 (dual MPL-2.0)', url: 'https://github.com/cure53/DOMPurify', npm: 'dompurify' },
-    { name: 'yaml', what: 'Front matter', license: 'ISC', url: 'https://eemeli.org/yaml/', npm: 'yaml' },
-    { group: 'Files' },
-    { name: 'pdf.js', what: 'Viewing PDF files', license: 'Apache-2.0', url: 'https://mozilla.github.io/pdf.js/', npm: 'pdfjs-dist' },
-    { name: 'pdf-lib', what: 'PDF properties', license: 'MIT', url: 'https://pdf-lib.js.org', npm: 'pdf-lib' },
-    { name: 'mammoth', what: 'Opening Word files', license: 'BSD-2-Clause', url: 'https://github.com/mwilliamson/mammoth.js', npm: 'mammoth' },
-    { name: 'html-to-docx', what: 'Built-in Word writer', license: 'MIT', url: 'https://github.com/privateOmega/html-to-docx', npm: 'html-to-docx' },
-    { name: 'JSZip', what: 'EPUB and Word packages', license: 'MIT (dual GPL-3.0)', url: 'https://stuk.github.io/jszip/', npm: 'jszip' },
-    { name: 'Citation Style Language styles', what: 'APA, IEEE and Chicago', license: 'CC BY-SA 3.0', url: 'https://citationstyles.org', file: 'csl-styles.txt' },
-    { group: 'Python' },
-    { name: 'Pyodide', what: 'Python macros, offline', license: 'MPL-2.0', url: 'https://pyodide.org', file: 'pyodide-LICENSE.txt', npm: 'pyodide' },
-    { name: 'CPython', what: 'Python itself, inside Pyodide', license: 'PSF-2.0', url: 'https://www.python.org', file: 'cpython-LICENSE.txt' },
-    { group: 'Writing Assistant and languages' },
-    { name: 'Harper', what: 'Grammar checking', license: 'Apache-2.0', url: 'https://github.com/automattic/harper', file: 'harper-LICENSE.txt', ver: /^###\s+Harper.*?([\d.]+)\s*$/m },
-    { name: 'nspell', what: 'Spelling', license: 'MIT', url: 'https://github.com/wooorm/nspell', file: 'nspell-LICENSE.txt', npm: 'nspell' },
-    { name: 'SCOWL dictionaries', what: 'US and UK English spelling', license: 'MIT and BSD', url: 'http://wordlist.aspell.net', file: 'dictionary-en-LICENSE.txt' },
-    { name: 'Lilak', what: 'Persian spelling', license: 'Apache-2.0', url: 'https://github.com/wooorm/dictionaries', file: 'dictionary-fa-LICENSE.txt' },
-    { name: 'WordNet', what: 'Synonyms and the Thesaurus', license: 'WordNet 3.0 License (Princeton University)', url: 'https://wordnet.princeton.edu', file: 'wordnet-LICENSE.txt' },
-    { name: 'write-good', what: 'Style checks', license: 'MIT', url: 'https://github.com/btford/write-good', file: 'write-good-LICENSE.txt', npm: 'write-good' },
-    { name: 'Noto Nastaliq Urdu', what: 'Urdu font', license: 'OFL-1.1', url: 'https://github.com/notofonts/nastaliq', file: 'font-noto-nastaliq-urdu-OFL.txt' },
-    { name: 'Noto Naskh Arabic', what: 'Arabic font', license: 'OFL-1.1', url: 'https://github.com/notofonts/arabic', file: 'font-noto-naskh-arabic-OFL.txt' },
-    { name: 'Vazirmatn', what: 'Persian font', license: 'OFL-1.1', url: 'https://github.com/rastikerdar/vazirmatn', file: 'font-vazirmatn-OFL.txt' },
-    { group: 'Language data (in language packs, downloaded separately)' },
-    { name: 'CLE Urdu word list', what: 'Urdu word list from the Urdu Spell Checker v1.0 by the Center for Language Engineering (CLE), KICS, UET Lahore (originally CRULP), used under the GNU GPL v3.', license: 'GPL-3.0', url: 'https://www.cle.org.pk/software/langproc/spellcheck.htm' },
-    { name: 'Markooj language packs', what: 'Word lists and rules for Urdu, Arabic and Punjabi', license: 'CC BY-SA 4.0', url: 'https://github.com/datakeen/markooj-language-packs' },
+    { group: app.tm('Programs Markooj starts') },
+    { name: 'Pandoc', what: app.tm('Word, OpenDocument, EPUB, LaTeX and other formats'), license: 'GPL-2.0-or-later', url: 'https://pandoc.org', file: 'pandoc-COPYING', ver: /^###\s+Pandoc\s+([\d.]+)/m },
+    { name: 'DjVuLibre', what: app.tm('Viewing DjVu files'), license: 'GPL-2.0-or-later', url: 'https://djvu.sourceforge.net', file: 'djvulibre-COPYING', ver: /^###\s+DjVuLibre\s+([\d.]+)/m },
+    { name: 'pdf2djvu', what: app.tm('Save As DjVu'), license: 'GPL-2.0-only', url: 'https://jwilk.net/software/pdf2djvu', file: 'pdf2djvu-COPYING', ver: /^###\s+pdf2djvu\s+([\d.]+)/m },
+    { group: app.tm('App platform') },
+    { name: 'Electron', what: app.tm('The app runtime'), license: 'MIT', url: 'https://www.electronjs.org', file: 'electron-LICENSE.txt', v: 'electron' },
+    { name: 'Chromium', what: app.tm('The web engine inside Electron'), license: 'BSD-3-Clause and others', url: 'https://www.chromium.org', v: 'chrome' },
+    { name: 'Node.js', what: app.tm('Inside Electron'), license: 'MIT', url: 'https://nodejs.org', v: 'node' },
+    { group: app.tm('Markdown, math and diagrams') },
+    { name: 'markdown-it and plugins', what: app.tm('Reading Markdown'), license: 'MIT (markdown-it-anchor: Unlicense)', url: 'https://github.com/markdown-it/markdown-it', npm: 'markdown-it' },
+    { name: 'KaTeX', what: app.tm('Drawing math'), license: 'MIT (fonts: OFL-1.1)', url: 'https://katex.org', npm: 'katex' },
+    { name: 'MathLive', what: app.tm('The equation editor'), license: 'MIT', url: 'https://cortexjs.io/mathlive/', npm: 'mathlive' },
+    { name: 'Mermaid', what: app.tm('Diagrams'), license: 'MIT', url: 'https://mermaid.js.org', npm: 'mermaid' },
+    { name: 'highlight.js', what: app.tm('Code colors'), license: 'BSD-3-Clause', url: 'https://highlightjs.org', npm: 'highlight.js' },
+    { name: 'turndown', what: app.tm('Page to Markdown'), license: 'MIT', url: 'https://github.com/mixmark-io/turndown', npm: 'turndown' },
+    { name: 'DOMPurify', what: app.tm('Safe HTML'), license: 'Apache-2.0 (dual MPL-2.0)', url: 'https://github.com/cure53/DOMPurify', npm: 'dompurify' },
+    { name: 'yaml', what: app.tm('Front matter'), license: 'ISC', url: 'https://eemeli.org/yaml/', npm: 'yaml' },
+    { group: app.tm('Files') },
+    { name: 'pdf.js', what: app.tm('Viewing PDF files'), license: 'Apache-2.0', url: 'https://mozilla.github.io/pdf.js/', npm: 'pdfjs-dist' },
+    { name: 'pdf-lib', what: app.tm('PDF properties'), license: 'MIT', url: 'https://pdf-lib.js.org', npm: 'pdf-lib' },
+    { name: 'mammoth', what: app.tm('Opening Word files'), license: 'BSD-2-Clause', url: 'https://github.com/mwilliamson/mammoth.js', npm: 'mammoth' },
+    { name: 'html-to-docx', what: app.tm('Built-in Word writer'), license: 'MIT', url: 'https://github.com/privateOmega/html-to-docx', npm: 'html-to-docx' },
+    { name: 'JSZip', what: app.tm('EPUB and Word packages'), license: 'MIT (dual GPL-3.0)', url: 'https://stuk.github.io/jszip/', npm: 'jszip' },
+    { name: 'Citation Style Language styles', what: app.tm('APA, IEEE and Chicago'), license: 'CC BY-SA 3.0', url: 'https://citationstyles.org', file: 'csl-styles.txt' },
+    { group: app.tm('Python') },
+    { name: 'Pyodide', what: app.tm('Python macros, offline'), license: 'MPL-2.0', url: 'https://pyodide.org', file: 'pyodide-LICENSE.txt', npm: 'pyodide' },
+    { name: 'CPython', what: app.tm('Python itself, inside Pyodide'), license: 'PSF-2.0', url: 'https://www.python.org', file: 'cpython-LICENSE.txt' },
+    { group: app.tm('Writing Assistant and languages') },
+    { name: 'Harper', what: app.tm('Grammar checking'), license: 'Apache-2.0', url: 'https://github.com/automattic/harper', file: 'harper-LICENSE.txt', ver: /^###\s+Harper.*?([\d.]+)\s*$/m },
+    { name: 'nspell', what: app.tm('Spelling'), license: 'MIT', url: 'https://github.com/wooorm/nspell', file: 'nspell-LICENSE.txt', npm: 'nspell' },
+    { name: 'SCOWL dictionaries', what: app.tm('US and UK English spelling'), license: 'MIT and BSD', url: 'http://wordlist.aspell.net', file: 'dictionary-en-LICENSE.txt' },
+    { name: 'Lilak', what: app.tm('Persian spelling'), license: 'Apache-2.0', url: 'https://github.com/wooorm/dictionaries', file: 'dictionary-fa-LICENSE.txt' },
+    { name: 'WordNet', what: app.tm('Synonyms and the Thesaurus'), license: 'WordNet 3.0 License (Princeton University)', url: 'https://wordnet.princeton.edu', file: 'wordnet-LICENSE.txt' },
+    { name: 'write-good', what: app.tm('Style checks'), license: 'MIT', url: 'https://github.com/btford/write-good', file: 'write-good-LICENSE.txt', npm: 'write-good' },
+    { name: 'Noto Nastaliq Urdu', what: app.tm('Urdu font'), license: 'OFL-1.1', url: 'https://github.com/notofonts/nastaliq', file: 'font-noto-nastaliq-urdu-OFL.txt' },
+    { name: 'Noto Naskh Arabic', what: app.tm('Arabic font'), license: 'OFL-1.1', url: 'https://github.com/notofonts/arabic', file: 'font-noto-naskh-arabic-OFL.txt' },
+    { name: 'Vazirmatn', what: app.tm('Persian font'), license: 'OFL-1.1', url: 'https://github.com/rastikerdar/vazirmatn', file: 'font-vazirmatn-OFL.txt' },
+    { group: app.tm('Language data (in language packs, downloaded separately)') },
+    { name: 'CLE Urdu word list', what: app.tm('Urdu word list from the Urdu Spell Checker v1.0 by the Center for Language Engineering (CLE), KICS, UET Lahore (originally CRULP), used under the GNU GPL v3.'), license: 'GPL-3.0', url: 'https://www.cle.org.pk/software/langproc/spellcheck.htm' },
+    { name: 'Markooj language packs', what: app.tm('Word lists and rules for Urdu, Arabic and Punjabi'), license: 'CC BY-SA 4.0', url: 'https://github.com/datakeen/markooj-language-packs' },
   ];
   function creditVersion(c, notices, facts) {
     if (c.v && facts?.versions?.[c.v]) return facts.versions[c.v];
@@ -789,20 +799,20 @@
   async function viewLicense() {
     closeAbout();
     const f = await aboutFacts();
-    return viewFile('LICENSE', 'Markooj license (GNU AGPL v3)', f.licenseFile);
+    return viewFile('LICENSE', app.t('Markooj license (GNU AGPL v3)'), f.licenseFile);
   }
   async function viewNotices() {
     closeAbout();
     const f = await aboutFacts();
-    return viewFile('THIRD_PARTY_NOTICES.md', 'Third-party notices', f.noticesFile);
+    return viewFile('THIRD_PARTY_NOTICES.md', app.t('Third-party notices'), f.noticesFile);
   }
   async function viewCreditLicense(c) {
     closeAbout();
     const f = await aboutFacts();
-    return viewFile('licenses/' + c.file, `${c.name}: ${c.license}`, f.licensesDir ? f.licensesDir + sep() + c.file : null);
+    return viewFile('licenses/' + c.file, app.t('{name}: {license}', { name: c.name, license: c.license }), f.licensesDir ? f.licensesDir + sep() + c.file : null);
   }
 
-  const licenseName = id => (/^AGPL-3.0/.test(id || '') ? 'GNU Affero General Public License, version 3 or any later version' : id === 'MIT' ? 'MIT License' : (id || '') + ' license');
+  const licenseName = id => (/^AGPL-3.0/.test(id || '') ? app.t('GNU Affero General Public License, version 3 or any later version') : id === 'MIT' ? app.t('MIT License') : app.t('{license} license', { license: id || '' }));
   /** The About card (used by the dialog and by File → Help). */
   async function aboutCard(opts = {}) {
     const f = await aboutFacts();
@@ -811,20 +821,20 @@
     const img = h('img', { src: '../build/icon.png', alt: '', width: '64', height: '64', draggable: 'false' });
     img.addEventListener('error', () => { logo.innerHTML = '<span class="mkh-logo-m">M</span>'; });
     logo.append(img);
-    const ver = f.version ? `Version ${f.version}${f.arch ? ` (${f.arch})` : ''}` : '';
+    const ver = f.version ? (f.arch ? app.t('Version {version} ({arch})', { version: f.version, arch: f.arch }) : app.t('Version {version}', { version: f.version })) : '';
     const head = h('div', { class: 'mkh-about-head' }, logo,
       h('div', { class: 'mkh-about-id' },
         h('div', { class: 'mkh-about-name', text: f.name }),
         h('div', { class: 'mkh-about-ver', text: ver }),
-        h('div', { class: 'mkh-about-tag', text: TAGLINE })));
+        h('div', { class: 'mkh-about-tag', text: app.t(TAGLINE) })));
     const facts = h('div', { class: 'mkh-about-facts' },
-      h('p', { class: 'mkh-madeby' }, 'Made by ', h('b', { text: f.author })),
-      h('p', { class: 'mkh-copy', text: f.copyright }),
-      h('p', { class: 'mkh-lic' }, `Markooj is free and open-source software under the ${licenseName(f.license)}. `,
-        h('button', { type: 'button', class: 'mkh-linkbtn', text: 'View license', 'data-tip': 'View license', 'data-tip-d': 'The full license text that comes with Markooj.', onclick: () => viewLicense() })),
-      h('p', { class: 'mkh-warranty', text: 'Markooj comes with ABSOLUTELY NO WARRANTY. You may share and change it under the terms of this license.' }),
-      h('p', { class: 'mkh-proj' }, 'Project page: ',
-        h('a', { href: f.homepage, class: 'mkh-ext', title: f.homepage + ' (opens in your browser)', onclick: e => { e.preventDefault(); openExternal(f.homepage); }, text: f.homepage.replace(/^https?:\/\//, '') })));
+      h('p', { class: 'mkh-madeby' }, ...around(app.t('Made by {author}', { author: '\u0001' }), h('b', { text: f.author, translate: 'no' }))),
+      h('p', { class: 'mkh-copy', text: f.copyright, translate: 'no' }),
+      h('p', { class: 'mkh-lic' }, app.t('Markooj is free and open-source software under the {license}.', { license: licenseName(f.license) }) + ' ',
+        h('button', { type: 'button', class: 'mkh-linkbtn', text: app.t('View license'), 'data-tip': app.t('View license'), 'data-tip-d': app.t('The full license text that comes with Markooj.'), onclick: () => viewLicense() })),
+      h('p', { class: 'mkh-warranty', text: app.t('Markooj comes with ABSOLUTELY NO WARRANTY. You may share and change it under the terms of this license.') }),
+      h('p', { class: 'mkh-proj' }, ...around(app.t('Project page: {link}', { link: '\u0001' }),
+        h('a', { href: f.homepage, class: 'mkh-ext', title: opensIn(f.homepage), onclick: e => { e.preventDefault(); openExternal(f.homepage); }, translate: 'no', text: f.homepage.replace(/^https?:\/\//, '') }))));
     card.append(head, facts);
     return card;
   }
@@ -832,35 +842,35 @@
     const [notices, facts] = await Promise.all([noticesText(), aboutFacts()]);
     const box = h('div', { class: 'mkh-credits' });
     box.append(h('div', { class: 'mkh-credits-head' },
-      h('b', { text: 'Credits' }),
+      h('b', { text: app.t('Credits') }),
       h('span', { class: 'mkh-grow' }),
-      h('button', { type: 'button', class: 'btn sm', 'data-tip': 'View notices', 'data-tip-d': 'Every component, its version, copyright, license and where its source code is.', onclick: () => viewNotices() }, 'View Notices')));
-    box.append(h('p', { class: 'mkh-credits-lead', text: 'Markooj is built on the work of these projects. Each keeps its own license.' }));
+      h('button', { type: 'button', class: 'btn sm', 'data-tip': app.t('View notices'), 'data-tip-d': app.t('Every component, its version, copyright, license and where its source code is.'), onclick: () => viewNotices() }, app.t('View Notices'))));
+    box.append(h('p', { class: 'mkh-credits-lead', text: app.t('Markooj is built on the work of these projects. Each keeps its own license.') }));
     const list = h('div', { class: 'mkh-credits-list', role: 'list' });
     for (const c of CREDITS) {
-      if (c.group) { list.append(h('div', { class: 'mkh-cg', text: c.group })); continue; }
+      if (c.group) { list.append(h('div', { class: 'mkh-cg', text: app.t(c.group) })); continue; }
       const v = creditVersion(c, notices, facts);
       const row = h('div', { class: 'mkh-cr', role: 'listitem' },
-        h('div', { class: 'mkh-cn' }, h('a', { href: c.url, class: 'mkh-ext', title: c.url + ' (opens in your browser)', onclick: e => { e.preventDefault(); openExternal(c.url); }, text: c.name }), v ? h('span', { class: 'mkh-cv', text: v }) : null, h('div', { class: 'mkh-cw', text: c.what })),
-        c.file ? h('button', { type: 'button', class: 'mkh-cl mkh-linkbtn', text: c.license, 'data-tip': `${c.name} license`, 'data-tip-d': 'Show the license text that comes with Markooj.', onclick: () => viewCreditLicense(c) }) : h('span', { class: 'mkh-cl', text: c.license }));
+        h('div', { class: 'mkh-cn' }, h('a', { href: c.url, class: 'mkh-ext', title: opensIn(c.url), onclick: e => { e.preventDefault(); openExternal(c.url); }, translate: 'no', text: c.name }), v ? h('span', { class: 'mkh-cv', text: v }) : null, h('div', { class: 'mkh-cw', text: app.t(c.what) })),
+        c.file ? h('button', { type: 'button', class: 'mkh-cl mkh-linkbtn', text: c.license, translate: 'no', 'data-tip': app.t('{name} license', { name: c.name }), 'data-tip-d': app.t('Show the license text that comes with Markooj.'), onclick: () => viewCreditLicense(c) }) : h('span', { class: 'mkh-cl', text: c.license, translate: 'no' }));
       list.append(row);
     }
     box.append(list);
-    box.append(h('p', { class: 'mkh-gpl', text: 'Pandoc, DjVuLibre and pdf2djvu are separate programs under the GNU GPL. Markooj runs them as tools; they are not built into Markooj. Their complete source code is on the Markooj releases page, and the Markooj maintainers will send it to anyone who asks at github.com/datakeen/markooj/issues for at least three years after each release.' }));
+    box.append(h('p', { class: 'mkh-gpl', text: app.t('Pandoc, DjVuLibre and pdf2djvu are separate programs under the GNU GPL. Markooj runs them as tools; they are not built into Markooj. Their complete source code is on the Markooj releases page, and the Markooj maintainers will send it to anyone who asks at github.com/datakeen/markooj/issues for at least three years after each release.') }));
     return box;
   }
   async function about() {
     const body = h('div', { class: 'mkh-about-dlg' });
     body.append(await aboutCard());
     body.append(await creditsBox());
-    body.append(h('p', { class: 'mkh-quiet' }, h('a', { href: LINKEDIN, class: 'mkh-li', title: LINKEDIN + ' (opens in your browser)', onclick: e => { e.preventDefault(); openExternal(LINKEDIN); }, text: 'linkedin.com/in/abilal' })));
+    body.append(h('p', { class: 'mkh-quiet' }, h('a', { href: LINKEDIN, class: 'mkh-li', title: opensIn(LINKEDIN), onclick: e => { e.preventDefault(); openExternal(LINKEDIN); }, text: 'linkedin.com/in/abilal' })));
     const v = await app.ui.dialog({
-      title: 'About Markooj', wide: true, body,
-      buttons: [{ label: 'Copy Version Info', value: 'copy', left: true }, { label: 'OK', value: true, primary: true }],
+      title: app.t('About Markooj'), wide: true, body,
+      buttons: [{ label: app.t('Copy Version Info'), value: 'copy', left: true }, { label: app.t('OK'), value: true, primary: true }],
       onOpen: (_b, c, dlg) => { aboutClose = c; dlg?.classList.add('mkh-about-wrap'); },
     });
     aboutClose = null;
-    if (v === 'copy') copyText(await versionText(), 'Version info copied');
+    if (v === 'copy') copyText(await versionText(), app.t('Version info copied'));
     return v;
   }
 
@@ -870,14 +880,14 @@
   function tutorialsList(onStart) {
     const T = app.tours;
     const box = h('div', { class: 'mkh-tours', role: 'list' });
-    if (!T || typeof T.list !== 'function') { box.append(h('p', { class: 'mkh-side-note', text: 'Read the tutorials in the online manual on the project page. This copy does not include them.' })); return box; }
+    if (!T || typeof T.list !== 'function') { box.append(h('p', { class: 'mkh-side-note', text: app.t('Read the tutorials in the online manual on the project page. This copy does not include them.') })); return box; }
     for (const t of T.list()) {
       const done = !!T.isDone?.(t.id);
-      const b = h('button', { type: 'button', class: 'mkh-tour' + (done ? ' done' : ''), role: 'listitem', 'data-tour': t.id, 'aria-label': `${t.title}, ${t.minutes} min${done ? ', done' : ''}` },
+      const b = h('button', { type: 'button', class: 'mkh-tour' + (done ? ' done' : ''), role: 'listitem', 'data-tour': t.id, 'aria-label': done ? app.t('{tutorial}, {minutes} min, done', { tutorial: app.t(t.title), minutes: t.minutes }) : app.t('{tutorial}, {minutes} min', { tutorial: app.t(t.title), minutes: t.minutes }) },
         h('span', { class: 'mkh-tour-ic', html: icon(done ? 'mkh-i-check' : (t.icon || 'mkh-i-tour')) }),
-        h('span', { class: 'mkh-tour-t' }, h('b', { text: t.title }), h('small', { text: t.description || '' })),
-        h('span', { class: 'mkh-tour-m', text: `${t.minutes} min` }));
-      b.dataset.tip = t.title; b.dataset.tipD = (t.description || '') + (done ? ' You finished this one.' : '');
+        h('span', { class: 'mkh-tour-t' }, h('b', { text: app.t(t.title) }), h('small', { text: t.description ? app.t(t.description) : '' })),
+        h('span', { class: 'mkh-tour-m', text: app.t('{minutes} min', { minutes: t.minutes }) }));
+      b.dataset.tip = app.t(t.title); b.dataset.tipD = done ? app.t('{description} You finished this one.', { description: t.description ? app.t(t.description) : '' }).trim() : (t.description ? app.t(t.description) : '');
       b.addEventListener('click', () => { onStart?.(); T.start(t.id); });
       box.append(b);
     }
@@ -888,9 +898,9 @@
     const T = app.tours;
     const n = T?.list ? T.list().length : 0, done = T?.list ? T.list().filter(t => T.isDone?.(t.id)).length : 0;
     const body = h('div', { class: 'mkh-tut-dlg' },
-      h('p', { class: 'mkh-tut-lead', text: `Short guided tours that point at the real buttons. They use a practice document, so your files are never touched.${n ? ` You finished ${done} of ${n}.` : ''}` }),
+      h('p', { class: 'mkh-tut-lead', text: n ? app.t('Short guided tours that point at the real buttons. They use a practice document, so your files are never touched. You finished {done} of {count}.', { done, count: n }) : app.t('Short guided tours that point at the real buttons. They use a practice document, so your files are never touched.') }),
       tutorialsList(() => closeFn?.(null)));
-    return app.ui.dialog({ title: 'Tutorials', icon: 'mkh-i-tour', wide: true, body, buttons: [{ label: 'Close', value: null, primary: true }], onOpen: (_b, close) => { closeFn = close; } });
+    return app.ui.dialog({ title: app.t('Tutorials'), icon: 'mkh-i-tour', wide: true, body, buttons: [{ label: app.t('Close'), value: null, primary: true }], onOpen: (_b, close) => { closeFn = close; } });
   }
 
   // =====================================================================
@@ -898,43 +908,43 @@
   // =====================================================================
   const reportProblem = async () => {
     const ok = await openExternal(NEW_ISSUE);
-    if (ok) toast('GitHub opens in your browser. Please include your Markooj version.', { kind: 'info', timeout: 9000, actions: [{ label: 'Copy Version Info', run: async () => copyText(await versionText(), 'Version info copied') }] });
+    if (ok) toast(app.t('GitHub opens in your browser. Please include your Markooj version.'), { kind: 'info', timeout: 9000, actions: [{ label: app.t('Copy Version Info'), run: async () => copyText(await versionText(), app.t('Version info copied')) }] });
     return ok;
   };
   const projectPage = () => openExternal(PROJECT);
   const CMDS = {
-    'help.manual': { label: 'Reference Manual', icon: 'mkh-i-book', description: 'The Markooj manual: every feature explained, with search. Works offline.', run: args => open(args?.page, { hash: args?.hash, query: args?.query }) },
-    'help.tutorials': { label: 'Tutorials', icon: 'mkh-i-tour', description: 'Short guided tours that point at the real buttons, using a practice document.', run: () => tutorials() },
-    'help.shortcuts': { label: 'Keyboard Shortcuts', icon: 'mkh-i-keys', description: 'Every keyboard shortcut, searchable and printable. Most are the same as in Word.', run: args => shortcuts(args || {}) },
-    'help.whatsNew': { label: 'What’s New', icon: 'mkh-i-new', description: 'What changed in this version of Markooj.', run: () => whatsNew() },
-    'help.reportProblem': { label: 'Report a Problem', icon: 'mkh-i-bug', description: 'Opens a new issue on GitHub in your browser, where you can describe what went wrong.', run: () => reportProblem() },
-    'help.projectPage': { label: 'Project Page', icon: 'mkh-i-home', description: 'The Markooj page on GitHub: downloads, source code and news. Opens in your browser.', run: () => projectPage() },
-    'help.about': { label: 'About Markooj', icon: 'mkh-i-about', description: 'Version, copyright, license and the projects Markooj is built on.', run: () => about() },
+    'help.manual': { label: app.tm('Reference Manual'), icon: 'mkh-i-book', description: app.tm('The Markooj manual: every feature explained, with search. Works offline.'), run: args => open(args?.page, { hash: args?.hash, query: args?.query }) },
+    'help.tutorials': { label: app.tm('Tutorials'), icon: 'mkh-i-tour', description: app.tm('Short guided tours that point at the real buttons, using a practice document.'), run: () => tutorials() },
+    'help.shortcuts': { label: app.tm('Keyboard Shortcuts'), icon: 'mkh-i-keys', description: app.tm('Every keyboard shortcut, searchable and printable. Most are the same as in Word.'), run: args => shortcuts(args || {}) },
+    'help.whatsNew': { label: app.tm('What’s New'), icon: 'mkh-i-new', description: app.tm('What changed in this version of Markooj.'), run: () => whatsNew() },
+    'help.reportProblem': { label: app.tm('Report a Problem'), icon: 'mkh-i-bug', description: app.tm('Opens a new issue on GitHub in your browser, where you can describe what went wrong.'), run: () => reportProblem() },
+    'help.projectPage': { label: app.tm('Project Page'), icon: 'mkh-i-home', description: app.tm('The Markooj page on GitHub: downloads, source code and news. Opens in your browser.'), run: () => projectPage() },
+    'help.about': { label: app.tm('About Markooj'), icon: 'mkh-i-about', description: app.tm('Version, copyright, license and the projects Markooj is built on.'), run: () => about() },
   };
   for (const [id, c] of Object.entries(CMDS)) {
-    app.commands.register(id, { ...c, category: 'Help' });
+    app.commands.register(id, { ...c, category: app.tm('Help') });
     try { app.tooltips?.register?.(id, { title: c.label, description: c.description }); } catch {}
   }
 
-  app.ribbon.addTab('help', { title: 'Help', label: 'Help', order: 85 });
-  app.ribbon.addGroup('help', { id: 'help-learn', label: 'Help', order: 10, items: [
-    { type: 'big', command: 'help.manual', label: 'Help', icon: 'mkh-i-book', shortcut: 'F1', tooltip: 'Reference Manual' },
-    { type: 'big', command: 'help.tutorials', label: 'Tutorials', icon: 'mkh-i-tour' },
-    { type: 'big', command: 'help.shortcuts', label: 'Shortcuts', icon: 'mkh-i-keys' },
+  app.ribbon.addTab('help', { title: app.tm('Help'), label: app.tm('Help'), order: 85 });
+  app.ribbon.addGroup('help', { id: 'help-learn', label: app.tm('Help'), order: 10, items: [
+    { type: 'big', command: 'help.manual', label: app.tm('Help'), icon: 'mkh-i-book', shortcut: 'F1', tooltip: app.tm('Reference Manual') },
+    { type: 'big', command: 'help.tutorials', label: app.tm('Tutorials'), icon: 'mkh-i-tour' },
+    { type: 'big', command: 'help.shortcuts', label: app.tm('Shortcuts'), icon: 'mkh-i-keys' },
   ] });
-  app.ribbon.addGroup('help', { id: 'help-news', label: 'Welcome', order: 20, items: [
-    { type: 'big', command: 'help.welcome', label: 'Welcome', icon: 'sparkle' },
-    { type: 'big', command: 'help.whatsNew', label: 'What’s New', icon: 'mkh-i-new' },
+  app.ribbon.addGroup('help', { id: 'help-news', label: app.tm('Welcome'), order: 20, items: [
+    { type: 'big', command: 'help.welcome', label: app.tm('Welcome'), icon: 'sparkle' },
+    { type: 'big', command: 'help.whatsNew', label: app.tm('What’s New'), icon: 'mkh-i-new' },
   ] });
-  app.ribbon.addGroup('help', { id: 'help-feedback', label: 'Feedback', order: 30, items: [
-    { type: 'big', command: 'help.reportProblem', label: 'Report a Problem', icon: 'mkh-i-bug' },
+  app.ribbon.addGroup('help', { id: 'help-feedback', label: app.tm('Feedback'), order: 30, items: [
+    { type: 'big', command: 'help.reportProblem', label: app.tm('Report a Problem'), icon: 'mkh-i-bug' },
     { type: 'col', items: [
-      { type: 'small', command: 'help.projectPage', label: 'Project Page', icon: 'mkh-i-home', showLabel: true },
-      { type: 'small', command: 'help.checkTools', label: 'Check Tools', icon: 'mkh-i-tools', showLabel: true },
+      { type: 'small', command: 'help.projectPage', label: app.tm('Project Page'), icon: 'mkh-i-home', showLabel: true },
+      { type: 'small', command: 'help.checkTools', label: app.tm('Check Tools'), icon: 'mkh-i-tools', showLabel: true },
     ] },
   ] });
-  app.ribbon.addGroup('help', { id: 'help-about', label: 'About', order: 40, items: [
-    { type: 'big', command: 'help.about', label: 'About', icon: 'mkh-i-about' },
+  app.ribbon.addGroup('help', { id: 'help-about', label: app.tm('About'), order: 40, items: [
+    { type: 'big', command: 'help.about', label: app.tm('About'), icon: 'mkh-i-about' },
   ] });
 
   function bigCard(cmd, title, desc, ic, extra) {
@@ -946,31 +956,31 @@
   }
   async function renderBackstage(el) {
     el.classList.add('mkh-bs');
-    el.innerHTML = '<h2>Help</h2><p class="sub">The manual, tutorials and shortcuts work offline. Press F1 at any time.</p>';
+    el.innerHTML = `<h2>${app.th('Help')}</h2><p class="sub">${app.th('The manual, tutorials and shortcuts work offline. Press F1 at any time.')}</p>`;
     const grid = h('div', { class: 'mkh-cards' },
-      bigCard('help.manual', 'Reference manual', 'Every feature explained, with search.', 'mkh-i-book', '<kbd>F1</kbd>'),
-      bigCard('help.tutorials', 'Tutorials', 'Guided tours on the real buttons.', 'mkh-i-tour'),
-      bigCard('help.shortcuts', 'Keyboard shortcuts', 'Search or print the full list.', 'mkh-i-keys'),
-      bigCard('help.welcome', 'Welcome', 'The main features, with a tour for each.', 'sparkle'),
-      bigCard('help.whatsNew', 'What’s new', 'Changes in this version.', 'mkh-i-new'),
-      bigCard('help.reportProblem', 'Report a problem', 'Tell us on GitHub.', 'mkh-i-bug', icon('mkh-i-ext', 'i x')),
-      bigCard('help.projectPage', 'Project page', 'Downloads, source code and news.', 'mkh-i-home', icon('mkh-i-ext', 'i x')));
+      bigCard('help.manual', app.t('Reference manual'), app.t('Every feature explained, with search.'), 'mkh-i-book', '<kbd>F1</kbd>'),
+      bigCard('help.tutorials', app.t('Tutorials'), app.t('Guided tours on the real buttons.'), 'mkh-i-tour'),
+      bigCard('help.shortcuts', app.t('Keyboard shortcuts'), app.t('Search or print the full list.'), 'mkh-i-keys'),
+      bigCard('help.welcome', app.t('Welcome'), app.t('The main features, with a tour for each.'), 'sparkle'),
+      bigCard('help.whatsNew', app.t('What’s new'), app.t('Changes in this version.'), 'mkh-i-new'),
+      bigCard('help.reportProblem', app.t('Report a problem'), app.t('Tell us on GitHub.'), 'mkh-i-bug', icon('mkh-i-ext', 'i x')),
+      bigCard('help.projectPage', app.t('Project page'), app.t('Downloads, source code and news.'), 'mkh-i-home', icon('mkh-i-ext', 'i x')));
     el.append(grid);
-    el.append(h('div', { class: 'sec-title', text: 'About Markooj' }));
+    el.append(h('div', { class: 'sec-title', text: app.t('About Markooj') }));
     const card = await aboutCard({ compact: true });
     const acts = h('div', { class: 'mkh-about-acts' },
-      h('button', { type: 'button', class: 'btn', 'data-tip-cmd': 'help.about', onclick: () => app.commands.run('help.about') }, 'Credits and Licenses'),
-      h('button', { type: 'button', class: 'btn', 'data-tip': 'View notices', 'data-tip-d': 'Every bundled component, its version, license and source.', onclick: () => viewNotices() }, 'Third-Party Notices'),
-      h('button', { type: 'button', class: 'btn', 'data-tip': 'Copy version info', 'data-tip-d': 'Copies the version, system and Electron versions, for a problem report.', onclick: async () => copyText(await versionText(), 'Version info copied') }, h('span', { html: icon('mkh-i-copy') }), 'Copy Version Info'));
+      h('button', { type: 'button', class: 'btn', 'data-tip-cmd': 'help.about', onclick: () => app.commands.run('help.about') }, app.t('Credits and Licenses')),
+      h('button', { type: 'button', class: 'btn', 'data-tip': app.t('View notices'), 'data-tip-d': app.t('Every bundled component, its version, license and source.'), onclick: () => viewNotices() }, app.t('Third-Party Notices')),
+      h('button', { type: 'button', class: 'btn', 'data-tip': app.t('Copy version info'), 'data-tip-d': app.t('Copies the version, system and Electron versions, for a problem report.'), onclick: async () => copyText(await versionText(), app.t('Version info copied')) }, h('span', { html: icon('mkh-i-copy') }), app.t('Copy Version Info')));
     card.append(acts);
-    card.append(h('p', { class: 'mkh-quiet' }, h('a', { href: LINKEDIN, class: 'mkh-li', title: LINKEDIN + ' (opens in your browser)', onclick: e => { e.preventDefault(); openExternal(LINKEDIN); }, text: 'linkedin.com/in/abilal' })));
+    card.append(h('p', { class: 'mkh-quiet' }, h('a', { href: LINKEDIN, class: 'mkh-li', title: opensIn(LINKEDIN), onclick: e => { e.preventDefault(); openExternal(LINKEDIN); }, text: 'linkedin.com/in/abilal' })));
     el.append(card);
     if (app.tours?.list) {
-      el.append(h('div', { class: 'sec-title', text: 'Tutorials' }));
+      el.append(h('div', { class: 'sec-title', text: app.t('Tutorials') }));
       el.append(tutorialsList(() => app.backstage.close()));
     }
   }
-  app.backstage.addPage({ id: 'help', label: 'Help', icon: 'mkh-i-help', order: 95, description: 'The manual, tutorials, keyboard shortcuts, what’s new and About Markooj.', render: renderBackstage });
+  app.backstage.addPage({ id: 'help', label: app.tm('Help'), icon: 'mkh-i-help', order: 95, description: app.tm('The manual, tutorials, keyboard shortcuts, what’s new and About Markooj.'), render: renderBackstage });
 
   app.help = {
     open, close, show: (k, o) => show(normalizeKey(k), o), pages, load: fetchText, manual, search, checkLinks, viewFile, viewLicense, viewNotices,

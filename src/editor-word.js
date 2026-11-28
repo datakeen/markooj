@@ -55,6 +55,12 @@
     const b = /background(?:-color)?\s*:\s*([^;]+)/i.exec(st || ''); if (b && !/transparent|initial|inherit|none/i.test(b[1])) out.push('background:' + b[1].trim());
     return out.join(';');
   }
+  // reads right to left: marked so, or its first letter is Arabic-script (paragraphs use dir="auto")
+  function rtlBlock(el) {
+    try { if (el.closest('[dir="rtl"],[data-mk-dir="rtl"]') || el.querySelector('[dir="rtl"],[data-mk-dir="rtl"]')) return true; } catch {}
+    const m = /[A-Za-z\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.exec(el.textContent || '');
+    return !!m && /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(m[0]);
+  }
   function normalize(box, tok) {
     const T = v => { tok.push(v); return `MKTOK${tok.length - 1}X`; };
     const blockTok = (el, v) => { const p = document.createElement('p'); p.textContent = T(v); el.replaceWith(p); };
@@ -86,7 +92,8 @@
       let inner;
       if (el.tagName === 'DIV') inner = toMd([...el.childNodes], { inner: true }).trim();
       else { const c = el.cloneNode(true); c.removeAttribute('align'); inner = toMd([c]).trim(); }
-      if (al === 'left') { blockTok(el, inner); continue; }
+      // left is the plain look of an English paragraph; an Urdu or Arabic paragraph keeps an explicit left
+      if (al === 'left' && !rtlBlock(el)) { blockTok(el, inner); continue; }
       blockTok(el, `<div align="${al}">\n\n${inner}\n\n</div>`);
     }
     // colored text / colored highlight → raw HTML spans
@@ -273,7 +280,7 @@
       root = document.createElement('div'); root.className = 'mk-word';
       sheet = document.createElement('div'); sheet.className = 'mk-sheet';
       page = document.createElement('article'); page.className = 'mk-page'; page.contentEditable = 'true'; page.spellcheck = true;
-      page.setAttribute('role', 'textbox'); page.setAttribute('aria-multiline', 'true'); page.setAttribute('aria-label', 'Document');
+      page.setAttribute('role', 'textbox'); page.setAttribute('aria-multiline', 'true'); page.setAttribute('aria-label', app.t('Document'));
       marks = document.createElement('div'); marks.className = 'mk-pmarks'; marks.setAttribute('aria-hidden', 'true');
       sheet.append(page, marks); root.appendChild(sheet);
       page.addEventListener('keydown', onKeyDown);
@@ -541,7 +548,7 @@
       if (sel && e.key === 'Enter' && !e.ctrlKey) { e.preventDefault(); openAtom(sel); return; }
       if (sel && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) { e.preventDefault(); clearAtomSel(); caretAfter(sel); return; }
       if (sel && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) { e.preventDefault(); clearAtomSel(); const r = document.createRange(); r.setStartBefore(sel); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r); return; }
-      if (e.key === 'Escape') { hideFloat(); if (painter) { painter = null; root.style.cursor = ''; app.ui.toast?.('Format painter off'); } return; }
+      if (e.key === 'Escape') { hideFloat(); if (painter) { painter = null; root.style.cursor = ''; app.ui.toast?.(app.t('Format painter off')); } return; }
       const r = range(); if (!r) return;
       const el = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
       // ---- tables: the caret stays in its cell; Enter (and Shift+Enter) start a new line in the cell, like Word;
@@ -642,7 +649,7 @@
         const oldUnnum = !!EQ?.unnumberedOf?.(atom);
         clearAtomSel();
         const res = await (EQ?.open?.({ tex: oldTex, display, delim: atom.getAttribute('data-delim'), label: oldLabel, unnumbered: oldUnnum, numberText: EQ.numberTextOf?.(atom), editing: true })
-          ?? app.ui.prompt('Edit equation', 'LaTeX', oldTex).then(v => v == null ? null : { tex: v, display, label: oldLabel, unnumbered: oldUnnum }));
+          ?? app.ui.prompt(app.t('Edit equation'), 'LaTeX', oldTex).then(v => v == null ? null : { tex: v, display, label: oldLabel, unnumbered: oldUnnum }));
         if (!res || !page || !page.contains(atom)) return;
         const newLabel = res.display ? (res.label || '') : '';
         // \label{} or an old numeric \tag{} inside the TeX moves to the {#eq:…} syntax, so that edit also goes through Markdown
@@ -665,7 +672,7 @@
         markDirty(atom); commit();
       } else if (atom.matches('pre.mermaid')) {
         const src = atom.getAttribute('data-src') || atom.textContent;
-        const v = await (app.editor.sourceDialog?.({ title: 'Edit diagram', label: 'Mermaid source', value: src, lang: 'mermaid' }) ?? app.ui.prompt('Edit diagram', 'Mermaid source', src));
+        const v = await (app.editor.sourceDialog?.({ title: app.t('Edit diagram'), label: app.t('Mermaid source'), value: src, lang: 'mermaid' }) ?? app.ui.prompt(app.t('Edit diagram'), app.t('Mermaid source'), src));
         if (v == null || v === src) return;
         atom.setAttribute('data-src', v); atom.removeAttribute('data-done'); atom.textContent = v;
         markDirty(atom);
@@ -674,7 +681,7 @@
       } else if (atom.matches('.mk-cite')) {
         if (app.commands.get('ref.editCitation')) return app.commands.run('ref.editCitation', { element: atom });
         const keys = (atom.getAttribute('data-keys') || '').split(';').filter(Boolean).map(k => '@' + k).join('; ');
-        const v = await app.ui.prompt('Edit citation', 'Citation keys, for example @smith2020; @lee2019', keys + (atom.getAttribute('data-locator') ? ', ' + atom.getAttribute('data-locator') : ''));
+        const v = await app.ui.prompt(app.t('Edit citation'), app.t('Citation keys, for example @smith2020; @lee2019'), keys + (atom.getAttribute('data-locator') ? ', ' + atom.getAttribute('data-locator') : ''));
         if (v == null) return;
         if (!v.trim()) { atom.remove(); markDirty(page.firstChild); allDirty = true; commit(); return; }
         selectNode(atom); getSelection().getRangeAt(0).deleteContents();
@@ -697,7 +704,7 @@
       if (/^(https?:|mailto:)/i.test(href)) { mk.invoke?.('open-external', href)?.catch?.(() => {}); return; }
       if (doc?.path && !/^[a-z][\w+.-]*:/i.test(href)) {
         const dir = doc.path.replace(/[\\/][^\\/]*$/, ''); const p = dir + (doc.path.includes('\\') ? '\\' : '/') + decodeURIComponent(href.split('#')[0]).replace(/\//g, doc.path.includes('\\') ? '\\' : '/');
-        app.docs.open(p).catch(err => (app.ui.fail ? app.ui.fail(err, { lead: `Check that the linked file “${href}” is next to this document, or fix the link.`, hideReason: true }) : app.ui.toast(`Check that the linked file “${href}” is next to this document, or fix the link.`, { kind: 'error' })));
+        app.docs.open(p).catch(err => (app.ui.fail ? app.ui.fail(err, { lead: app.t('Check that the linked file “{href}” is next to this document, or fix the link.', { href }), hideReason: true }) : app.ui.toast(app.t('Check that the linked file “{href}” is next to this document, or fix the link.', { href }), { kind: 'error' })));
       }
     }
     // '$…$ ' and '\(…\) ' turn into rendered math as you type
@@ -853,11 +860,11 @@
       if (app.tables?.contextMenu) { app.tables.contextMenu({ x: e.clientX, y: e.clientY }); return; }
       const run = op => () => tableOp(op, cell);
       E.menu({ x: e.clientX, y: e.clientY }, [
-        { title: 'Table' },
-        { label: 'Insert row above', run: run('rowAbove') }, { label: 'Insert row below', run: run('rowBelow') },
-        { label: 'Insert column left', run: run('colLeft') }, { label: 'Insert column right', run: run('colRight') }, '-',
-        { label: 'Align column left', run: run('align:left') }, { label: 'Center column', run: run('align:center') }, { label: 'Align column right', run: run('align:right') }, '-',
-        { label: 'Delete row', run: run('delRow') }, { label: 'Delete column', run: run('delCol') }, { label: 'Delete table', run: run('delTable') },
+        { title: app.t('Table') },
+        { label: app.t('Insert row above'), run: run('rowAbove') }, { label: app.t('Insert row below'), run: run('rowBelow') },
+        { label: app.t('Insert column left'), run: run('colLeft') }, { label: app.t('Insert column right'), run: run('colRight') }, '-',
+        { label: app.t('Align column left'), run: run('align:left') }, { label: app.t('Center column'), run: run('align:center') }, { label: app.t('Align column right'), run: run('align:right') }, '-',
+        { label: app.t('Delete row'), run: run('delRow') }, { label: app.t('Delete column'), run: run('delCol') }, { label: app.t('Delete table'), run: run('delTable') },
       ], { noFocus: true });
     }
 
@@ -900,19 +907,19 @@
 
     // ---------- floating format bar ----------
     function buildFloat() {
-      floatBar = document.createElement('div'); floatBar.className = 'mk-float'; floatBar.setAttribute('role', 'toolbar'); floatBar.setAttribute('aria-label', 'Formatting');
+      floatBar = document.createElement('div'); floatBar.className = 'mk-float'; floatBar.setAttribute('role', 'toolbar'); floatBar.setAttribute('aria-label', app.t('Formatting'));
       const ic = n => `<svg class="i"><use href="#${n}"/></svg>`;
-      const items = [['format.bold', '<b>B</b>', 'Bold (Ctrl+B)', 'bold'], ['format.italic', '<i>I</i>', 'Italic (Ctrl+I)', 'italic'], ['format.underline', '<u>U</u>', 'Underline (Ctrl+U)', 'underline'], ['format.highlight', ic('hl'), 'Highlight', 'highlight', 'swatch'], 'sep', ['insert.link', ic('link'), 'Link (Ctrl+K)'], ['review.comment', ic('comment'), 'Comment'], ['ref.cite', ic('cite'), 'Cite']];
+      const items = [['format.bold', '<b>B</b>', app.tm('Bold (Ctrl+B)'), 'bold'], ['format.italic', '<i>I</i>', app.tm('Italic (Ctrl+I)'), 'italic'], ['format.underline', '<u>U</u>', app.tm('Underline (Ctrl+U)'), 'underline'], ['format.highlight', ic('hl'), app.tm('Highlight'), 'highlight', 'swatch'], 'sep', ['insert.link', ic('link'), app.tm('Link (Ctrl+K)')], ['review.comment', ic('comment'), app.tm('Comment@@noun')], ['ref.cite', ic('cite'), app.tm('Cite')]];
       for (const it of items) {
         if (it === 'sep') { const s = document.createElement('span'); s.className = 'sep'; floatBar.appendChild(s); continue; }
         const [cmd, html, title, state, cls] = it;
-        const b = document.createElement('button'); b.type = 'button'; b.className = 'ib' + (cls ? ' ' + cls : ''); b.innerHTML = html; b.title = title; b.setAttribute('aria-label', title);
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'ib' + (cls ? ' ' + cls : ''); b.innerHTML = html; b.dataset.tkey = title; b.title = app.t(title); b.setAttribute('aria-label', app.t(title));
         if (cls === 'swatch') b.style.setProperty('--c', '#ffd60a');
         if (state) b.dataset.state = state;
         b.addEventListener('mousedown', e => e.preventDefault());
         b.addEventListener('click', () => {
           if (cmd === 'review.comment') return addComment();
-          if (cmd === 'ref.cite' && !app.commands.get('ref.cite')) return app.ui.toast?.('Use References → Cite to add citations. The citation tools are still loading.', { kind: 'info' });
+          if (cmd === 'ref.cite' && !app.commands.get('ref.cite')) return app.ui.toast?.(app.t('Use References → Cite to add citations. The citation tools are still loading.'), { kind: 'info' });
           app.commands.run(cmd);
           setTimeout(updateFloatStates, 0);
         });
@@ -952,11 +959,11 @@
     }
     async function addComment() {
       for (const id of ['review.comment', 'review.addComment', 'comment.add']) if (app.commands.get(id)) return app.commands.run(id);
-      const text = await app.ui.prompt('New comment', 'Comment', '');
+      const text = await app.ui.prompt(app.t('New comment'), app.t('Comment@@noun'), '');
       if (!text) return;
       restoreRange(); const r = range(); if (!r) return;
       r.collapse(false); const c = document.createComment(` comment: ${text.replace(/--/g, '—')} `); r.insertNode(c);
-      markDirty(c); commit(); app.ui.toast?.('Comment added');
+      markDirty(c); commit(); app.ui.toast?.(app.t('Comment added'));
     }
 
     // ---------- inline formatting helpers ----------
@@ -984,11 +991,15 @@
       while (n) { if (n.nodeType === 1) tops.push(n); if (n === end) break; n = n.nextSibling; }
       return tops;
     }
+    const naturalAlign = el => { try { return el && el.nodeType === 1 && getComputedStyle(el).direction === 'rtl' ? 'right' : 'left'; } catch { return 'left'; } };
     function setAlign(al) {
       const blocks = currentBlocks(); if (!blocks.length) return;
       const wrapped = blocks[0].matches('div[align]') ? blocks[0] : null;
-      if (wrapped && blocks.length === 1) { if (al === 'left') unwrap(wrapped); else { wrapped.setAttribute('align', al); markDirty(wrapped); } scheduleCommit(); return; }
-      if (al === 'left') { blocks.forEach(b => { if (b.matches('div[align]')) unwrap(b); }); scheduleCommit(); return; }
+      // the paragraph's own side (right for Urdu or Arabic) needs no wrapper: Align right on an Urdu paragraph is its natural
+      // look, and Align left there must really put it on the left
+      const natural = naturalAlign(wrapped ? (wrapped.firstElementChild || wrapped) : blocks[0]);
+      if (wrapped && blocks.length === 1) { if (al === natural) unwrap(wrapped); else { wrapped.setAttribute('align', al); markDirty(wrapped); } scheduleCommit(); return; }
+      if (al === natural) { blocks.forEach(b => { if (b.matches('div[align]')) unwrap(b); }); scheduleCommit(); return; }
       const div = document.createElement('div'); div.setAttribute('align', al);
       blocks[0].before(div); blocks.forEach(b => { if (b.matches('div[align]')) { div.append(...b.childNodes); b.remove(); } else div.appendChild(b); });
       dirty.add(div); scheduleCommit();
@@ -1175,7 +1186,7 @@
       page.style.minHeight = n * ps.h + 'px';
       if (marks.childElementCount !== n - 1) {
         marks.textContent = '';
-        for (let k = 1; k < n; k++) { const m = document.createElement('div'); m.className = 'mk-pmark'; m.style.top = k * ps.h + 'px'; m.innerHTML = `<span>Page ${k + 1}</span>`; marks.appendChild(m); }
+        for (let k = 1; k < n; k++) { const m = document.createElement('div'); m.className = 'mk-pmark'; m.style.top = k * ps.h + 'px'; m.innerHTML = `<span>${app.th('Page {n}', { n: k + 1 })}</span>`; marks.appendChild(m); }
       } else [...marks.children].forEach((m, k) => { m.style.top = (k + 1) * ps.h + 'px'; });
       if (n !== pageCount) { pageCount = n; app.status?.refresh?.(); app.events.emit('word:pages', n); }
     }
@@ -1264,6 +1275,11 @@
           renderDoc({ caret: document.activeElement === page ? caretOffset() : null });
         }));
         offs.push(app.events.on('zoom:changed', () => { applyZoom(); scheduleLayout(); }));
+        offs.push(app.events.on('i18n:changed', () => {
+          page?.setAttribute('aria-label', app.t('Document')); floatBar?.setAttribute('aria-label', app.t('Formatting'));
+          marks?.querySelectorAll('.mk-pmark span').forEach((s, k) => { s.textContent = app.t('Page {n}', { n: k + 2 }); });
+          floatBar?.querySelectorAll('[data-tkey]').forEach(b => { b.title = app.t(b.dataset.tkey); b.setAttribute('aria-label', app.t(b.dataset.tkey)); });
+        }));
         offs.push(app.events.on('layout:changed', () => { applyLayout(); scheduleLayout(); }));
         offs.push(app.events.on('settings:changed', ({ key }) => { if (/^(fontFamily|fontSize|fontFamilyExplicit)$/.test(key)) { applyLayout(); scheduleLayout(); } if (key === 'mathMacros') renderDoc(); }));
         offs.push(app.events.on('theme:changed', () => { page?.querySelectorAll('pre.mermaid[data-done]').forEach(p => { p.removeAttribute('data-done'); p.textContent = p.getAttribute('data-src') || ''; }); decorating = true; Promise.resolve(app.decorate(page, doc)).finally(() => { decorating = false; }); }));
@@ -1315,7 +1331,7 @@
           case 'ul': return toggleList('ul');
           case 'ol': return toggleList('ol');
           case 'task': return toggleTask();
-          case 'indent': return closestIn('li') ? ex('indent') : app.ui.toast?.('Click in a list item to indent it. Markdown has no page indents for plain paragraphs.', { kind: 'info' });
+          case 'indent': return closestIn('li') ? ex('indent') : app.ui.toast?.(app.t('Click in a list item to indent it. Markdown has no page indents for plain paragraphs.'), { kind: 'info' });
           case 'outdent': return closestIn('li') ? ex('outdent') : (closestIn('blockquote') ? setBlock('quote') : undefined);
           case 'quote': return setBlock('quote');
           case 'p': return setBlock('p');
@@ -1341,7 +1357,7 @@
         if (ex) { if (/ffd60a|yellow/i.test(c)) ex.removeAttribute('style'); else ex.style.background = c; markDirty(ex); scheduleCommit(); return; }
         const el = wrapSelection('mark'); if (el && !/ffd60a|yellow/i.test(c)) el.style.background = c;
       },
-      startPainter() { painter = adapter.activeStates(); ['heading', 'list', 'align', 'quote'].forEach(k => delete painter[k]); if (root) root.style.cursor = 'copy'; app.ui.toast?.('Select the text to paint. Press Esc to cancel.'); },
+      startPainter() { painter = adapter.activeStates(); ['heading', 'list', 'align', 'quote'].forEach(k => delete painter[k]); if (root) root.style.cursor = 'copy'; app.ui.toast?.(app.t('Select the text to paint. Press Esc to cancel.')); },
       activeStates() {
         const r = range(); if (!r) return {};
         const el = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
@@ -1353,7 +1369,7 @@
           highlight: !!el.closest('mark'), code: !!el.closest('code') && !el.closest('pre'),
           heading: h && page.contains(h) ? +h.tagName[1] : 0, quote: !!el.closest('blockquote:not(.callout)'), codeBlock: !!el.closest('pre'),
           list: list ? (list.classList.contains('contains-task-list') ? 'task' : list.tagName === 'OL' ? 'ol' : 'ul') : null,
-          align: al && page.contains(al) ? al.getAttribute('align') : 'left', table: !!el.closest('td,th'),
+          align: al && page.contains(al) ? al.getAttribute('align') : naturalAlign(el.closest('p,li,h1,h2,h3,h4,h5,h6,blockquote,td,th') || el), table: !!el.closest('td,th'),
         };
       },
       focus() { if (!page) return; if (!range()) restoreRange(); else page.focus({ preventScroll: true }); },
@@ -1394,7 +1410,7 @@
         return all.length;
       },
       undo() {
-        flush(); if (!undoStack.length) { app.ui.toast?.('Nothing to undo'); return; }
+        flush(); if (!undoStack.length) { app.ui.toast?.(app.t('Nothing to undo')); return; }
         const e = undoStack.pop(); redoStack.push({ text: doc.text, caret: caretOffset() }); applyText(e.text, e.caret);
       },
       redo() {

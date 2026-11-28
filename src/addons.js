@@ -125,7 +125,8 @@
   const disabled = () => new Set((setting('disabledAddons', []) || []).map(String));
   const COMMUNITY = 'addins.community';
   const communityOn = () => setting(COMMUNITY, false) === true;
-  const NOTICE = 'Add-ins from the community run with the same rights as Markooj. Install only add-ins you trust. Add-ins with a check mark are made by the Markooj team.';
+  // in the interface language each time it is shown
+  const notice = () => app.t('Add-ins from the community run with the same rights as Markooj. Install only add-ins you trust. Add-ins with a check mark are made by the Markooj team.');
 
   async function fetchList() {
     try {
@@ -144,8 +145,19 @@
     const file = String(x.name || 'addon.js');
     const id = file.replace(/\.js$/i, '');
     const meta = parseHeader(x.code);
-    return { id, file, code: String(x.code || ''), user: !!x.user, meta, name: meta.name || id.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), description: meta.description || '', version: meta.version || '', author: meta.author || '', icon: meta.icon || 'puzzle', running: false, error: null, enabled: true, folder: false, store: false, verified: false, css: '' };
+    const e = { id, file, code: String(x.code || ''), user: !!x.user, meta, name: meta.name || id.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), description: meta.description || '', version: meta.version || '', author: meta.author || '', icon: meta.icon || 'puzzle', running: false, error: null, enabled: true, folder: false, store: false, verified: false, css: '' };
+    // the add-ins that come with Markooj show their name and description in the interface language (keys in BUNDLED_TEXT)
+    if (!x.user) {
+      const name = e.name, description = e.description;
+      Object.defineProperty(e, 'name', { get: () => app.t(name), enumerable: true, configurable: true });
+      Object.defineProperty(e, 'description', { get: () => (description ? app.t(description) : ''), enumerable: true, configurable: true });
+    }
+    return e;
   }
+  // names and descriptions from the headers of ./addons/*.js (translated when drawn)
+  const BUNDLED_TEXT = [app.tm('Readability'), app.tm('Flesch reading ease, grade level and long sentences'), app.tm('SI Units'),
+    app.tm('Typeset numbers with units: 5 m/s^2 becomes proper math'), app.tm('Word Frequency'), app.tm('Insert a table of the most used words')];
+  void BUNDLED_TEXT;
   /** A folder add-in from the addins-folder-list IPC: {id, dir, manifest, install, code, css, error}. */
   function makeFolderEntry(f) {
     const m = (f && f.manifest) || {};
@@ -218,7 +230,7 @@
     refresh();
     const bad = state.list.filter(a => a.error);
     if (bad.length === 1) problemToast(bad[0]);
-    else if (bad.length) toast(`Open File → Add-ins to turn off the ${bad.length} add-ins that didn’t start. Everything else works.`, { kind: 'warn', actions: [{ label: 'Open Add-ins', run: () => app.backstage.open('addins') }] });
+    else if (bad.length) toast(app.tn('Open File → Add-ins to turn off the {count} add-ins that didn’t start. Everything else works.', bad.length), { kind: 'warn', actions: [{ label: app.t('Open Add-ins'), run: () => app.backstage.open('addins') }] });
     resolveReady(state.list);
     return state.list;
   }
@@ -267,17 +279,17 @@
   function problemActions(a) {
     const report = `Add-in: ${a.name}${a.version ? ' ' + a.version : ''}\nMarkooj ${app.version || ''}\n\n${a.error || ''}`;
     return [
-      { label: 'Turn it off', run: () => setEnabled(a.id, false) },
-      { label: 'Show error', run: () => app.ui.showDetails ? app.ui.showDetails({ title: `Turn off “${a.name}”, or report it to its author`, message: 'The add-in didn’t start. Everything else in Markooj works.', details: report, report: false }) : toast(String(a.error), { kind: 'info' }) },
-      { label: 'Report to the author', run: async () => {
+      { id: 'turn-off', label: app.t('Turn it off'), run: () => setEnabled(a.id, false) },
+      { id: 'show-error', label: app.t('Show error'), run: () => app.ui.showDetails ? app.ui.showDetails({ title: app.t('Turn off “{name}”, or report it to its author', { name: a.name }), message: app.t('The add-in didn’t start. Everything else in Markooj works.'), details: report, report: false }) : toast(String(a.error), { kind: 'info' }) },
+      { id: 'report', label: app.t('Report to the author'), run: async () => {
         const url = authorUrl(a);
-        if (app.ui.copyText) await app.ui.copyText(report, url ? 'Error copied. Paste it into the report.' : 'Error copied. Send it to the add-in’s author.');
+        if (app.ui.copyText) await app.ui.copyText(report, url ? app.t('Error copied. Paste it into the report.') : app.t('Error copied. Send it to the add-in’s author.'));
         if (url) mk.invoke('open-external', url).catch(() => {});
       } },
     ];
   }
   function problemToast(a, how) {
-    toast(`${how === 'installed' ? `Installed “${a.name}”. ` : ''}Turn “${a.name}” off, or report it to its author: it didn’t start. Everything else works.`, { kind: how === 'installed' ? 'error' : 'warn', actions: problemActions(a) });
+    toast(how === 'installed' ? app.t('Installed “{name}”. Turn “{name}” off, or report it to its author: it didn’t start. Everything else works.', { name: a.name }) : app.t('Turn “{name}” off, or report it to its author: it didn’t start. Everything else works.', { name: a.name }), { kind: how === 'installed' ? 'error' : 'warn', actions: problemActions(a) });
   }
 
   function setEnabled(id, on) {
@@ -290,9 +302,9 @@
     a.enabled = !!on;
     const off = disabled(); if (on) off.delete(id); else off.add(id);
     setSetting('disabledAddons', [...off]);
-    if (on && !a.running) { runEntry(a); if (a.error) problemToast(a); else toast(`“${a.name}” is on.`); }
-    else if (!on && a.running) { removeStyles(a.id); state.needsReload = true; offerReload(`“${a.name}” turns off fully after a reload.`); }
-    else if (on && a.running) { injectStyles(a); toast(`“${a.name}” is on.`); }
+    if (on && !a.running) { runEntry(a); if (a.error) problemToast(a); else toast(app.t('“{name}” is on.', { name: a.name })); }
+    else if (!on && a.running) { removeStyles(a.id); state.needsReload = true; offerReload(app.t('“{name}” turns off fully after a reload.', { name: a.name })); }
+    else if (on && a.running) { injectStyles(a); toast(app.t('“{name}” is on.', { name: a.name })); }
     else if (!on) removeStyles(a.id);
     refresh();
   }
@@ -302,8 +314,8 @@
   async function enableCommunity({ ask = true } = {}) {
     if (communityOn()) return true;
     if (ask) {
-      const v = await app.ui.dialog({ title: 'Turn on community add-ins?', icon: 'puzzle', body: `<p>${esc(NOTICE)}</p>`,
-        buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Turn on', value: 'on', primary: true }], cancelValue: 'cancel' });
+      const v = await app.ui.dialog({ title: app.t('Turn on community add-ins?'), icon: 'puzzle', body: `<p>${esc(notice())}</p>`,
+        buttons: [{ label: app.t('Cancel'), value: 'cancel' }, { label: app.t('Turn on'), value: 'on', primary: true }], cancelValue: 'cancel' });
       if (v !== 'on') return false;
     }
     setSetting(COMMUNITY, true);
@@ -319,7 +331,7 @@
     setSetting(COMMUNITY, false);
     const running = state.list.filter(a => a.store && a.running);
     for (const a of state.list) if (a.store) { removeStyles(a.id); a.blocked = true; }
-    if (running.length) { state.needsReload = true; offerReload('Community add-ins turn off fully after a reload.'); }
+    if (running.length) { state.needsReload = true; offerReload(app.t('Community add-ins turn off fully after a reload.')); }
     refresh();
     app.events.emit('addins:community', false);
   }
@@ -327,7 +339,7 @@
   let reloadOffered = 0;
   async function offerReload(msg) {
     if (Date.now() - reloadOffered < 1500) return; reloadOffered = Date.now();
-    const v = await app.ui.dialog({ title: 'Reload Markooj?', body: esc(msg) + '<br><br>Your open documents come back after the reload, including unsaved changes.', buttons: [{ label: 'Later', value: 'later' }, { label: 'Reload now', value: 'reload', primary: true }] });
+    const v = await app.ui.dialog({ title: app.t('Reload Markooj?'), body: esc(msg) + '<br><br>' + app.th('Your open documents come back after the reload, including unsaved changes.'), buttons: [{ label: app.t('Later'), value: 'later' }, { label: app.t('Reload now'), value: 'reload', primary: true }] });
     if (v === 'reload') reloadNow();
   }
 
@@ -379,8 +391,8 @@
     let name = null;
     try { name = await mk.invoke('addon-install'); }
     catch (e) {
-      if (/No handler/i.test(e.message)) toast('Use the Add-in store (File → Add-ins → Browse) to add add-ins. Installing from a file needs the desktop app.', { kind: 'warn', actions: [{ label: 'Browse add-ins', run: () => app.backstage.open('addins') }] });
-      else app.ui.fail(e, { lead: 'Choose the add-in’s .js file again.', retry: () => install() });
+      if (/No handler/i.test(e.message)) toast(app.t('Use the Add-in store (File → Add-ins → Browse) to add add-ins. Installing from a file needs the desktop app.'), { kind: 'warn', actions: [{ label: app.t('Browse add-ins'), run: () => app.backstage.open('addins') }] });
+      else app.ui.fail(e, { lead: app.t('Choose the add-in’s .js file again.'), retry: () => install() });
       return;
     }
     if (!name) return;
@@ -388,32 +400,32 @@
     const was = state.list.find(x => x.id === id);
     const r = await fetchList();
     const x = (r.list || []).find(y => String(y.name).replace(/\.js$/i, '') === id && y.user) || (r.list || []).find(y => String(y.name).replace(/\.js$/i, '') === id);
-    if (!x) { toast(`Installed ${name}.`); return; }
+    if (!x) { toast(app.t('Installed {name}.', { name })); return; }
     const e = makeEntry(x);
-    if (was?.running) { state.list = state.list.map(a => a.id === id ? { ...e, running: true } : a); state.needsReload = true; refresh(); offerReload(`“${e.name}” was updated. Reload to use the new version.`); return; }
+    if (was?.running) { state.list = state.list.map(a => a.id === id ? { ...e, running: true } : a); state.needsReload = true; refresh(); offerReload(app.t('“{name}” was updated. Reload to use the new version.', { name: e.name })); return; }
     state.list = state.list.filter(a => a.id !== id).concat(e).sort((a, b) => a.name.localeCompare(b.name));
     const off = disabled(); off.delete(id); setSetting('disabledAddons', [...off]);
     runEntry(e);
     if (e.error) problemToast(e, 'installed');
-    else toast(`Installed “${e.name}”.`);
+    else toast(app.t('Installed “{name}”.', { name: e.name }));
     refresh();
   }
   async function openFolder() {
     let dir = state.dir;
     if (!dir) { try { dir = (await mk.invoke('user-addons'))?.dir; } catch {} }
-    if (!dir) { toast('Use Install from file to add an add-in. The add-ins folder opens only in the desktop app.', { kind: 'warn' }); return; }
-    try { await mk.invoke('open-folder', dir); } catch (e) { app.ui.fail(e, { lead: `Open this folder yourself: ${dir}`, actions: [{ label: 'Copy path', run: () => app.ui.copyText(dir, 'Path copied') }] }); }
+    if (!dir) { toast(app.t('Use Install from file to add an add-in. The add-ins folder opens only in the desktop app.'), { kind: 'warn' }); return; }
+    try { await mk.invoke('open-folder', dir); } catch (e) { app.ui.fail(e, { lead: app.t('Open this folder yourself: {folder}', { folder: dir }), actions: [{ label: app.t('Copy path'), run: () => app.ui.copyText(dir, app.t('Path copied')) }] }); }
   }
 
   // ---------- UI ----------
   function cardEl(a, { onToggle, onOpen } = {}) {
     const card = document.createElement('div');
     card.className = 'mka-card'; card.tabIndex = 0; card.setAttribute('role', 'button');
-    card.title = [a.name, a.description, a.error ? 'Problem: ' + a.error : ''].filter(Boolean).join('\n');
-    card.innerHTML = `<div class="mka-ic" style="background:${colorFor(a)}">${svg(a.icon)}</div><div class="mka-txt"><b>${esc(a.name)}</b><span>${esc(a.error ? 'Click to see why it didn’t start, or turn it off.' : a.enabled && isBlocked(a) ? 'Waits for community add-ins. Click for details.' : a.description || a.file)}</span></div>`;
+    card.title = [a.name, a.description, a.error ? app.t('Problem: {error}', { error: a.error }) : ''].filter(Boolean).join('\n');
+    card.innerHTML = `<div class="mka-ic" style="background:${colorFor(a)}">${svg(a.icon)}</div><div class="mka-txt"><b>${esc(a.name)}</b><span>${esc(a.error ? app.t('Click to see why it didn’t start, or turn it off.') : a.enabled && isBlocked(a) ? app.t('Waits for community add-ins. Click for details.') : a.description || a.file)}</span></div>`;
     const tg = document.createElement('button');
     tg.className = 'mka-toggle' + (a.enabled ? ' on' : ''); tg.setAttribute('role', 'switch'); tg.setAttribute('aria-checked', String(a.enabled));
-    tg.setAttribute('aria-label', (a.enabled ? 'Turn off ' : 'Turn on ') + a.name); tg.title = a.enabled ? 'On' : 'Off';
+    tg.setAttribute('aria-label', a.enabled ? app.t('Turn off {name}', { name: a.name }) : app.t('Turn on {name}', { name: a.name })); tg.title = a.enabled ? app.t('On@@switch') : app.t('Off@@switch');
     tg.addEventListener('click', e => { e.stopPropagation(); onToggle?.(a); });
     card.append(tg);
     card.addEventListener('click', () => onOpen?.(a));
@@ -427,23 +439,23 @@
     if (app.addinStore?.renderPage) return app.addinStore.renderPage(el);
     el.textContent = '';
     const head = document.createElement('div'); head.className = 'mka-page';
-    head.innerHTML = `<h2>Add-ins</h2><p class="sub">Add-ins add buttons, tools and Markdown features. Turn them on or off here.</p>`;
+    head.innerHTML = `<h2>${app.th('Add-ins')}</h2><p class="sub">${app.th('Add-ins add buttons, tools and Markdown features. Turn them on or off here.')}</p>`;
     const body = document.createElement('div');
     el.append(head, body);
     renderInstalled(body);
   }
-  function verifiedBadge() { return `<span class="mka-ver" role="img" aria-label="Made by the Markooj team" data-tip="Made by the Markooj team" data-tip-d="The Markooj team made this add-in and keeps it up to date.">${svg('check')}</span>`; }
+  function verifiedBadge() { const who = app.th('Made by the Markooj team'); return `<span class="mka-ver" role="img" aria-label="${who}" data-tip="${who}" data-tip-d="${app.th('The Markooj team made this add-in and keeps it up to date.')}">${svg('check')}</span>`; }
   function sourceChip(a) {
-    if (a.store) return '<span class="mka-chip store">From the add-in store</span>';
-    return `<span class="mka-chip${a.user ? ' user' : ''}">${a.user ? 'Installed by you' : 'Comes with Markooj'}</span>`;
+    if (a.store) return `<span class="mka-chip store">${app.th('From the add-in store')}</span>`;
+    return `<span class="mka-chip${a.user ? ' user' : ''}">${a.user ? app.th('Installed by you') : app.th('Comes with Markooj')}</span>`;
   }
   function communitySwitch() {
     const row = document.createElement('div'); row.className = 'mka-switch';
     const on = communityOn();
-    row.innerHTML = `<div><b>Community add-ins</b><small>${on ? 'On. Add-ins from the add-in store can run.' : 'Off. Add-ins from the add-in store stay off until you turn this on.'} ${esc(NOTICE.split('. ').slice(0, 1).join(''))}.</small></div>`;
+    row.innerHTML = `<div><b>${app.th('Community add-ins')}</b><small>${on ? app.th('On. Add-ins from the add-in store can run.') : app.th('Off. Add-ins from the add-in store stay off until you turn this on.')} ${app.th('Add-ins from the community run with the same rights as Markooj.')}</small></div>`;
     const tg = document.createElement('button');
-    tg.className = 'mka-toggle' + (on ? ' on' : ''); tg.setAttribute('role', 'switch'); tg.setAttribute('aria-checked', String(on)); tg.setAttribute('aria-label', 'Community add-ins');
-    tg.dataset.tip = 'Community add-ins'; tg.dataset.tipD = NOTICE;
+    tg.className = 'mka-toggle' + (on ? ' on' : ''); tg.setAttribute('role', 'switch'); tg.setAttribute('aria-checked', String(on)); tg.setAttribute('aria-label', app.t('Community add-ins'));
+    tg.dataset.tip = app.t('Community add-ins'); tg.dataset.tipD = notice();
     tg.dataset.act = 'community';
     tg.addEventListener('click', () => { if (communityOn()) disableCommunity(); else enableCommunity(); });
     row.append(tg);
@@ -456,48 +468,48 @@
     const page = document.createElement('div'); page.className = 'mka-page';
     const actions = document.createElement('div'); actions.className = 'mka-actions';
     const btn = (label, icon, fn, cls = '') => { const b = document.createElement('button'); b.className = 'mka-btn ' + cls; b.innerHTML = svg(icon) + esc(label); b.addEventListener('click', fn); return b; };
-    actions.append(btn('Install from file…', 'addin-install', install, app.addinStore ? '' : 'primary'), btn('Open add-ins folder', 'open', openFolder));
+    actions.append(btn(app.t('Install from file…'), 'addin-install', install, app.addinStore ? '' : 'primary'), btn(app.t('Open add-ins folder'), 'open', openFolder));
     try { app.addinStore?.decorateActions?.(actions, btn); } catch (e) { console.error(e); }
     page.append(actions);
     page.append(communitySwitch());
     if (state.needsReload) {
       const ban = document.createElement('div'); ban.className = 'mka-banner';
-      ban.innerHTML = `${svg('addin-reload')}<span>Reload Markooj to finish turning add-ins off or to use updated ones. Your documents come back after the reload.</span>`;
-      ban.append(btn('Reload now', 'addin-reload', reloadNow, 'primary'));
+      ban.innerHTML = `${svg('addin-reload')}<span>${app.th('Reload Markooj to finish turning add-ins off or to use updated ones. Your documents come back after the reload.')}</span>`;
+      ban.append(btn(app.t('Reload now'), 'addin-reload', reloadNow, 'primary'));
       page.append(ban);
     }
     const grid = document.createElement('div'); grid.className = 'mka-grid';
-    if (!state.loaded) grid.innerHTML = '<p class="sub">Loading add-ins…</p>';
-    else if (!state.list.length) grid.innerHTML = '<p class="sub">No add-ins are installed. Install one from a .js file, or write your own (see below).</p>';
+    if (!state.loaded) grid.innerHTML = `<p class="sub">${app.th('Loading add-ins…')}</p>`;
+    else if (!state.list.length) grid.innerHTML = `<p class="sub">${app.th('No add-ins are installed. Install one from a .js file, or write your own (see below).')}</p>`;
     for (const a of state.list) {
       const c = document.createElement('div'); c.className = 'mka-big';
       c.dataset.addin = a.id;
-      c.innerHTML = `<div class="top"><div class="mka-ic" style="background:${colorFor(a)}">${svg(a.icon)}</div><div style="flex:1;min-width:0"><b>${esc(a.name)}${a.verified ? verifiedBadge() : ''}</b><small>${esc([a.version && 'Version ' + a.version, a.author].filter(Boolean).join(' · ') || a.file)}</small></div></div>
-        <p>${esc(a.description || 'No description.')}</p>
+      c.innerHTML = `<div class="top"><div class="mka-ic" style="background:${colorFor(a)}">${svg(a.icon)}</div><div style="flex:1;min-width:0"><b>${esc(a.name)}${a.verified ? verifiedBadge() : ''}</b><small>${esc([a.version && app.t('Version {version}', { version: a.version }), a.author].filter(Boolean).join(' · ') || a.file)}</small></div></div>
+        <p>${esc(a.description || app.t('No description.'))}</p>
         <div class="mka-foot">${sourceChip(a)}<span class="mka-chip">${esc(a.folder ? a.id + '/' : a.file)}</span><span class="grow"></span></div>`;
       if (a.error) {
         const er = document.createElement('div'); er.className = 'mka-err';
-        er.textContent = 'Turn this add-in off, or report it to its author. Everything else works. It didn’t start: ' + a.error;
+        er.textContent = app.t('Turn this add-in off, or report it to its author. Everything else works. It didn’t start: {error}', { error: a.error });
         const row = document.createElement('div'); row.className = 'mka-err-acts';
-        for (const act of problemActions(a).filter(x => x.label !== 'Show error')) { const b = document.createElement('button'); b.type = 'button'; b.className = 'mka-mini'; b.textContent = act.label; b.addEventListener('click', ev => { ev.stopPropagation(); act.run(); }); row.append(b); }
+        for (const act of problemActions(a).filter(x => x.id !== 'show-error')) { const b = document.createElement('button'); b.type = 'button'; b.className = 'mka-mini'; b.textContent = act.label; b.addEventListener('click', ev => { ev.stopPropagation(); act.run(); }); row.append(b); }
         er.append(row); c.append(er);
       }
       else if (a.enabled && isBlocked(a)) {
         const n = document.createElement('div'); n.className = 'mka-note';
-        n.innerHTML = '<span>Community add-ins are off, so this add-in does not run yet.</span>';
-        const b = document.createElement('button'); b.className = 'mka-mini primary'; b.textContent = 'Turn on'; b.dataset.tip = 'Turn on community add-ins'; b.dataset.tipD = NOTICE;
+        n.innerHTML = `<span>${app.th('Community add-ins are off, so this add-in does not run yet.')}</span>`;
+        const b = document.createElement('button'); b.className = 'mka-mini primary'; b.textContent = app.t('Turn on'); b.dataset.tip = app.t('Turn on community add-ins'); b.dataset.tipD = notice();
         b.addEventListener('click', () => enableCommunity());
         n.append(b); c.append(n);
       }
       try { app.addinStore?.decorateCard?.(a, c); } catch (e) { console.error(e); }
       const tg = document.createElement('button');
-      tg.className = 'mka-toggle' + (a.enabled ? ' on' : ''); tg.setAttribute('role', 'switch'); tg.setAttribute('aria-checked', String(a.enabled)); tg.setAttribute('aria-label', 'Turn ' + a.name + (a.enabled ? ' off' : ' on'));
+      tg.className = 'mka-toggle' + (a.enabled ? ' on' : ''); tg.setAttribute('role', 'switch'); tg.setAttribute('aria-checked', String(a.enabled)); tg.setAttribute('aria-label', a.enabled ? app.t('Turn {name} off', { name: a.name }) : app.t('Turn {name} on', { name: a.name }));
       tg.addEventListener('click', () => setEnabled(a.id, !a.enabled));
       c.querySelector('.top').append(tg);
       grid.append(c);
     }
     page.append(grid);
-    const sec = document.createElement('div'); sec.className = 'mka-sec'; sec.textContent = 'Write your own add-in';
+    const sec = document.createElement('div'); sec.className = 'mka-sec'; sec.textContent = app.t('Write your own add-in');
     const guide = document.createElement('div'); guide.className = 'mka-guide';
     const example = `// @name Hello
 // @description Says hello from the ribbon
@@ -514,23 +526,23 @@ app.ribbon.addGroup('addins', {
   items: [{ type: 'big', command: 'hello.say', label: 'Hello', icon: 'sparkle' }],
 });`;
     guide.innerHTML = `<ol>
-        <li>Create a plain text file ending in <b>.js</b>, for example <b>hello.js</b>.</li>
-        <li>Start it with the comment lines below (name, description, icon). Icons: puzzle, sparkle, sigma, spell, count, cite, table, code, doc…</li>
-        <li>Put it in the add-ins folder (or use <b>Install from file…</b>) and reload.</li>
+        <li>${app.th('Create a plain text file ending in <b>.js</b>, for example <b>hello.js</b>.')}</li>
+        <li>${app.th('Start it with the comment lines below (name, description, icon). Icons: puzzle, sparkle, sigma, spell, count, cite, table, code, doc…')}</li>
+        <li>${app.th('Put it in the add-ins folder (or use <b>Install from file…</b>) and reload.')}</li>
       </ol>
       <pre>${esc(example)}</pre>
       <table>
-        <tr><td>app.commands.register(id, {label, run})</td><td>A command for buttons, shortcuts, the command palette and macros.</td></tr>
-        <tr><td>app.ribbon.addGroup('addins', {id, label, items})</td><td>Buttons on the Add-ins tab (or any other tab id).</td></tr>
-        <tr><td>app.hooks.preRender(fn(text, doc))</td><td>Change the Markdown before it is shown. Return the new text.</td></tr>
-        <tr><td>app.hooks.postRender(fn(el, doc))</td><td>Change the shown page after rendering (read-only decorations are safest).</td></tr>
-        <tr><td>app.exporter.register({id, label, ext, run(doc, ctx)})</td><td>A new format on File → Save As. Return text or bytes; ctx has markdown, meta, html() and plainText().</td></tr>
-        <tr><td>app.status.addItem({id, side, render(el)})</td><td>Add something to the status bar. Call app.status.refresh() to update it.</td></tr>
-        <tr><td>app.options.addSection({id, label, render(el)})</td><td>Settings for your add-in under File → Options.</td></tr>
-        <tr><td>app.events.on('doc:changed', fn)</td><td>React to edits. Also doc:active, doc:saved, ready.</td></tr>
-        <tr><td>markooj.doc / markooj.ui</td><td>The same easy document API that macros use (doc.text, doc.insert, ui.toast…).</td></tr>
+        <tr><td translate="no">app.commands.register(id, {label, run})</td><td>${app.th('A command for buttons, shortcuts, the command palette and macros.')}</td></tr>
+        <tr><td translate="no">app.ribbon.addGroup('addins', {id, label, items})</td><td>${app.th('Buttons on the Add-ins tab (or any other tab id).')}</td></tr>
+        <tr><td translate="no">app.hooks.preRender(fn(text, doc))</td><td>${app.th('Change the Markdown before it is shown. Return the new text.')}</td></tr>
+        <tr><td translate="no">app.hooks.postRender(fn(el, doc))</td><td>${app.th('Change the shown page after rendering (read-only decorations are safest).')}</td></tr>
+        <tr><td translate="no">app.exporter.register({id, label, ext, run(doc, ctx)})</td><td>${app.th('A new format on File → Save As. Return text or bytes; ctx has markdown, meta, html() and plainText().')}</td></tr>
+        <tr><td translate="no">app.status.addItem({id, side, render(el)})</td><td>${app.th('Add something to the status bar. Call app.status.refresh() to update it.')}</td></tr>
+        <tr><td translate="no">app.options.addSection({id, label, render(el)})</td><td>${app.th('Settings for your add-in under File → Options.')}</td></tr>
+        <tr><td translate="no">app.events.on('doc:changed', fn)</td><td>${app.th('React to edits. Also doc:active, doc:saved, ready.')}</td></tr>
+        <tr><td translate="no">markooj.doc / markooj.ui</td><td>${app.th('The same easy document API that macros use (doc.text, doc.insert, ui.toast…).')}</td></tr>
       </table>`;
-    const copy = btn('Copy example', 'copy', async () => { await app.ui.copyText(example, 'Example copied.'); });
+    const copy = btn(app.t('Copy example'), 'copy', async () => { await app.ui.copyText(example, app.t('Example copied.')); });
     copy.style.marginTop = '12px';
     guide.append(copy);
     page.append(sec, guide);
@@ -544,32 +556,32 @@ app.ribbon.addGroup('addins', {
   }
 
   // ---------- commands, ribbon, backstage ----------
-  app.commands.register('dev.addins', { label: 'Manage add-ins', icon: 'puzzle', run: () => app.backstage.open('addins') });
-  app.commands.register('dev.installAddin', { label: 'Install add-in from file…', icon: 'addin-install', run: () => install() });
-  app.commands.register('dev.openAddinsFolder', { label: 'Open add-ins folder', icon: 'open', run: () => openFolder() });
-  app.commands.register('addins.reload', { label: 'Reload add-ins (restarts the window)', icon: 'addin-reload', run: () => reloadNow() });
+  app.commands.register('dev.addins', { label: app.tm('Manage add-ins'), icon: 'puzzle', run: () => app.backstage.open('addins') });
+  app.commands.register('dev.installAddin', { label: app.tm('Install add-in from file…'), icon: 'addin-install', run: () => install() });
+  app.commands.register('dev.openAddinsFolder', { label: app.tm('Open add-ins folder'), icon: 'open', run: () => openFolder() });
+  app.commands.register('addins.reload', { label: app.tm('Reload add-ins (restarts the window)'), icon: 'addin-reload', run: () => reloadNow() });
 
   app.ribbon.addGroup('addins', {
-    id: 'addins-installed', label: 'Installed', order: 10, items: [{
+    id: 'addins-installed', label: app.tm('Installed@@add-ins'), order: 10, items: [{
       type: 'custom',
       render(el) {
         el.textContent = '';
         const row = document.createElement('div'); row.className = 'mka-row';
-        if (!state.loaded) row.innerHTML = '<span class="mka-empty">Loading add-ins…</span>';
-        else if (!state.list.length) row.innerHTML = '<span class="mka-empty">No add-ins yet. Click Install to add one.</span>';
+        if (!state.loaded) row.innerHTML = `<span class="mka-empty">${app.th('Loading add-ins…')}</span>`;
+        else if (!state.list.length) row.innerHTML = `<span class="mka-empty">${app.th('No add-ins yet. Click Install to add one.')}</span>`;
         for (const a of state.list) row.append(cardEl(a, { onToggle: x => setEnabled(x.id, !x.enabled), onOpen: () => app.backstage.open('addins') }));
         el.append(row);
       },
     }],
   });
   app.ribbon.addGroup('addins', {
-    id: 'addins-manage', label: 'Add-ins', order: 20, items: [
-      { type: 'big', command: 'dev.installAddin', label: 'Install', icon: 'addin-install' },
-      { type: 'big', command: 'dev.addins', label: 'Manage', icon: 'puzzle' },
-      { type: 'big', command: 'dev.openAddinsFolder', label: 'Folder', icon: 'open' },
+    id: 'addins-manage', label: app.tm('Add-ins'), order: 20, items: [
+      { type: 'big', command: 'dev.installAddin', label: app.tm('Install'), icon: 'addin-install' },
+      { type: 'big', command: 'dev.addins', label: app.tm('Manage'), icon: 'puzzle' },
+      { type: 'big', command: 'dev.openAddinsFolder', label: app.tm('Folder'), icon: 'open' },
     ],
   });
-  app.backstage.addPage({ id: 'addins', label: 'Add-ins', icon: 'puzzle', order: 80, render: renderPage });
+  app.backstage.addPage({ id: 'addins', label: app.tm('Add-ins'), icon: 'puzzle', order: 80, render: renderPage });
 
   app.addons = {
     get list() { return state.list.slice(); },
@@ -587,7 +599,7 @@ app.ribbon.addGroup('addins', {
     renderInstalled,
     renderPage,
     get needsReload() { return state.needsReload; },
-    community: { isOn: communityOn, enable: enableCommunity, disable: disableCommunity, key: COMMUNITY, notice: NOTICE },
+    community: { isOn: communityOn, enable: enableCommunity, disable: disableCommunity, key: COMMUNITY, get notice() { return notice(); } },
     styles: { inject: injectStyles, remove: removeStyles, element: styleEl },
     colorFor,
     verifiedBadge,

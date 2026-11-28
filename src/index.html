@@ -6,6 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Markooj</title>
+<!-- interface translations first: <html lang dir> and the catalogs are ready before anything is drawn (docs/I18N.md) -->
+<script src="i18n-core.js"></script>
+<script src="i18n.js"></script>
 <link rel="stylesheet" href="../node_modules/katex/dist/katex.min.css">
 <link rel="stylesheet" id="hljsLight" href="../node_modules/highlight.js/styles/github.css">
 <link rel="stylesheet" id="hljsDark" href="../node_modules/highlight.js/styles/github-dark.css" disabled>
@@ -15,12 +18,20 @@
 <link rel="stylesheet" href="xref.css">
 <link rel="stylesheet" href="goals.css">
 <link rel="stylesheet" href="lang.css">
+<link rel="stylesheet" href="keyboards.css">
 <link rel="stylesheet" href="tables.css">
+<link rel="stylesheet" href="pictures.css">
 <link rel="stylesheet" href="writing.css">
 <link rel="stylesheet" href="help.css">
 <link rel="stylesheet" href="tours.css">
 <link rel="stylesheet" href="welcome.css">
+<link rel="stylesheet" href="features.css">
 <link rel="stylesheet" href="addin-store.css">
+<link rel="stylesheet" href="split-view.css">
+<link rel="stylesheet" href="ruler.css">
+<link rel="stylesheet" href="typing-aids.css">
+<link rel="stylesheet" href="dates.css">
+<link rel="stylesheet" href="i18n.css">
 </head>
 <body class="tabs-top layout-print">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -135,19 +146,21 @@
     <symbol id="read" viewBox="0 0 24 24"><path d="M2 5.5C4.5 4.5 8 4.5 12 6.5c4-2 7.5-2 10-1V19c-2.5-1-6-1-10 1-4-2-7.5-2-10-1z"/><path d="M12 6.5V20"/></symbol>
     <!-- round 3 -->
     <symbol id="pilcrow" viewBox="0 0 24 24"><path d="M14 4v16M18 4v16M20 4h-9a4.5 4.5 0 0 0 0 9h3"/></symbol>
+    <!-- 1.2.0: interface language (src/i18n.js); the globe "lang" stays the document language -->
+    <symbol id="mk-ui-lang" viewBox="0 0 24 24"><path d="M3 5h9M7.5 3v2M5 9c1.4 2.8 3.6 4.8 6 6M10.5 5c-.9 4.2-3.1 7.6-7 9.5"/><path d="m12.5 21 4.25-10L21 21M14 17.5h5.5"/></symbol>
   </defs>
 </svg>
 
 <div class="app" id="app">
   <header class="titlebar" id="titlebar"></header>
-  <section class="ribbon" id="ribbon" aria-label="Ribbon"></section>
-  <div class="slimbar" id="slimbar" role="toolbar" aria-label="Formatting"></div>
+  <section class="ribbon" id="ribbon" aria-label="Ribbon" data-i18n-aria-label="Ribbon"></section>
+  <div class="slimbar" id="slimbar" role="toolbar" aria-label="Formatting" data-i18n-aria-label="Formatting"></div>
   <div class="main" id="mainArea">
-    <aside class="vtabs" id="vtabs" aria-label="Open documents"></aside>
+    <aside class="vtabs" id="vtabs" aria-label="Open documents" data-i18n-aria-label="Open documents"></aside>
     <div class="mid" id="mid">
-      <div class="dtabs" id="dtabs" role="tablist" aria-label="Open documents"></div>
+      <div class="dtabs" id="dtabs" role="tablist" aria-label="Open documents" data-i18n-aria-label="Open documents"></div>
       <div class="mid-inner">
-        <aside class="outline" id="outline" aria-label="Outline"></aside>
+        <aside class="outline" id="outline" aria-label="Outline" data-i18n-aria-label="Outline"></aside>
         <main class="canvas-host" id="editorHost" tabindex="-1"></main>
       </div>
     </div>
@@ -160,8 +173,8 @@
 <div id="dialogLayer"></div>
 <div id="toastLayer" aria-live="polite"></div>
 <div class="mk-tooltip" id="tooltip" role="tooltip"></div>
-<button class="focus-exit" id="focusExit" title="Leave focus (Esc)"><svg class="i"><use href="#focus"/></svg>Leave focus</button>
-<div class="drop-hint" id="dropHint"><div><svg class="i"><use href="#import"/></svg><b>Drop to open</b><span>Markdown, Word, PDF, DjVu, EPUB, HTML or text</span></div></div>
+<button class="focus-exit" id="focusExit" title="Leave focus (Esc)" data-i18n-title="Leave focus (Esc)"><svg class="i"><use href="#focus"/></svg><span data-i18n="Leave focus">Leave focus</span></button>
+<div class="drop-hint" id="dropHint"><div><svg class="i"><use href="#import"/></svg><b data-i18n="Drop to open">Drop to open</b><span data-i18n="Markdown, Word, PDF, DjVu, EPUB, HTML or text">Markdown, Word, PDF, DjVu, EPUB, HTML or text</span></div></div>
 
 <script src="../node_modules/katex/dist/katex.min.js"></script>
 <script src="../node_modules/mermaid/dist/mermaid.min.js"></script>
@@ -174,6 +187,9 @@
 <script src="editor-read.js"></script>
 <script src="equation-editor.js"></script>
 <script src="commands.js"></script>
+<script src="typing-aids.js"></script>
+<script src="dates.js"></script>
+<script src="multicursor.js"></script>
 <script src="viewers.js"></script>
 <script src="research.js"></script>
 <script src="xref.js"></script>
@@ -184,7 +200,10 @@
 <script src="health.js"></script>
 <script src="goals.js"></script>
 <script src="lang.js"></script>
+<script src="keyboards.js"></script>
+<script src="aarab.js"></script>
 <script src="tables.js"></script>
+<script src="pictures.js"></script>
 <script src="word-keys.js"></script>
 <script src="keytips.js"></script>
 <script src="writing/rules.js"></script>
@@ -194,8 +213,14 @@
 <script src="help.js"></script>
 <script src="tours.js"></script>
 <script src="welcome.js"></script>
+<script src="features.js"></script>
 <script src="addin-store.js"></script>
+<script src="windows.js"></script>
+<script src="split-view.js"></script>
+<script src="ruler.js"></script>
 <script src="review3-tests.js"></script>
+<script src="uxreview-tests.js"></script>
+<script src="i18n-tests.js"></script>
 <script src="integration.js"></script>
 <script src="app.js"></script>
 </body>

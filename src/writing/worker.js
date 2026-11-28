@@ -98,8 +98,11 @@ async function harperBatch(linter, blocks, flags) {
 
 function mapHarper(list, block, p, want) {
   const out = [];
+  let cf = null; // Markooj's own reading of commonly confused words in this paragraph (worked out once, when needed)
   for (const f of list) {
     if (f.formalOnly && !want.formal) continue;
+    // "subtle effects, and … mouse movement effects": a confused-word finding stays only when the context is clear
+    if (R.CONFUSABLE_WORD.test(String(f.text || '').trim())) { if (!cf) cf = R.confusables(block.text); if (!R.harperKeep(f, block.text, cf)) continue; }
     const g = { ...f, start: f.start + block.start, end: f.end + block.start };
     let marks = false;
     for (let i = g.start; i < g.end; i++) if (p.flags[i] === 2) { marks = true; break; }

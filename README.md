@@ -101,7 +101,7 @@ Urdu word list from the Urdu Spell Checker v1.0 by the Center for Language Engin
 
 ### Open and save almost anything
 
-Pandoc, DjVuLibre and pdf2djvu come inside Markooj, so none of this needs another program.
+Pandoc (for the extra formats), DjVuLibre and pdf2djvu are optional features: tick them in the Windows installer or on the Welcome screen, or add them later in **File → Options → Features**. The Windows portable zip includes all of them.
 
 | Format | Open | Edit | Save as |
 | --- | :-: | :-: | :-: |
@@ -124,7 +124,7 @@ Files from other formats open as a new Markdown document, so the original is nev
 
 ### Automate it
 
-- **Macros in Python and JavaScript**, like VBA in Word. Python runs inside Markooj (Pyodide), offline, with its standard library.
+- **Macros in Python and JavaScript**, like VBA in Word. Python runs inside Markooj (Pyodide), offline, with its standard library; it is an optional feature of about 6 MB (File → Options → Features).
 - A **macro recorder**, a **macro editor** with an API reference and examples, a **Python console**, and shortcuts and ribbon buttons for your macros.
 - **Add-ins** add commands, ribbon buttons, Markdown features, status bar items, settings or a new export format. Find them in the add-in store (below), or write your own: see [docs/ADDINS.md](docs/ADDINS.md).
 
@@ -165,7 +165,7 @@ The builds are not code-signed yet, so your system asks once before the first st
 - **Windows** may say "Windows protected your PC". Click **More info**, then **Run anyway**.
 - **macOS** may say it cannot check the app. Right-click Markooj in Applications and choose **Open**, or click **Open Anyway** in **System Settings → Privacy & Security**.
 
-Pandoc comes with every copy. On macOS and Linux, DjVu files also need the DjVu tools from your package manager: `brew install djvulibre pdf2djvu`, or `sudo apt install djvulibre-bin pdf2djvu`.
+Markooj installs small: Pandoc, the DjVu tools and Python macros are optional features you choose in the installer, on the Welcome screen or later in File → Options → Features. No internet? The Windows portable zip includes everything. On macOS and Linux, DjVu files need the DjVu tools from your package manager: `brew install djvulibre pdf2djvu`, or `sudo apt install djvulibre-bin pdf2djvu`.
 
 ## Help
 
@@ -198,25 +198,26 @@ npm start
 
 ## What is new, and what is next
 
-Version 1.1.1 adds a Welcome screen with a guided tour for each main feature, a short What's new note after each update, and messages that lead with what you can do. Every release is listed in [CHANGELOG.md](CHANGELOG.md). Where Markooj is heading is in [ROADMAP.md](ROADMAP.md).
+Version 1.2.0 speaks 11 languages: the menus, ribbon, dialogs and messages come in English, Chinese (Simplified), Urdu, Roman Urdu, Punjabi (Shahmukhi), Japanese, Arabic, Swedish, Spanish, French and Portuguese (Brazil), chosen in the installer and switched any time from the status bar. It also installs at about half the size, with Pandoc, the DjVu tools and Python macros as optional features, and adds split and side-by-side windows, rulers and guides, built-in Urdu, Arabic, Persian and Punjabi keyboards, and tables pasted from Word and Excel. Every release is listed in [CHANGELOG.md](CHANGELOG.md). Where Markooj is heading is in [ROADMAP.md](ROADMAP.md).
 
 ## Feedback and contributing
 
 Found a bug, or have an idea? Please [open an issue](https://github.com/datakeen/markooj/issues) on GitHub, or click **Help → Report a Problem** in Markooj. Give it a short title, and describe what happened or what you would like. Screenshots help.
 
-Bug reports, fixes, add-ins, language packs, translations of the help and better documents are all welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Words and rules for Urdu, Arabic, Punjabi and Persian are improved in the [language packs repository](https://github.com/datakeen/markooj-language-packs), in plain spreadsheets, with no coding needed. To report a security problem, see [SECURITY.md](SECURITY.md).
+Bug reports, fixes, add-ins, language packs, translations of the help and better documents are all welcome. **Native speakers:** the interface translations are new and machine-assisted, so please tell us where a word sounds wrong. The texts live in `locales/<language>/` as plain JSON, with a glossary for each language. See [CONTRIBUTING.md](CONTRIBUTING.md). Words and rules for Urdu, Arabic, Punjabi and Persian are improved in the [language packs repository](https://github.com/datakeen/markooj-language-packs), in plain spreadsheets, with no coding needed. To report a security problem, see [SECURITY.md](SECURITY.md).
 
 ## Support Markooj
 
-Markooj is free and open-source software. If it makes your writing a little easier, it has done what it was made for, and you owe nothing in return. Still, every kind of help is welcome. See the [roadmap](ROADMAP.md); if you like where Markooj is going, you can:
+Markooj is free and open-source software. If it makes your writing a little easier, it has done what it was made for, and you owe nothing in return. It is also still in its infancy and needs real people testing it on real work: finding bugs, asking for the features they miss, and telling us where it still feels harder than Word. Every kind of help is welcome. See the [roadmap](ROADMAP.md); if you like where Markooj is going, you can:
 
-1. **Share it:** tell a colleague or a student about Markooj, or show what you wrote with it.
-2. **Support the projects it stands on:** [Pandoc](https://github.com/jgm/pandoc) · [Harper](https://github.com/Automattic/harper) · [KaTeX](https://github.com/KaTeX/KaTeX) · [MathLive](https://github.com/arnog/mathlive) · [Mermaid](https://github.com/mermaid-js/mermaid) · [markdown-it](https://github.com/markdown-it/markdown-it) · [Pyodide](https://github.com/pyodide/pyodide) · [pdf.js](https://github.com/mozilla/pdf.js) · [DjVuLibre](https://djvu.sourceforge.net) · [Electron](https://github.com/electron/electron).
-3. **Help build it:** code, add-ins, words for the language packs, or documents ([CONTRIBUTING.md](CONTRIBUTING.md)).
-4. **Sponsor a feature or a language:** something from the roadmap sooner, or something new.
-5. **Donate:** any amount helps.
+1. **Test it on your own work:** [report a bug or ask for a feature](https://github.com/datakeen/markooj/issues), or click **Help → Report a Problem** in Markooj.
+2. **Share it:** tell a colleague or a student about Markooj, or show what you wrote with it.
+3. **Support the projects it stands on:** [Pandoc](https://github.com/jgm/pandoc) · [Harper](https://github.com/Automattic/harper) · [KaTeX](https://github.com/KaTeX/KaTeX) · [MathLive](https://github.com/arnog/mathlive) · [Mermaid](https://github.com/mermaid-js/mermaid) · [markdown-it](https://github.com/markdown-it/markdown-it) · [Pyodide](https://github.com/pyodide/pyodide) · [pdf.js](https://github.com/mozilla/pdf.js) · [DjVuLibre](https://djvu.sourceforge.net) · [Electron](https://github.com/electron/electron).
+4. **Help build it:** code, add-ins, words for the language packs, reviews of the interface translations, or documents ([CONTRIBUTING.md](CONTRIBUTING.md)).
+5. **Sponsor a feature or a language:** something from the roadmap sooner, or something new.
+6. **Donate:** any amount helps.
 
-**Where support helps most.** The Urdu, Arabic and Punjabi tools are built mostly from scratch. They grow only as fast as native speakers can give their time to check words, spellings and rules, and that time costs money. Support goes first to that work.
+**Where support helps most.** The Urdu, Arabic and Punjabi tools are built mostly from scratch. Each word needs a native speaker to read it, check its spelling and aarab (the vowel marks), and think about how people really type it. The interface translations need native readers too, so they sound natural rather than translated. That takes patient human time, and that time costs money. Support goes first to that work.
 
 **Get in touch:** [send me a message](https://tally.so/r/db9jlN?from=markooj-readme) to donate, to sponsor a language or a feature, or to offer to review words. It's a short form for individuals and organizations alike.
 

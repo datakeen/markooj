@@ -14,7 +14,15 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const ATTR_SRC = X?.attrPattern || '\\{[ \\t]*(?:[#.][^\\s{}]+|-)(?:[ \\t]+(?:[#.][^\\s{}]+|-|[\\w-]+=(?:"[^"\\n]*"|[^\\s{}"]*)))*[ \\t]*\\}';
   const KINDS = ['eq', 'fig', 'tbl', 'sec'];
-  const KIND_NAME = { eq: 'Equation', fig: 'Figure', tbl: 'Table', sec: 'Heading', fn: 'Footnote' };
+  // per-kind sentences: whole sentences, so translators can inflect the noun
+  const NO_NUMBER_YET = { eq: app.tm('Equation (no number yet)'), fig: app.tm('Figure (no number yet)'), tbl: app.tm('Table (no number yet)'), sec: app.tm('Heading (no number yet)'), fn: app.tm('Footnote (no number yet)') };
+  const NO_NUMBER_SHORT = { eq: app.tm('Equation (no number)'), fig: app.tm('Figure (no number)'), tbl: app.tm('Table (no number)'), sec: app.tm('Heading (no number)'), fn: app.tm('Footnote (no number)') };
+  const NO_NUMBER_CARD = { eq: app.tm('This equation has no number yet. Give it a label in References → Insert Caption.'), fig: app.tm('This figure has no number yet. Give it a label in References → Insert Caption.'), tbl: app.tm('This table has no number yet. Give it a label in References → Insert Caption.'), sec: app.tm('This heading has no number yet. Give it a label in References → Insert Caption.'), fn: app.tm('This footnote has no number yet. Give it a label in References → Insert Caption.'), item: app.tm('This item has no number yet. Give it a label in References → Insert Caption.') };
+  const ADD_LABEL_CARD = { eq: app.tm('Pick a label below, or add {label} to an equation. Nothing in this document has this label yet.'), fig: app.tm('Pick a label below, or add {label} to a figure. Nothing in this document has this label yet.'), tbl: app.tm('Pick a label below, or add {label} to a table. Nothing in this document has this label yet.'), sec: app.tm('Pick a label below, or add {label} to a heading. Nothing in this document has this label yet.'), fn: app.tm('Pick a label below, or add {label} to a footnote. Nothing in this document has this label yet.'), item: app.tm('Pick a label below, or add {label} to an item. Nothing in this document has this label yet.') };
+  const EMPTY_LIST = { fig: [app.tm('No figures yet'), app.tm('Insert a picture first (Insert → Picture).')], tbl: [app.tm('No tables yet'), app.tm('Insert a table first (Insert → Table).')], eq: [app.tm('No equations yet'), app.tm('Insert an equation first (Insert → Equation).')], sec: [app.tm('No headings yet'), app.tm('Add a heading first (Home → Styles).')], fn: [app.tm('No footnotes yet'), app.tm('Add a footnote first (References → Footnote).')] };
+  const FOR_WHICH = { eq: app.tm('For which equation'), fig: app.tm('For which figure'), tbl: app.tm('For which table'), sec: app.tm('For which heading'), fn: app.tm('For which footnote') };
+  const PREFIX_LABEL = { eq: app.tm('Equation label'), fig: app.tm('Figure label'), tbl: app.tm('Table label'), sec: app.tm('Heading label') };
+  const KIND_NAME = { eq: app.tm('Equation'), fig: app.tm('Figure'), tbl: app.tm('Table'), sec: app.tm('Heading'), fn: app.tm('Footnote') };
 
   // ------------------------------------------------------------------ stylesheet + icons
   (function ensureAssets() {
@@ -193,8 +201,8 @@
     if (!text) { if (no) no.remove(); m.classList.remove('mk-eqn'); return; }
     if (!no) { no = uiSpan('mk-eqno', text); m.appendChild(no); }
     else if (no.textContent !== text) no.textContent = text;
-    no.setAttribute('aria-label', 'Equation ' + text.replace(/[()]/g, ''));
-    no.title = (it && it.label ? `Equation ${text} · label ${it.label}` : `Equation ${text}`) + '. Double-click to change the label or numbering.';
+    no.setAttribute('aria-label', app.t('Equation {number}', { number: text.replace(/[()]/g, '') }));
+    no.title = it && it.label ? app.t('Equation {number} · label {label}. Double-click to change the label or numbering.', { number: text, label: it.label }) : app.t('Equation {number}. Double-click to change the label or numbering.', { number: text });
     m.classList.add('mk-eqn');
   }
   function setPrefix(host, text, hasCaption) {
@@ -206,6 +214,19 @@
     else if (p.textContent !== t) p.textContent = t;
   }
   const captionText = host => { const c = host.cloneNode(true); c.querySelectorAll('[data-mk-ui]').forEach(x => x.remove()); return c.textContent.trim(); };
+  // pictures in table cells: the caption is the alt text, shown under the picture (never written back: data-mk-ui)
+  function paintCellCaption(img, it, cfg) {
+    let cap = img.nextElementSibling && img.nextElementSibling.classList.contains('mkx-cellcap') ? img.nextElementSibling : null;
+    if (!it) { if (cap) cap.remove(); return; }
+    const alt = (img.getAttribute('alt') || '').trim();
+    const text = `${cfg.fig} ${it.num}${alt ? '. ' + alt : ''}`;
+    if (!cap) { cap = uiSpan('mkx-cellcap', ''); cap.title = app.t('Caption from the picture’s description. Double-click to change it (References → Caption).'); img.after(cap); }
+    if (cap.getAttribute('data-text') !== text) {
+      cap.setAttribute('data-text', text); cap.textContent = '';
+      const b = document.createElement('span'); b.className = 'mk-xnum'; b.textContent = `${cfg.fig} ${it.num}${alt ? '.' : ''}`;
+      cap.append(b, document.createTextNode(alt ? ' ' + alt : ''));
+    }
+  }
   function apply(el, doc) {
     if (!el || !el.querySelectorAll) return;
     doc = doc || activeDoc();
@@ -237,7 +258,10 @@
     for (const img of el.querySelectorAll('img[data-label]')) {
       const it = model.byLabel.get(img.getAttribute('data-label'));
       if (it && it.num != null) img.setAttribute('data-num', it.num); else img.removeAttribute('data-num');
+      // a labeled picture inside a table cell: its caption ("Fig. 2. Alt text") under it, like a figure
+      if (img.closest('td,th') && !img.closest('figure')) paintCellCaption(img, it && it.kind === 'fig' && it.num != null ? it : null, cfg);
     }
+    for (const c of el.querySelectorAll('td .mkx-cellcap, th .mkx-cellcap')) { const p = c.previousElementSibling; if (!p || p.tagName !== 'IMG' || !p.hasAttribute('data-label')) c.remove(); }
     for (const p of el.querySelectorAll('p.mk-tcaption')) {
       const id = p.getAttribute('data-for');
       const it = id ? model.byLabel.get(id) : null;
@@ -260,7 +284,7 @@
       if (x.textContent !== r.text) x.textContent = r.text;
       x.classList.toggle('mk-xref-broken', !!r.broken.length);
       x.setAttribute('role', 'link');
-      x.setAttribute('aria-label', r.broken.length ? `Broken cross-reference to ${r.broken.join(', ')}` : `${r.text}, cross-reference`);
+      x.setAttribute('aria-label', r.broken.length ? app.t('Broken cross-reference to {labels}', { labels: r.broken.join(', ') }) : app.t('{text}, cross-reference', { text: r.text }));
     }
     // ---- "above" / "below" links follow the target
     for (const a of el.querySelectorAll('a[href^="#"]')) {
@@ -296,6 +320,8 @@
   const refreshLater = app.debounce(() => refreshActive(true), 220);
   app.events.on('doc:changed', e => { if (e && e.doc === app.docs.active()) refreshLater(); });
   app.events.on('settings:changed', e => { if (e && /^xref/.test(e.key || '')) { invalidate(); refreshActive(true); } });
+  // equation numbers carry translated titles and aria-labels: paint them again in the new interface language
+  app.events.on('i18n:changed', () => { try { refreshActive(true); } catch {} });
 
   // ------------------------------------------------------------------ source editing (labels, captions, references)
   // the editor may hold typing it has not committed yet; only ask the editor that shows this very document
@@ -395,12 +421,14 @@
       let k = 0, m;
       while ((m = re.exec(seg))) {
         if (k++ !== (it.index || 0)) continue;
-        const cap = caption != null ? caption.replace(/\n+/g, ' ').replace(/([[\]])/g, '\\$1') : m[1];
+        const inRow = !!(app.tables?.find && app.tables.find(text, it.line));
+        let cap = caption != null ? caption.replace(/\n+/g, ' ').replace(/([[\]])/g, '\\$1') : m[1];
+        if (inRow && caption != null) cap = cap.replace(/(^|[^\\])\|/g, '$1\\|');
         const attrs = buildAttrs(keepId, m[3] || null, false);
         const img = `![${cap}](${m[2]})${attrs}`;
         const before = seg.slice(0, m.index), after = seg.slice(m.index + m[0].length);
-        // a captioned figure needs the picture on its own line
-        if (keepId && (before.trim() || after.trim())) {
+        // a captioned figure needs the picture on its own line (not inside a table row: the caption shows under it in the cell)
+        if (keepId && !inRow && (before.trim() || after.trim())) {
           const rest = (before.replace(/[ \t]+$/, '') + (before.trim() && after.trim() ? ' ' : '') + after.replace(/^[ \t]+/, '')).replace(/\n$/, '');
           const tail = /\n$/.test(seg) ? '\n' : '';
           return text.slice(0, a) + (rest.trim() ? rest + '\n\n' : '') + img + tail + text.slice(b);
@@ -461,6 +489,9 @@
     // nth display equation on its line (for equations inside paragraphs)
     const seen = new Map();
     for (const it of model.eqs) if (!it.block) { const k = it.line; it.sameLineIndex = seen.get(k) || 0; seen.set(k, it.sameLineIndex + 1); }
+    // nth picture on its line: every cell of a table row is its own inline run, so count along the whole line
+    const pics = new Map();
+    for (const it of model.figs) { const k = it.line; it.index = pics.get(k) || 0; pics.set(k, it.index + 1); }
     return model;
   }
 
@@ -473,18 +504,18 @@
     let it = opts.item ? findItem(model, opts.item) || findItem(model, opts.item.label) : null;
     if (!it && opts.element) it = itemForElement(opts.element, model);
     if (!it && opts.from) it = model.byLabel.get(opts.from);
-    if (!it) { app.ui.toast('Click the equation, picture or table again, then try once more. It moved while you were editing.', { kind: 'warn' }); return null; }
+    if (!it) { app.ui.toast(app.t('Click the equation, picture or table again, then try once more. It moved while you were editing.'), { kind: 'warn' }); return null; }
     const kind = it.kind;
     const taken = new Set(model.byLabel.keys());
     let label = opts.label === undefined ? it.label : (opts.label || '').trim();
     if (label && !label.includes(':')) label = `${kind}:${label}`;
-    if (label && label !== it.label && taken.has(label)) { app.ui.toast(`Pick another label: ${label} is already used.`, { kind: 'warn' }); return null; }
-    if (label && !validLabel(kind, label)) { app.ui.toast(`Use a label that starts with ${kind}: and has only letters, digits, - . or _ (for example ${kind}:flume).`, { kind: 'warn' }); return null; }
+    if (label && label !== it.label && taken.has(label)) { app.ui.toast(app.t('Pick another label: {label} is already used.', { label }), { kind: 'warn' }); return null; }
+    if (label && !validLabel(kind, label)) { app.ui.toast(app.t('Use a label that starts with {kind}: and has only letters, digits, - . or _ (for example {kind}:flume).', { kind }), { kind: 'warn' }); return null; }
     if (opts.numbered === true && !label && !(kind === 'eq' && (it.env || model.cfg.numberAll))) label = suggestLabel(kind, it, taken);
     if (opts.numbered === false && kind !== 'eq') label = '';
     if ((kind === 'fig' || kind === 'tbl') && opts.caption != null && !label && opts.numbered !== false) label = suggestLabel(kind, { ...it, caption: opts.caption }, taken);
     let next = rewriteItem(text, it, { label, caption: opts.caption, numbered: opts.numbered, position: opts.position, cfg: model.cfg });
-    if (next == null) { app.ui.toast('Use Simple mode (Ctrl+3) to change this label in the Markdown yourself. Markooj couldn’t rewrite it safely.', { kind: 'warn' }); return null; }
+    if (next == null) { app.ui.toast(app.t('Use Simple mode (Ctrl+3) to change this label in the Markdown yourself. Markooj couldn’t rewrite it safely.'), { kind: 'warn' }); return null; }
     if (it.label && label && it.label !== label) next = renameRefs(next, it.label, label);
     if (next !== text) doc.setText(next, 'xref');
     invalidate();
@@ -509,6 +540,17 @@
       if (byLine.length === 1) return byLine[0];
       const same = all.filter(x => norm(x.getAttribute('data-tex')) === tex); const k = same.indexOf(math);
       return model.eqs.filter(i => norm(i.tex) === tex)[k] || model.eqs[all.indexOf(math)] || null;
+    }
+    // a picture inside a table cell (or the caret in a cell that holds one): the picture, not the table
+    const cellEl = e.closest('td,th');
+    const cellImg = cellEl && (e.tagName === 'IMG' ? e : e.closest('.mkx-cellcap')?.previousElementSibling?.tagName === 'IMG' ? e.closest('.mkx-cellcap').previousElementSibling : cellEl.querySelectorAll('img').length === 1 && (e === cellEl || cellEl.contains(e)) ? cellEl.querySelector('img') : null);
+    if (cellImg) {
+      const label = cellImg.getAttribute('data-label'); if (label && model.byLabel.get(label)?.kind === 'fig') return model.byLabel.get(label);
+      const tbl = cellImg.closest('table'); const tl = lineOf(tbl); const tr = cellImg.closest('tr');
+      const rows = [...tbl.rows]; const ri = rows.indexOf(tr);
+      const ln = tl == null ? null : (ri === 0 ? tl : tl + 1 + ri);
+      const idx = [...tr.querySelectorAll('img')].indexOf(cellImg);
+      const hit = model.figs.find(i => i.line === ln && (i.index || 0) === idx); if (hit) return hit;
     }
     const cap = e.closest('p.mk-tcaption');
     let table = e.closest('table');
@@ -551,7 +593,27 @@
       const taken = new Set(modelFor(o.doc || activeDoc()).byLabel.keys());
       attrs = ` {#${suggestLabel('eq', { tex }, taken)}}`;
     }
+    if (o.inCell) return cellEquation(tex, attrs.trim());
     return `\n\n$$\n${tex}\n$$${attrs}\n\n`;
+  }
+  // A table cell holds one line: $$ … $$ {#eq:x} on one line, | written as \|, % comments dropped (they would hide the rest)
+  function cellEquation(tex, attrs) {
+    const one = String(tex || '').split('\n').map(l => l.replace(/(^|[^\\])%.*$/, '$1')).join(' ').replace(/\s+/g, ' ').trim().replace(/(^|[^\\])\|/g, '$1\\|').replace(/(^|[^\\])\|/g, '$1\\|');
+    return `$$${one}$$${attrs ? ' ' + attrs : ''}`;
+  }
+  /** For Insert → Equation with the caret in a table cell: res from the equation editor ({tex, display, label, unnumbered}). */
+  function cellEquationMarkdown(res = {}, doc = activeDoc()) {
+    if (!res.display) { const d = app.settings.get('inlineMath', 'd') === 'paren' ? ['\\(', '\\)'] : ['$', '$']; return d[0] + String(res.tex || '').trim().replace(/\s*\n\s*/g, ' ').replace(/(^|[^\\])\|/g, '$1\\|') + d[1]; }
+    let label = String(res.label || '').replace(/^#/, '').trim(); if (label && !label.includes(':')) label = 'eq:' + label;
+    const cfg = config(doc);
+    const attrs = label && !res.unnumbered ? `{#${label}}` : res.unnumbered && cfg.numberAll ? '{-}' : '';
+    return cellEquation(res.tex, attrs);
+  }
+  let cellTold = false;
+  /** One line for the user, once per session, when an equation goes into a table cell. */
+  function tellCell() {
+    if (cellTold) return; cellTold = true;
+    app.ui.toast(app.t('The equation is written on one line so it fits in the table cell. It is numbered and cross-referenced like any other.'), { kind: 'info' });
   }
   // a reference in Markdown. mode: 'full' | 'number' | 'text' | 'aboveBelow' | 'fn'
   function referenceMarkdown(it, mode, o = {}) {
@@ -568,8 +630,8 @@
   function targets(text, doc) {
     const model = decorateModel(build(text ?? currentText(doc || activeDoc()), config(doc || activeDoc())));
     return model.items.map(i => {
-      const display = i.kind === 'fn' ? `Footnote ${i.num}` : i.num != null ? fullLabel(i, model.cfg) : (i.kind === 'sec' ? i.text : `${KIND_NAME[i.kind]} (no number yet)`);
-      return { ...i, kindLabel: KIND_NAME[i.kind], display, text: i.kind === 'eq' ? (i.tex || '').replace(/\s+/g, ' ').trim() : (i.caption ?? i.text ?? ''), md: i.label ? referenceMarkdown(i, i.kind === 'sec' ? 'text' : 'full') : '' };
+      const display = i.kind === 'fn' ? app.t('Footnote {number}', { number: i.num }) : i.num != null ? fullLabel(i, model.cfg) : (i.kind === 'sec' ? i.text : app.t(NO_NUMBER_YET[i.kind]));
+      return { ...i, kindLabel: app.t(KIND_NAME[i.kind]), display, text: i.kind === 'eq' ? (i.tex || '').replace(/\s+/g, ' ').trim() : (i.caption ?? i.text ?? ''), md: i.label ? referenceMarkdown(i, i.kind === 'sec' ? 'text' : 'full') : '' };
     });
   }
 
@@ -599,7 +661,7 @@
     // inline display equations with attributes
     out = out.replace(new RegExp('(\\$\\$[^\\n$]+?\\$\\$)[ \\t]*(' + ATTR_SRC + ')', 'g'), (m, math, attrs) => {
       const id = parseAttrs(attrs).id; const it = id && model.byLabel.get(id);
-      return it && it.num != null ? math.replace(/\$\$$/, ` \\qquad (${it.num})$$`) : math;
+      return it && it.num != null ? math.replace(/\$\$$/, () => ` \\qquad (${it.num})$$`) : math; // a function: "$$" in a replacement string is one "$"
     });
     // figure captions
     out = out.replace(new RegExp('!\\[((?:[^\\[\\]\\n]|\\[[^\\]\\n]*\\])*)\\]\\(([^)\\n]*)\\)(' + ATTR_SRC + ')', 'g'), (m, cap, src, attrs) => {
@@ -634,7 +696,7 @@
     const t = targetEl(label, root);
     const doc = activeDoc();
     const it = doc && modelFor(doc).byLabel.get(label);
-    if (!t && !it) { app.ui.toast(`Add the label ${label} to an equation, picture or table, or pick another reference. Nothing has this label yet.`, { kind: 'warn', actions: [{ label: 'Insert Caption', run: () => app.commands.run('xref.caption') }] }); return false; }
+    if (!t && !it) { app.ui.toast(app.t('Add the label {label} to an equation, picture or table, or pick another reference. Nothing has this label yet.', { label }), { kind: 'warn', actions: [{ label: app.t('Insert Caption'), run: () => app.commands.run('xref.caption') }] }); return false; }
     if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); flash(t.closest('.mk-math-block') || t); }
     if (it && it.line != null && app.mode === 'simple') { try { app.editors.active()?.scrollToLine?.(it.line); } catch {} }
     return true;
@@ -694,20 +756,20 @@
     for (const k of keys.slice(0, 3)) {
       const it = model.byLabel.get(k);
       if (!it || it.num == null) {
-        const kind = KIND_NAME[k.split(':')[0]] || 'item';
+        const kk = k.split(':')[0];
         const sug = suggestions(k, model);
-        html += `<div class="mkx-card-sec broken"><div class="mkx-card-h"><span class="mkx-badge bad">${icon('warn')}Fix this reference</span><code>${esc(k)}</code></div>
-          <p>${it ? `This ${kind.toLowerCase()} has no number yet. Give it a label in References → Insert Caption.` : `Pick a label below, or add <b>${esc(k)}</b> to ${kind === 'Equation' ? 'an' : 'a'} ${kind.toLowerCase()}. Nothing in this document has this label yet.`}</p>
-          ${sug.length ? `<div class="mkx-card-fix">${sug.map(s => `<button type="button" class="mkx-chip" data-from="${esc(k)}" data-fix="${esc(s.label)}">Use ${esc(fullLabel(s, model.cfg))} <code>${esc(s.label)}</code></button>`).join('')}</div>` : ''}</div>`;
+        html += `<div class="mkx-card-sec broken"><div class="mkx-card-h"><span class="mkx-badge bad">${icon('warn')}${app.th('Fix this reference')}</span><code>${esc(k)}</code></div>
+          <p>${it ? app.th(NO_NUMBER_CARD[kk] || NO_NUMBER_CARD.item) : app.t(ADD_LABEL_CARD[kk] || ADD_LABEL_CARD.item, { label: '\u0001' }).split('\u0001').map(esc).join(`<b>${esc(k)}</b>`)}</p>
+          ${sug.length ? `<div class="mkx-card-fix">${sug.map(s => `<button type="button" class="mkx-chip" data-from="${esc(k)}" data-fix="${esc(s.label)}">${app.th('Use {item}', { item: fullLabel(s, model.cfg) })} <code>${esc(s.label)}</code></button>`).join('')}</div>` : ''}</div>`;
         continue;
       }
       const t = targetEl(k, root);
       const sub = it.kind === 'eq' ? '' : esc((it.kind === 'sec' ? it.text : it.caption) || '');
-      html += `<div class="mkx-card-sec"><div class="mkx-card-h"><span class="mkx-badge">${esc(KIND_NAME[it.kind])}</span><b>${esc(fullLabel(it, model.cfg))}</b><code>${esc(k)}</code></div>${sub ? `<p class="mkx-card-cap">${sub}</p>` : ''}<div class="mkx-slot"></div></div>`;
+      html += `<div class="mkx-card-sec"><div class="mkx-card-h"><span class="mkx-badge">${esc(app.t(KIND_NAME[it.kind]))}</span><b>${esc(fullLabel(it, model.cfg))}</b><code>${esc(k)}</code></div>${sub ? `<p class="mkx-card-cap">${sub}</p>` : ''}<div class="mkx-slot"></div></div>`;
       void t;
     }
     const goable = keys.find(k => model.byLabel.get(k)?.num != null);
-    html += `<div class="mkx-card-foot">${goable ? `<button type="button" class="mkx-link" data-go="${esc(goable)}">Go there</button><span>${navigator.platform && /Mac/i.test(navigator.platform) ? '⌘' : 'Ctrl'}+click the reference to jump</span>` : '<span>Fix the label, or pick one above.</span>'}</div>`;
+    html += `<div class="mkx-card-foot">${goable ? `<button type="button" class="mkx-link" data-go="${esc(goable)}">${app.th('Go there')}</button><span>${app.th('{key}+click the reference to jump', { key: navigator.platform && /Mac/i.test(navigator.platform) ? '⌘' : 'Ctrl' })}</span>` : `<span>${app.th('Fix the label, or pick one above.')}</span>`}</div>`;
     card.innerHTML = html;
     // previews (cloned from the page)
     const slots = card.querySelectorAll('.mkx-slot'); let si = 0;
@@ -766,7 +828,7 @@
     const doc = activeDoc(); if (!doc || !from || !to) return;
     const text = currentText(doc);
     const next = renameRefs(text, from, to);
-    if (next !== text) { doc.setText(next, 'xref'); app.ui.toast(`References to ${from} now point to ${to}`); }
+    if (next !== text) { doc.setText(next, 'xref'); app.ui.toast(app.t('References to {from} now point to {to}', { from, to })); }
   }
 
   // ------------------------------------------------------------------ caret and selection helpers
@@ -789,6 +851,16 @@
     if (c.element) { const it = itemForElement(c.element, model); if (it && kinds.includes(it.kind)) return it; }
     if (c.offset != null) {
       const line = (doc.text.slice(0, c.offset).match(/\n/g) || []).length;
+      // Simple mode, caret in a table cell that holds a picture or an equation: that one, not the table
+      const cell = app.tables?.cellAt ? app.tables.cellAt(doc.text, c.offset) : null;
+      if (cell && cell.row != null) {
+        const ls = doc.text.lastIndexOf('\n', cell.start - 1) + 1, ln = (doc.text.slice(0, ls).match(/\n/g) || []).length;
+        const before = doc.text.slice(ls, cell.start), inside = doc.text.slice(cell.start, cell.end);
+        const count = (s, re) => (s.match(re) || []).length;
+        const IMG = /!\[(?:[^[\]\n]|\[[^\]\n]*\])*\]\(/g, EQ = /\$\$[^$\n]+\$\$/g;
+        if (kinds.includes('fig') && IMG.test(inside)) { const k = count(before, IMG); const hit = model.figs.find(i => i.line === ln && (i.index || 0) === k); if (hit) return hit; }
+        if (kinds.includes('eq') && EQ.test(inside)) { const k = count(before, EQ); const hit = model.eqs.find(i => !i.block && i.line === ln && (i.sameLineIndex || 0) === k); if (hit) return hit; }
+      }
       const hit = model.items.find(i => kinds.includes(i.kind) && i.line != null && line >= i.line && line <= (i.kind === 'tbl' && i.captionLine != null ? Math.max(i.endLine, i.captionLine) : i.endLine));
       if (hit) return hit;
     }
@@ -824,20 +896,20 @@
 
   // ------------------------------------------------------------------ dialogs
   const MODES = {
-    fig: [['full', 'Full label', i => fullLabel(i.it, i.cfg) || 'Fig. 1'], ['number', 'Number only', i => numText(i.it) || '1'], ['text', 'Caption text', i => i.it?.caption || 'Caption'], ['aboveBelow', 'Above/below', () => 'above / below']],
-    tbl: [['full', 'Full label', i => fullLabel(i.it, i.cfg) || 'Table 1'], ['number', 'Number only', i => numText(i.it) || '1'], ['text', 'Caption text', i => i.it?.caption || 'Caption'], ['aboveBelow', 'Above/below', () => 'above / below']],
-    eq: [['full', 'Full label', i => fullLabel(i.it, i.cfg) || 'Eq. (1)'], ['number', 'Number only', i => numText(i.it) || '(1)'], ['aboveBelow', 'Above/below', () => 'above / below']],
-    sec: [['text', 'Heading text', i => i.it?.text || 'Heading'], ['full', 'Heading number', i => fullLabel(i.it, i.cfg) || 'Section 1'], ['number', 'Number only', i => i.it?.num || '1'], ['aboveBelow', 'Above/below', () => 'above / below']],
-    fn: [['fn', 'Footnote number', i => i.it?.num || '1'], ['aboveBelow', 'Above/below', () => 'above / below']],
+    fig: [['full', app.tm('Full label'), i => fullLabel(i.it, i.cfg) || 'Fig. 1'], ['number', app.tm('Number only'), i => numText(i.it) || '1'], ['text', app.tm('Caption text'), i => i.it?.caption || 'Caption'], ['aboveBelow', app.tm('Above/below'), () => 'above / below']],
+    tbl: [['full', app.tm('Full label'), i => fullLabel(i.it, i.cfg) || 'Table 1'], ['number', app.tm('Number only'), i => numText(i.it) || '1'], ['text', app.tm('Caption text'), i => i.it?.caption || 'Caption'], ['aboveBelow', app.tm('Above/below'), () => 'above / below']],
+    eq: [['full', app.tm('Full label'), i => fullLabel(i.it, i.cfg) || 'Eq. (1)'], ['number', app.tm('Number only'), i => numText(i.it) || '(1)'], ['aboveBelow', app.tm('Above/below'), () => 'above / below']],
+    sec: [['text', app.tm('Heading text'), i => i.it?.text || app.tm('Heading')], ['full', app.tm('Heading number'), i => fullLabel(i.it, i.cfg) || 'Section 1'], ['number', app.tm('Number only'), i => i.it?.num || '1'], ['aboveBelow', app.tm('Above/below'), () => 'above / below']],
+    fn: [['fn', app.tm('Footnote number'), i => i.it?.num || '1'], ['aboveBelow', app.tm('Above/below'), () => 'above / below']],
   };
-  const TYPE_ORDER = [['sec', 'Heading'], ['fig', 'Figure'], ['tbl', 'Table'], ['eq', 'Equation'], ['fn', 'Footnote']];
+  const TYPE_ORDER = [['sec', app.tm('Heading')], ['fig', app.tm('Figure')], ['tbl', app.tm('Table')], ['eq', app.tm('Equation')], ['fn', app.tm('Footnote')]];
   function sel(options, value, attrs = '') { return `<select class="sel"${attrs}>${options.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(value) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`; }
   function lastPrefs() { try { return JSON.parse(localStorage.getItem('mkx-dialog') || '{}'); } catch { return {}; } }
   function savePrefs(p) { try { localStorage.setItem('mkx-dialog', JSON.stringify({ ...lastPrefs(), ...p })); } catch {} }
 
   /** Word-like Cross-reference dialog. args: {kind, label, mode} */
   async function crossrefDialog(args = {}) {
-    const doc = activeDoc(); if (!doc) { app.ui.toast('Open or create a Markdown document first.', { kind: 'warn', actions: [{ label: 'New document', run: () => app.commands.run('file.new') }] }); return; }
+    const doc = activeDoc(); if (!doc) { app.ui.toast(app.t('Open or create a Markdown document first.'), { kind: 'warn', actions: [{ label: app.t('New document'), run: () => app.commands.run('file.new') }] }); return; }
     const caret = caretInfo(doc);
     let model = decorateModel(build(currentText(doc), config(doc)));
     const prefs = lastPrefs();
@@ -848,45 +920,45 @@
     const body = document.createElement('div'); body.className = 'mkx-dlg mkx-xref';
     body.innerHTML = `
       <div class="mkx-grid2">
-        <label class="field"><span>Reference type</span>${sel(TYPE_ORDER, kind, ' data-k="type" aria-label="Reference type"')}</label>
-        <label class="field"><span>Insert reference to</span><select class="sel" data-k="mode" aria-label="Insert reference to"></select></label>
+        <label class="field"><span>${app.th('Reference type')}</span>${sel(TYPE_ORDER.map(([k, l]) => [k, app.t(l)]), kind, ` data-k="type" aria-label="${app.th('Reference type')}"`)}</label>
+        <label class="field"><span>${app.th('Insert reference to')}</span><select class="sel" data-k="mode" aria-label="${app.th('Insert reference to')}"></select></label>
       </div>
       <div class="mkx-checks">
-        <label class="mkx-check"><input type="checkbox" data-k="link"${hyperlink ? ' checked' : ''}> Insert as hyperlink</label>
-        <label class="mkx-check"><input type="checkbox" data-k="ab"${aboveBelow ? ' checked' : ''}> Include above/below</label>
+        <label class="mkx-check"><input type="checkbox" data-k="link"${hyperlink ? ' checked' : ''}> ${app.th('Insert as hyperlink')}</label>
+        <label class="mkx-check"><input type="checkbox" data-k="ab"${aboveBelow ? ' checked' : ''}> ${app.th('Include above/below')}</label>
       </div>
-      <div class="field"><span data-k="forwhich">For which item</span>
-        <label class="mkx-search">${icon('search')}<input class="q" placeholder="Search by number, caption or label" spellcheck="false" aria-label="Search items"></label>
-        <div class="mkx-list" role="listbox" tabindex="-1" aria-label="Items"></div>
+      <div class="field"><span data-k="forwhich">${app.th('For which item')}</span>
+        <label class="mkx-search">${icon('search')}<input class="q" placeholder="${app.th('Search by number, caption or label')}" spellcheck="false" aria-label="${app.th('Search items')}"></label>
+        <div class="mkx-list" role="listbox" tabindex="-1" aria-label="${app.th('Items')}"></div>
       </div>
       <div class="mkx-labelrow" data-k="labelrow">
-        <label class="mkx-lab">${icon('mkx-label')}<span>Label</span><input class="txt mono" data-k="label" spellcheck="false" aria-label="Label of the selected item"></label>
-        <label class="mkx-check" data-k="numwrap"><input type="checkbox" data-k="numbered"> Numbered</label>
-        <button type="button" class="btn sm" data-k="rename">Save label</button>
+        <label class="mkx-lab">${icon('mkx-label')}<span>${app.th('Label')}</span><input class="txt mono" data-k="label" spellcheck="false" aria-label="${app.th('Label of the selected item')}"></label>
+        <label class="mkx-check" data-k="numwrap"><input type="checkbox" data-k="numbered"> ${app.th('Numbered')}</label>
+        <button type="button" class="btn sm" data-k="rename">${app.th('Save label')}</button>
       </div>
-      <div class="mkx-preview" aria-live="polite"></div>`;
+      <div class="mkx-preview" aria-live="polite" translate="no"></div>`;
     const $ = s => body.querySelector(s);
     const typeSel = $('[data-k="type"]'), modeSel = $('[data-k="mode"]'), q = $('.q'), listEl = $('.mkx-list'), linkCb = $('[data-k="link"]'), abCb = $('[data-k="ab"]');
     const labelIn = $('[data-k="label"]'), numCb = $('[data-k="numbered"]'), numWrap = $('[data-k="numwrap"]'), renameBtn = $('[data-k="rename"]'), pv = $('.mkx-preview');
     const current = () => shown[act] || null;
-    const fillModes = () => { modeSel.innerHTML = MODES[kind].map(([v, l]) => `<option value="${v}"${v === mode ? ' selected' : ''}>${esc(l)}</option>`).join(''); if (!MODES[kind].some(m => m[0] === mode)) { mode = MODES[kind][0][0]; modeSel.value = mode; } };
+    const fillModes = () => { modeSel.innerHTML = MODES[kind].map(([v, l]) => `<option value="${v}"${v === mode ? ' selected' : ''}>${esc(app.t(l))}</option>`).join(''); if (!MODES[kind].some(m => m[0] === mode)) { mode = MODES[kind][0][0]; modeSel.value = mode; } };
     const rowHtml = (it, i) => {
-      const num = it.kind === 'fn' ? `Footnote ${it.num}` : it.num != null ? fullLabel(it, model.cfg) : (it.kind === 'sec' ? '' : 'No number');
-      const text = it.kind === 'eq' ? `<span class="tex">${esc((it.tex || '').replace(/\s+/g, ' ').trim().slice(0, 120))}</span>` : esc((((it.kind === 'sec' ? it.text : it.caption ?? it.text) || '')).slice(0, 140) || (it.kind === 'fig' ? it.src || 'Picture' : ''));
+      const num = it.kind === 'fn' ? app.t('Footnote {number}', { number: it.num }) : it.num != null ? fullLabel(it, model.cfg) : (it.kind === 'sec' ? '' : app.t('No number'));
+      const text = it.kind === 'eq' ? `<span class="tex">${esc((it.tex || '').replace(/\s+/g, ' ').trim().slice(0, 120))}</span>` : esc((((it.kind === 'sec' ? it.text : it.caption ?? it.text) || '')).slice(0, 140) || (it.kind === 'fig' ? it.src || app.t('Picture') : ''));
       const lab = it.kind === 'fn' ? `[^${it.label}]` : it.label;
       return `<div class="mkx-row${i === act ? ' act' : ''}" role="option" aria-selected="${i === act}" data-i="${i}">
-        <span class="mkx-num${it.num == null && it.kind !== 'sec' ? ' none' : ''}">${esc(num || (it.kind === 'sec' ? 'Heading ' + (it.num || '') : ''))}</span>
-        <span class="mkx-txt"${it.kind === 'sec' ? ` style="padding-left:${Math.max(0, it.level - model.chapterLevel) * 12}px"` : ''}>${text || '<i>No caption</i>'}</span>
-        ${lab ? `<code class="mkx-key">${esc(lab)}</code>` : `<span class="mkx-key new">label added on insert</span>`}</div>`;
+        <span translate="no" class="mkx-num${it.num == null && it.kind !== 'sec' ? ' none' : ''}">${esc(num || (it.kind === 'sec' ? (it.num ? app.t('Heading {number}', { number: it.num }) : app.t('Heading')) : ''))}</span>
+        <span class="mkx-txt"${it.kind === 'sec' ? ` style="padding-left:${Math.max(0, it.level - model.chapterLevel) * 12}px"` : ''}>${text || `<i>${app.th('No caption')}</i>`}</span>
+        ${lab ? `<code class="mkx-key">${esc(lab)}</code>` : `<span class="mkx-key new">${app.th('label added on insert')}</span>`}</div>`;
     };
     function draw(keepScroll) {
       const w = q.value.toLowerCase().trim();
       shown = model.items.filter(i => i.kind === kind).filter(i => !w || `${i.num ?? ''} ${fullLabel(i, model.cfg)} ${i.caption ?? ''} ${i.text ?? ''} ${i.tex ?? ''} ${i.label ?? ''}`.toLowerCase().includes(w));
       act = Math.max(0, Math.min(act, shown.length - 1));
       const st = listEl.scrollTop;
-      listEl.innerHTML = shown.length ? shown.map(rowHtml).join('') : `<div class="mkx-empty"><b>No ${KIND_NAME[kind].toLowerCase()}s yet</b>${kind === 'fig' ? 'Insert a picture first (Insert → Picture).' : kind === 'tbl' ? 'Insert a table first (Insert → Table).' : kind === 'eq' ? 'Insert an equation first (Insert → Equation).' : kind === 'sec' ? 'Add a heading first (Home → Styles).' : 'Add a footnote first (References → Footnote).'}</div>`;
+      listEl.innerHTML = shown.length ? shown.map(rowHtml).join('') : `<div class="mkx-empty"><b>${app.th(EMPTY_LIST[kind][0])}</b>${app.th(EMPTY_LIST[kind][1])}</div>`;
       if (keepScroll) listEl.scrollTop = st;
-      $('[data-k="forwhich"]').textContent = `For which ${KIND_NAME[kind].toLowerCase()}`;
+      $('[data-k="forwhich"]').textContent = app.t(FOR_WHICH[kind] || 'For which item');
       const it = current();
       const canLabel = it && kind !== 'fn';
       $('[data-k="labelrow"]').classList.toggle('off', !canLabel);
@@ -897,7 +969,7 @@
       numCb.checked = !!(it && it.numbered);
       abCb.disabled = mode === 'aboveBelow';
       linkCb.disabled = mode === 'full' || mode === 'number' || mode === 'fn';
-      linkCb.parentElement.title = linkCb.disabled ? 'Numbers are always live links that update when items move.' : '';
+      linkCb.parentElement.title = linkCb.disabled ? app.t('Numbers are always live links that update when items move.') : '';
       preview();
     }
     function preview() {
@@ -909,7 +981,7 @@
       if (mode === 'aboveBelow') txt = where;
       let mdText = referenceMarkdown(fake, mode, { hyperlink: linkCb.checked, where });
       if (abCb.checked && mode !== 'aboveBelow') { txt += ' ' + where; mdText += ' ' + referenceMarkdown(fake, 'aboveBelow', { hyperlink: linkCb.checked, where }); }
-      pv.innerHTML = `<span>Inserts</span><b>${esc(txt)}</b><code>${esc(mdText.trim())}</code>${!it.label && kind !== 'fn' ? `<em>Adds the label ${esc(fake.label)}</em>` : ''}`;
+      pv.innerHTML = `<span>${app.th('Inserts')}</span><b>${esc(txt)}</b><code>${esc(mdText.trim())}</code>${!it.label && kind !== 'fn' ? `<em>${app.th('Adds the label {label}', { label: fake.label })}</em>` : ''}`;
     }
     typeSel.addEventListener('change', () => { kind = typeSel.value; mode = lastPrefs()['mode_' + kind] || MODES[kind][0][0]; act = 0; fillModes(); draw(); });
     modeSel.addEventListener('change', () => { mode = modeSel.value; draw(true); });
@@ -933,13 +1005,13 @@
       if (again) { act = Math.max(0, shown.indexOf(again)); draw(true); }
       return true;
     }
-    renameBtn.addEventListener('click', async () => { const it = current(); if (!it) return; const was = it.label; if (await applyLabel()) app.ui.toast(was && labelIn.value.trim() ? `Label changed. Every reference now uses ${labelIn.value.trim()}.` : labelIn.value.trim() ? 'Label saved' : 'Label removed'); });
+    renameBtn.addEventListener('click', async () => { const it = current(); if (!it) return; const was = it.label; if (await applyLabel()) app.ui.toast(was && labelIn.value.trim() ? app.t('Label changed. Every reference now uses {label}.', { label: labelIn.value.trim() }) : labelIn.value.trim() ? app.t('Label saved') : app.t('Label removed')); });
     numCb.addEventListener('change', async () => { await applyLabel({ numbered: numCb.checked }); });
     fillModes();
     if (args.label) { const it = model.byLabel.get(args.label); if (it) { kind = it.kind; typeSel.value = kind; fillModes(); } }
     draw();
     if (args.label) { const i = shown.findIndex(s => s.label === args.label); if (i >= 0) { act = i; draw(); } }
-    const v = await app.ui.dialog({ title: 'Cross-reference', body, wide: true, icon: 'xref', buttons: [{ label: 'Cancel', value: null }, { label: 'Insert', value: 'ok', primary: true }] });
+    const v = await app.ui.dialog({ title: app.t('Cross-reference'), body, wide: true, icon: 'xref', buttons: [{ label: app.t('Cancel'), value: null }, { label: app.t('Insert@@verb'), value: 'ok', primary: true }] });
     savePrefs({ kind, ['mode_' + kind]: mode, hyperlink: linkCb.checked, aboveBelow: abCb.checked });
     if (v !== 'ok') return;
     const it = current(); if (!it) return;
@@ -951,7 +1023,7 @@
     const caret = opts.caret || caretInfo(doc);
     let model = decorateModel(build(currentText(doc), config(doc)));
     let it = opts.item ? (findItem(model, opts.item) || (opts.item.label && model.byLabel.get(opts.item.label))) : model.byLabel.get(opts.target || opts.label);
-    if (!it) { app.ui.toast('Pick another item: that one is no longer in the document.', { kind: 'warn' }); return null; }
+    if (!it) { app.ui.toast(app.t('Pick another item: that one is no longer in the document.'), { kind: 'warn' }); return null; }
     const mode = opts.mode || (it.kind === 'sec' ? 'text' : it.kind === 'fn' ? 'fn' : 'full');
     let label = it.label;
     const needsLabel = it.kind !== 'fn' && !label;
@@ -968,7 +1040,7 @@
       const lineShift = (md.match(/\n/g) || []).length;
       const near = { ...ref, line: ref.line + (caret.offset != null && (doc.text.slice(0, caret.offset).match(/\n/g) || []).length < ref.line ? lineShift : 0) };
       const r = await setLabel({ doc, item: near, label, numbered: it.kind === 'eq' ? true : undefined });
-      if (r) app.ui.toast(`Added the label ${label} so the reference stays correct when things move`);
+      if (r) app.ui.toast(app.t('Added the label {label} so the reference stays correct when things move', { label }));
     }
     refreshActive();
     return md;
@@ -976,30 +1048,30 @@
 
   /** Insert Caption (like Word): picks the selected figure, table or equation; adds or edits its caption and label. */
   async function captionDialog(args = {}) {
-    const doc = activeDoc(); if (!doc) { app.ui.toast('Open or create a Markdown document first.', { kind: 'warn', actions: [{ label: 'New document', run: () => app.commands.run('file.new') }] }); return; }
+    const doc = activeDoc(); if (!doc) { app.ui.toast(app.t('Open or create a Markdown document first.'), { kind: 'warn', actions: [{ label: app.t('New document'), run: () => app.commands.run('file.new') }] }); return; }
     let model = decorateModel(build(currentText(doc), config(doc)));
     let it = args.label ? model.byLabel.get(args.label) : args.element ? itemForElement(args.element, model) : itemAtCaret(doc, model);
     const cands = model.items.filter(i => i.kind === 'fig' || i.kind === 'tbl' || i.kind === 'eq');
-    if (!cands.length) { app.ui.toast('Add a picture, table or equation first. Then Insert Caption numbers it.', { kind: 'warn' }); return; }
+    if (!cands.length) { app.ui.toast(app.t('Add a picture, table or equation first. Then Insert Caption numbers it.'), { kind: 'warn' }); return; }
     if (!it || !cands.includes(it)) it = cands.find(i => !i.label && i.kind !== 'eq') || cands[0];
     const cfg = model.cfg;
     const name = i => {
-      const n = i.num != null ? fullLabel(i, cfg) : `${KIND_NAME[i.kind]} (no number)`;
+      const n = i.num != null ? fullLabel(i, cfg) : app.t(NO_NUMBER_SHORT[i.kind] || 'Item (no number)');
       const t = i.kind === 'eq' ? (i.tex || '').replace(/\s+/g, ' ').slice(0, 50) : (i.caption || (i.kind === 'fig' ? i.src : '') || '').slice(0, 50);
       return `${n} · ${t}`;
     };
     const body = document.createElement('div'); body.className = 'mkx-dlg mkx-cap';
     body.innerHTML = `
-      <label class="field"><span>Item</span>${sel(cands.map((c, i) => [i, name(c)]), cands.indexOf(it), ' data-k="item" aria-label="Item to caption"')}</label>
-      <div class="field" data-k="capfield"><span>Caption</span>
-        <div class="mkx-capline"><span class="mkx-capnum" data-k="num"></span><input class="txt" data-k="cap" placeholder="Describe what it shows" aria-label="Caption text"></div></div>
+      <label class="field"><span>${app.th('Item')}</span>${sel(cands.map((c, i) => [i, name(c)]), cands.indexOf(it), ` data-k="item" aria-label="${app.th('Item to caption')}"`)}</label>
+      <div class="field" data-k="capfield"><span>${app.th('Caption')}</span>
+        <div class="mkx-capline"><span class="mkx-capnum" data-k="num" translate="no"></span><input class="txt" data-k="cap" placeholder="${app.th('Describe what it shows')}" aria-label="${app.th('Caption text')}"></div></div>
       <div class="mkx-grid2">
-        <label class="field"><span>Label (for cross-references)</span><input class="txt mono" data-k="label" spellcheck="false" aria-label="Label"></label>
-        <div class="field" data-k="posfield"><span>Position</span><div class="seg sm mkx-seg" role="radiogroup" aria-label="Caption position"><button type="button" data-pos="below" class="on" role="radio">Below table</button><button type="button" data-pos="above" role="radio">Above table</button></div></div>
-        <div class="field" data-k="eqfield"><span>Equation number</span><label class="mkx-check"><input type="checkbox" data-k="numbered" checked> Numbered</label></div>
+        <label class="field"><span>${app.th('Label (for cross-references)')}</span><input class="txt mono" data-k="label" spellcheck="false" aria-label="${app.th('Label')}"></label>
+        <div class="field" data-k="posfield"><span>${app.th('Position')}</span><div class="seg sm mkx-seg" role="radiogroup" aria-label="${app.th('Caption position')}"><button type="button" data-pos="below" class="on" role="radio">${app.th('Below table')}</button><button type="button" data-pos="above" role="radio">${app.th('Above table')}</button></div></div>
+        <div class="field" data-k="eqfield"><span>${app.th('Equation number')}</span><label class="mkx-check"><input type="checkbox" data-k="numbered" checked> ${app.th('Numbered')}</label></div>
       </div>
-      <div class="mkx-preview" data-k="pv"></div>
-      <div class="mkx-note">Numbers update by themselves when items move. <button type="button" class="mkx-link" data-k="numbering">Numbering options…</button></div>`;
+      <div class="mkx-preview" data-k="pv" translate="no"></div>
+      <div class="mkx-note">${app.th('Numbers update by themselves when items move.')} <button type="button" class="mkx-link" data-k="numbering">${app.th('Numbering options…')}</button></div>`;
     const $ = s => body.querySelector(s);
     const itemSel = $('[data-k="item"]'), cap = $('[data-k="cap"]'), lab = $('[data-k="label"]'), num = $('[data-k="num"]'), numbered = $('[data-k="numbered"]'), pv = $('[data-k="pv"]');
     let pos = 'below', labelTouched = false, nextNum = '#';
@@ -1033,8 +1105,8 @@
       num.textContent = pre ? pre + '.' : '';
       const l = lab.value.trim() || lab.placeholder;
       pv.innerHTML = i.kind === 'eq'
-        ? (numbered.checked ? `<span>Shows</span><b>(${esc(n)})</b><span>at the right margin · refer to it with</span><code>@${esc(l)}</code>` : '<span>No number. The equation is not counted.</span>')
-        : `<span>Shows</span><b>${esc(pre)}. ${esc(cap.value || '…')}</b><span>· Markdown</span><code>${esc(i.kind === 'fig' ? `![${cap.value}](…){#${l}}` : `: ${cap.value} {#${l}}`)}</code>`;
+        ? (numbered.checked ? `<span>${app.th('Shows')}</span><b>(${esc(n)})</b><span>${app.th('at the right margin · refer to it with')}</span><code>@${esc(l)}</code>` : `<span>${app.th('No number. The equation is not counted.')}</span>`)
+        : `<span>${app.th('Shows')}</span><b>${esc(pre)}. ${esc(cap.value || '…')}</b><span>· Markdown</span><code>${esc(i.kind === 'fig' ? `![${cap.value}](…){#${l}}` : `: ${cap.value} {#${l}}`)}</code>`;
     }
     itemSel.addEventListener('change', fill);
     cap.addEventListener('input', update); numbered.addEventListener('change', update);
@@ -1042,7 +1114,7 @@
     body.querySelector('.mkx-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; pos = b.dataset.pos; body.querySelectorAll('.mkx-seg button').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b); }); });
     $('[data-k="numbering"]').addEventListener('click', () => { numberingDialog(); });
     fill();
-    const v = await app.ui.dialog({ title: 'Caption', body, icon: 'mkx-caption', buttons: [{ label: 'Cancel', value: null }, { label: 'OK', value: 'ok', primary: true }] });
+    const v = await app.ui.dialog({ title: app.t('Caption'), body, icon: 'mkx-caption', buttons: [{ label: app.t('Cancel'), value: null }, { label: app.t('OK'), value: 'ok', primary: true }] });
     if (v !== 'ok') return;
     const i = cur();
     const label = lab.value.trim() || lab.placeholder;
@@ -1050,7 +1122,7 @@
     if (r) {
       await sleep(30);
       const m2 = modelFor(doc); const again = r.label && m2.byLabel.get(r.label);
-      app.ui.toast(again && again.num != null ? `${fullLabel(again, m2.cfg)} · label ${r.label}` : 'Caption updated');
+      app.ui.toast(again && again.num != null ? app.t('{item} · label {label}', { item: fullLabel(again, m2.cfg), label: r.label }) : app.t('Caption updated'));
     }
     return r;
   }
@@ -1061,15 +1133,15 @@
     const c = config(doc);
     const inDoc = !!(doc && hasDocConfig(doc));
     const body = document.createElement('div'); body.className = 'mkx-dlg mkx-num';
-    const pref = k => `<label class="field"><span>${{ eq: 'Equations', fig: 'Figures', tbl: 'Tables', sec: 'Headings' }[k]}</span><input class="txt" data-k="${k}" list="mkx-dl-${k}" value="${esc(c[k])}" aria-label="${KIND_NAME[k]} label"><datalist id="mkx-dl-${k}">${PREFIX_CHOICES[k].map(o => `<option value="${esc(o)}">`).join('')}</datalist></label>`;
+    const pref = k => `<label class="field"><span>${app.th({ eq: app.tm('Equations'), fig: app.tm('Figures'), tbl: app.tm('Tables'), sec: app.tm('Headings') }[k])}</span><input class="txt" data-k="${k}" list="mkx-dl-${k}" value="${esc(c[k])}" aria-label="${app.th(PREFIX_LABEL[k])}"><datalist id="mkx-dl-${k}">${PREFIX_CHOICES[k].map(o => `<option value="${esc(o)}">`).join('')}</datalist></label>`;
     body.innerHTML = `
-      <div class="field"><span>Numbering</span><div class="seg sm mkx-seg" data-k="style" role="radiogroup" aria-label="Numbering"><button type="button" data-v="plain" role="radio">1, 2, 3</button><button type="button" data-v="chapter" role="radio">1.1, 1.2 by chapter</button></div></div>
-      <div class="field" data-k="sepfield"><span>Chapter separator</span><div class="seg sm mkx-seg" data-k="sep" role="radiogroup" aria-label="Separator"><button type="button" data-v="." role="radio">1.1 period</button><button type="button" data-v="-" role="radio">1-1 hyphen</button></div></div>
+      <div class="field"><span>${app.th('Numbering')}</span><div class="seg sm mkx-seg" data-k="style" role="radiogroup" aria-label="${app.th('Numbering')}"><button type="button" data-v="plain" role="radio">1, 2, 3</button><button type="button" data-v="chapter" role="radio">${app.th('1.1, 1.2 by chapter')}</button></div></div>
+      <div class="field" data-k="sepfield"><span>${app.th('Chapter separator')}</span><div class="seg sm mkx-seg" data-k="sep" role="radiogroup" aria-label="${app.th('Separator')}"><button type="button" data-v="." role="radio">${app.th('1.1 period')}</button><button type="button" data-v="-" role="radio">${app.th('1-1 hyphen')}</button></div></div>
       <div class="mkx-grid4">${KINDS.map(pref).join('')}</div>
-      <label class="mkx-check"><input type="checkbox" data-k="all"${c.numberAll ? ' checked' : ''}> Number all display equations (not only labeled ones)</label>
-      <label class="mkx-check"><input type="checkbox" data-k="doc"${inDoc || !doc ? ' checked' : ''}${doc ? '' : ' disabled'}> Save in this document, so the numbering travels with the file</label>
-      <div class="mkx-preview" data-k="pv"></div>
-      <div class="mkx-note">Chapters are the top heading level${modelFor(doc).chapterLevel === 2 ? ' (Heading 2 here, because Heading 1 is the title)' : ''}.</div>`;
+      <label class="mkx-check"><input type="checkbox" data-k="all"${c.numberAll ? ' checked' : ''}> ${app.th('Number all display equations (not only labeled ones)')}</label>
+      <label class="mkx-check"><input type="checkbox" data-k="doc"${inDoc || !doc ? ' checked' : ''}${doc ? '' : ' disabled'}> ${app.th('Save in this document, so the numbering travels with the file')}</label>
+      <div class="mkx-preview" data-k="pv" translate="no"></div>
+      <div class="mkx-note">${modelFor(doc).chapterLevel === 2 ? app.th('Chapters are the top heading level (Heading 2 here, because Heading 1 is the title).') : app.th('Chapters are the top heading level.')}</div>`;
     const $ = s => body.querySelector(s);
     let style = c.style, sep = c.sep;
     const segs = () => {
@@ -1077,17 +1149,17 @@
       body.querySelectorAll('[data-k="sep"] button').forEach(b => { b.classList.toggle('on', b.dataset.v === sep); b.setAttribute('aria-checked', b.dataset.v === sep); });
       $('[data-k="sepfield"]').style.opacity = style === 'chapter' ? '1' : '.45';
       const n = style === 'chapter' ? `2${sep}1` : '3';
-      $('[data-k="pv"]').innerHTML = `<span>Looks like</span><b>${esc($('[data-k="eq"]').value)} (${n})</b><b>${esc($('[data-k="fig"]').value)} ${n}</b><b>${esc($('[data-k="tbl"]').value)} ${n}</b>`;
+      $('[data-k="pv"]').innerHTML = `<span>${app.th('Looks like')}</span><b>${esc($('[data-k="eq"]').value)} (${n})</b><b>${esc($('[data-k="fig"]').value)} ${n}</b><b>${esc($('[data-k="tbl"]').value)} ${n}</b>`;
     };
     body.addEventListener('click', e => { const b = e.target.closest('.mkx-seg button'); if (!b) return; if (b.closest('[data-k="style"]')) style = b.dataset.v; else sep = b.dataset.v; segs(); });
     body.addEventListener('input', segs);
     segs();
-    const v = await app.ui.dialog({ title: 'Numbering options', body, icon: 'mkx-hash', buttons: [{ label: 'Cancel', value: null }, { label: 'Apply', value: 'ok', primary: true }] });
+    const v = await app.ui.dialog({ title: app.t('Numbering options'), body, icon: 'mkx-hash', buttons: [{ label: app.t('Cancel'), value: null }, { label: app.t('Apply'), value: 'ok', primary: true }] });
     if (v !== 'ok') return;
     const patch = { style, sep, numberAll: $('[data-k="all"]').checked };
     for (const k of KINDS) patch[k] = $(`[data-k="${k}"]`).value.trim() || DEFAULTS[k];
     setConfig(patch, $('[data-k="doc"]').checked && doc ? 'both' : 'app', doc);
-    app.ui.toast('Numbering updated');
+    app.ui.toast(app.t('Numbering updated'));
   }
 
   /** Old documents: equations with a fixed \tag{3} become labeled, auto-numbered equations. */
@@ -1096,7 +1168,7 @@
     let text = currentText(doc);
     let model = decorateModel(build(text, config(doc)));
     const fixed = model.eqs.filter(i => i.block && i.fixed && /^\d+(?:[.\-]\d+)?$/.test(String(i.tag)) && !i.label);
-    if (!fixed.length) { app.ui.toast('All equation numbers are already automatic. Nothing needed converting.'); return 0; }
+    if (!fixed.length) { app.ui.toast(app.t('All equation numbers are already automatic. Nothing needed converting.')); return 0; }
     const taken = new Set(model.byLabel.keys());
     const lines = text.split('\n'); const renames = [];
     for (const it of [...fixed].reverse()) {
@@ -1110,65 +1182,65 @@
     // links that pointed at the old numbers: [Equation (3)](#eq-3)
     for (const [n, label] of renames) next = next.replace(new RegExp('\\[(?:Equation|Eq\\.?)\\s*\\(?' + escRe(n) + '\\)?\\]\\(#eq-' + escRe(n) + '\\)', 'g'), '@' + label);
     doc.setText(next, 'xref');
-    app.ui.toast(`${fixed.length} equation${fixed.length === 1 ? '' : 's'} now numbered automatically`);
+    app.ui.toast(app.tn('{count} equations now numbered automatically', fixed.length));
     return fixed.length;
   }
 
   // ------------------------------------------------------------------ commands
   const cmd = (id, def) => app.commands.register(id, def);
   const mdOnly = () => !!activeDoc();
-  cmd('xref.crossref', { label: 'Cross-reference', icon: 'xref', shortcut: 'Ctrl+Alt+R', description: 'Refer to a heading, figure, table, equation or footnote. The number updates by itself when things move.', isEnabled: mdOnly, run: a => crossrefDialog(a || {}) });
-  cmd('xref.caption', { label: 'Insert caption', icon: 'mkx-caption', shortcut: 'Ctrl+Alt+Shift+C', description: 'Give the selected picture, table or equation a number and a caption (like Word).', isEnabled: mdOnly, run: a => captionDialog(a || {}) });
+  cmd('xref.crossref', { label: app.tm('Cross-reference'), icon: 'xref', shortcut: 'Ctrl+Alt+R', description: app.tm('Refer to a heading, figure, table, equation or footnote. The number updates by itself when things move.'), isEnabled: mdOnly, run: a => crossrefDialog(a || {}) });
+  cmd('xref.caption', { label: app.tm('Insert caption'), icon: 'mkx-caption', shortcut: 'Ctrl+Alt+Shift+C', description: app.tm('Give the selected picture, table or equation a number and a caption (like Word).'), isEnabled: mdOnly, run: a => captionDialog(a || {}) });
   cmd('xref.numberAll', {
-    label: 'Number all equations', icon: 'sigma', description: 'On: every display equation gets a number. Off: only equations with a label (or a Numbered switch) are numbered.',
+    label: app.tm('Number all equations'), icon: 'sigma', description: app.tm('On: every display equation gets a number. Off: only equations with a label (or a Numbered switch) are numbered.'),
     isActive: () => !!config().numberAll,
-    run(a) { const v = typeof a === 'boolean' ? a : a && typeof a.value === 'boolean' ? a.value : !config().numberAll; setConfig({ numberAll: v }); app.ui.toast(v ? 'All display equations are numbered' : 'Only labeled equations are numbered'); },
+    run(a) { const v = typeof a === 'boolean' ? a : a && typeof a.value === 'boolean' ? a.value : !config().numberAll; setConfig({ numberAll: v }); app.ui.toast(v ? app.t('All display equations are numbered') : app.t('Only labeled equations are numbered')); },
   });
   cmd('xref.style', {
-    label: 'Numbering style', icon: 'mkx-hash', description: '1, 2, 3 or by chapter: 1.1, 1.2 (chapter = top heading level).',
-    run(a) { const v = typeof a === 'string' ? a : a && a.value; if (!v) return numberingDialog(); if (!/^(plain|chapter)$/.test(v)) return; setConfig({ style: v }); app.ui.toast(v === 'chapter' ? 'Numbers follow the chapter: 1.1, 1.2, 2.1' : 'Numbers run 1, 2, 3 through the document'); },
+    label: app.tm('Numbering style'), icon: 'mkx-hash', description: '1, 2, 3 or by chapter: 1.1, 1.2 (chapter = top heading level).',
+    run(a) { const v = typeof a === 'string' ? a : a && a.value; if (!v) return numberingDialog(); if (!/^(plain|chapter)$/.test(v)) return; setConfig({ style: v }); app.ui.toast(v === 'chapter' ? app.t('Numbers follow the chapter: 1.1, 1.2, 2.1') : app.t('Numbers run 1, 2, 3 through the document')); },
   });
   cmd('xref.separator', {
-    label: 'Chapter number separator', icon: 'mkx-hash', description: 'Between chapter and number: 1.1 or 1-1.',
+    label: app.tm('Chapter number separator'), icon: 'mkx-hash', description: app.tm('Between chapter and number: 1.1 or 1-1.'),
     run(a) { const v = typeof a === 'string' ? a : a && a.value; if (!/^[.\-]$/.test(v || '')) return numberingDialog(); setConfig({ sep: v }); },
   });
-  cmd('xref.numbering', { label: 'Numbering options…', icon: 'mkx-hash', description: 'Numbering style, separator and label names (Eq., Fig., Table).', run: () => numberingDialog() });
+  cmd('xref.numbering', { label: app.tm('Numbering options…'), icon: 'mkx-hash', description: app.tm('Numbering style, separator and label names (Eq., Fig., Table).'), run: () => numberingDialog() });
   cmd('xref.update', {
-    label: 'Update numbers', icon: 'refresh', shortcut: 'F9', description: 'Renumbers equations, figures and tables and refreshes every cross-reference (like Update Field in Word).', isEnabled: mdOnly,
-    async run() { invalidate(); try { await ed()?.refresh?.(); } catch {} refreshActive(true); const m = modelFor(activeDoc()); const broken = document.querySelectorAll('.mk-page .mk-xref-broken').length; app.ui.toast(`Numbers updated: ${m.eqs.filter(i => i.numbered).length} equations, ${m.figs.filter(i => i.num).length} figures, ${m.tbls.filter(i => i.num).length} tables${broken ? ` · ${broken} broken reference${broken === 1 ? '' : 's'} in red` : ''}`, { kind: broken ? 'warn' : 'success' }); },
+    label: app.tm('Update numbers'), icon: 'refresh', shortcut: 'F9', description: app.tm('Renumbers equations, figures and tables and refreshes every cross-reference (like Update Field in Word).'), isEnabled: mdOnly,
+    async run() { invalidate(); try { await ed()?.refresh?.(); } catch {} refreshActive(true); const m = modelFor(activeDoc()); const broken = document.querySelectorAll('.mk-page .mk-xref-broken').length; app.ui.toast(app.t('Numbers updated: {equations}, {figures}, {tables}', { equations: app.tn('{count} equations', m.eqs.filter(i => i.numbered).length), figures: app.tn('{count} figures', m.figs.filter(i => i.num).length), tables: app.tn('{count} tables', m.tbls.filter(i => i.num).length) }) + (broken ? ' · ' + app.tn('{count} broken references in red', broken) : ''), { kind: broken ? 'warn' : 'success' }); },
   });
   cmd('xref.goto', {
-    label: 'Go to referenced item', icon: 'xref', description: 'Jumps to the figure, table, equation or heading the selected cross-reference points to.', isEnabled: mdOnly,
+    label: app.tm('Go to referenced item'), icon: 'xref', description: app.tm('Jumps to the figure, table, equation or heading the selected cross-reference points to.'), isEnabled: mdOnly,
     run(a) {
       if (a && a.label) return jump(a.label);
       const s = getSelection(); let n = s && s.anchorNode; n = n && (n.nodeType === 1 ? (n.childNodes[s.anchorOffset - 1] || n.childNodes[s.anchorOffset] || n) : n.parentElement);
       const x = n && (n.closest?.('.mk-xref') || (n.previousElementSibling?.classList?.contains('mk-xref') ? n.previousElementSibling : null) || (n.classList?.contains('mk-xref') ? n : null));
       if (x) return jump((x.getAttribute('data-ref') || '').split(';')[0], rootOf(x));
-      app.ui.toast('Put the cursor right after a cross-reference first, or Ctrl+click the reference.', { kind: 'warn' });
+      app.ui.toast(app.t('Put the cursor right after a cross-reference first, or Ctrl+click the reference.'), { kind: 'warn' });
     },
   });
-  cmd('xref.convertTags', { label: 'Convert fixed equation numbers', icon: 'sigma', description: 'Equations with a typed \\tag{3} become labeled equations that renumber themselves.', isEnabled: mdOnly, run: () => convertTags() });
-  cmd('xref.fixReference', { label: 'Fix broken cross-reference', icon: 'xref', palette: false, run: a => a && fixReference(a.from, a.to) });
-  cmd('xref.setLabel', { label: 'Change label', icon: 'mkx-label', palette: false, run: a => setLabel(a || {}) });
+  cmd('xref.convertTags', { label: app.tm('Convert fixed equation numbers'), icon: 'sigma', description: app.tm('Equations with a typed \\tag{3} become labeled equations that renumber themselves.'), isEnabled: mdOnly, run: () => convertTags() });
+  cmd('xref.fixReference', { label: app.tm('Fix broken cross-reference'), icon: 'xref', palette: false, run: a => a && fixReference(a.from, a.to) });
+  cmd('xref.setLabel', { label: app.tm('Change label'), icon: 'mkx-label', palette: false, run: a => setLabel(a || {}) });
 
   // ------------------------------------------------------------------ ribbon
   const big = (command, label, ic) => ({ type: 'big', command, label, icon: ic });
   const small = (command, label, ic, extra = {}) => ({ type: 'small', command, label, icon: ic, showLabel: true, ...extra });
   app.ribbon.addGroup('references', {
-    id: 'xref-captions', label: 'Captions & numbering', order: 40, items: [
-      big('xref.caption', 'Insert Caption', 'mkx-caption'),
-      big('xref.crossref', 'Cross-ref', 'xref'),
+    id: 'xref-captions', label: app.tm('Captions & numbering'), order: 40, items: [
+      big('xref.caption', app.tm('Insert Caption'), 'mkx-caption'),
+      big('xref.crossref', app.tm('Cross-ref'), 'xref'),
       { type: 'col', items: [
         { type: 'row', items: [
-          { type: 'select', command: 'xref.style', label: 'Numbering style', options: [{ value: 'plain', label: 'Numbers 1, 2, 3' }, { value: 'chapter', label: 'By chapter 1.1, 1.2' }], value: () => config().style, width: 150 },
-          { type: 'small', command: 'xref.numbering', label: 'Numbering options: label names (Eq., Fig., Table) and separator', icon: 'mkx-hash' },
+          { type: 'select', command: 'xref.style', label: app.tm('Numbering style'), options: [{ value: 'plain', label: app.tm('Numbers 1, 2, 3') }, { value: 'chapter', label: app.tm('By chapter 1.1, 1.2') }], value: () => config().style, width: 150 },
+          { type: 'small', command: 'xref.numbering', label: app.tm('Numbering options: label names (Eq., Fig., Table) and separator'), icon: 'mkx-hash' },
         ] },
-        small('xref.numberAll', 'Number all equations', 'sigma'),
+        small('xref.numberAll', app.tm('Number all equations'), 'sigma'),
       ] },
-      big('xref.update', 'Update', 'refresh'),
+      big('xref.update', app.tm('Update'), 'refresh'),
     ],
   });
-  app.ribbon.addGroup('insert', { id: 'xref-insert', label: 'Captions', order: 45, items: [big('xref.caption', 'Caption', 'mkx-caption'), big('xref.crossref', 'Cross-ref', 'xref')] });
+  app.ribbon.addGroup('insert', { id: 'xref-insert', label: app.tm('Captions'), order: 45, items: [big('xref.caption', app.tm('Caption'), 'mkx-caption'), big('xref.crossref', app.tm('Cross-ref'), 'xref')] });
 
   // ------------------------------------------------------------------ export stylesheet (numbers in a gutter; KaTeX's own counters hidden)
   const EXPORT_CSS = `
@@ -1180,6 +1252,9 @@
 a.mk-xref{color:#0a66ff;text-decoration:none}
 .mk-tcaption{font:12px -apple-system,"Segoe UI",system-ui,sans-serif;color:#6e6e73;text-align:center;margin:6px 0 16px}
 .mk-tcaption[data-pos="before"]{margin:16px 0 6px}
+td .mk-math.display.mk-eqn,th .mk-math.display.mk-eqn{grid-template-columns:0 auto auto;justify-content:center;column-gap:8px}
+td .mk-math.display.mk-eqn>.katex-display,th .mk-math.display.mk-eqn>.katex-display{min-width:auto;overflow:visible}
+.mkx-cellcap{display:block;font:12px -apple-system,"Segoe UI",system-ui,sans-serif;color:#6e6e73;margin:4px 0 2px}
 `;
 
   // ------------------------------------------------------------------ public API
@@ -1192,7 +1267,7 @@ a.mk-xref{color:#0a66ff;text-decoration:none}
     numberOf: (label, doc = activeDoc()) => { const it = modelFor(doc).byLabel.get(label); return it ? numText(it) : null; },
     fullLabel: (label, doc = activeDoc()) => { const m = modelFor(doc); return fullLabel(m.byLabel.get(label), m.cfg); },
     suggestLabel: (kind, it, doc = activeDoc()) => suggestLabel(kind, it || {}, new Set(modelFor(doc).byLabel.keys())),
-    equationMarkdown, referenceMarkdown,
+    equationMarkdown, referenceMarkdown, cellEquationMarkdown, tellCell,
     setLabel, insertReference, renameRefs, rewriteItem: (text, ref, o) => { const m = decorateModel(build(text, config())); const it = findItem(m, ref); return it ? rewriteItem(text, it, { cfg: m.cfg, ...o }) : null; },
     itemForElement: (el, doc = activeDoc()) => itemForElement(el, decorateModel(modelFor(doc))),
     /** For the equation editor: {label, numbered, number, labelFrom} of the equation shown by `el` (a .mk-math or its block). */
@@ -1337,6 +1412,7 @@ y = 2 \label{eq:env}
     const shot = name => mk.invoke?.('smoke-shot', name)?.catch?.(() => {});
     const text = SAMPLE.replace('# Results', 'A long one:\n\n$$ ' + Array.from({ length: 18 }, (_, i) => `a_{${i}} x^{${i}}`).join(' + ') + ' $$ {#eq:long}\n\nAs @eq:long shows, and see @fig:flume.\n\n# Results');
     const d = app.docs.create({ text, title: 'Cross-references' });
+    let pending = null;
     try {
       if (app.mode !== 'word') app.setMode('word');
       let s = null; for (let i = 0; i < 40 && !(s = surface())?.querySelector('.mk-xref'); i++) await sleep(100);
@@ -1344,16 +1420,22 @@ y = 2 \label{eq:env}
       const ref = s.querySelector('.mk-xref');
       ref.scrollIntoView({ block: 'center' }); await sleep(150);
       showCard(ref); await sleep(400);
-      A(card && card.classList.contains('show') && /Eq\. \(1\)/.test(card.textContent), 'hover card shows the target');
+      A(card && card.classList.contains('show') && /Eq\. \(1\)/.test(card.textContent), 'hover card shows the target: ' + (card ? `${card.className} · ${card.textContent.slice(0, 120)}` : 'no card'));
       await shot('xref');
       hideCard(true);
       const close = async p => { await sleep(450); document.querySelector('.dlg.show .dlg-foot .btn:not(.primary)')?.click(); await p; };
-      let p = crossrefDialog({ kind: 'fig' }); await sleep(450);
+      let p = crossrefDialog({ kind: 'fig' }); pending = p;
+      // the list fills in after the dialog opens (slower in a packaged or busy run): wait for it, up to 4 s
+      for (let i = 0; i < 40 && !document.querySelector('.dlg.show .mkx-row'); i++) await sleep(100);
       A(document.querySelector('.dlg.show .mkx-row'), 'cross-reference dialog lists items');
       await shot('xref-dialog'); await close(p);
-      p = captionDialog({}); await sleep(450); await shot('xref-caption'); await close(p);
+      p = captionDialog({}); pending = p; await sleep(450); await shot('xref-caption'); await close(p); pending = null;
       if (app.shell?.selectTab) { app.shell.selectTab('references'); await sleep(350); await shot('xref-ribbon'); app.shell.selectTab('home'); }
-    } finally { hideCard(true); await app.docs.close(d.id, { force: true }); }
+    } finally {
+      // a failed step must not leave its dialog over the window (later tests would fail behind it)
+      if (pending) { document.querySelector('.dlg.show .dlg-foot .btn:not(.primary)')?.click(); await Promise.race([pending, sleep(1500)]); }
+      hideCard(true); await app.docs.close(d.id, { force: true });
+    }
   });
   app.tests.register('xref: Pandoc export Markdown has plain numbers', async () => {
     await withDoc(SAMPLE, async d => {
@@ -1363,5 +1445,69 @@ y = 2 \label{eq:env}
       A(out.includes('![Fig. 1. Sediment flume](flume.png){#fig:flume}') && out.includes(': Table 1. Flume runs {#tbl:runs}'), 'captions numbered');
       A(out.includes('??'), 'broken reference shows ??');
     });
+  });
+
+  // ------------------------------------------------------------------ numbering inside table cells
+  const CELLS = [
+    '# Results', '',
+    '$$a = b$$ {#eq:first}', '',
+    '| Case | Equation | Picture |',
+    '| --- | --- | --- |',
+    '| A | $$q = u h$$ {#eq:flow} | ![Flume inlet](inlet.png){#fig:inlet} |',
+    '| B | $$E = mc^2$$ {#eq:energy} | ![Outlet](outlet.png){#fig:outlet} ![Gate](gate.png) |', '',
+    ': Runs {#tbl:runs}', '',
+    '![Main view](main.png){#fig:main}', '',
+    'See @eq:flow, @fig:outlet, @tbl:runs and @fig:main.', ''].join('\n');
+  app.tests.register('xref: equations, pictures and captions inside table cells number in document order', async () => {
+    await withDoc(CELLS, async d => {
+      const m = app.xref.model(d); const cfg = m.cfg; const n = l => m.byLabel.get(l)?.num;
+      A(n('eq:first') === '1' && n('eq:flow') === '2' && n('eq:energy') === '3', 'equations 1, 2, 3: ' + ['eq:first', 'eq:flow', 'eq:energy'].map(n));
+      A(n('fig:inlet') === '1' && n('fig:outlet') === '2' && n('fig:main') === '3', 'pictures 1, 2, 3: ' + ['fig:inlet', 'fig:outlet', 'fig:main'].map(n));
+      const gate = m.figs.find(i => i.src === 'gate.png'); const outlet = m.byLabel.get('fig:outlet');
+      A(gate && gate.index === 1 && outlet.index === 0 && gate.line === outlet.line, 'pictures counted along the row: ' + JSON.stringify(gate && { i: gate.index, l: gate.line }));
+      // the Cross-reference dialog lists them
+      const t = targets(d.text, d).map(x => x.label);
+      A(['eq:flow', 'eq:energy', 'fig:inlet', 'fig:outlet', 'tbl:runs'].every(l => t.includes(l)), 'listed in Cross-reference: ' + t.join(', '));
+      // drawn: numbers in the cells, captions under the pictures, live references
+      const box = document.createElement('div'); box.className = 'mk-page'; box.style.cssText = 'position:fixed;left:-9000px;top:0;width:760px'; document.body.appendChild(box);
+      try {
+        box.innerHTML = (await app.render(d.text, { doc: d })).html; await app.decorate(box, d);
+        const cellNums = [...box.querySelectorAll('td .mk-eqno')].map(x => x.textContent);
+        A(JSON.stringify(cellNums) === '["(2)","(3)"]', 'equation numbers in cells: ' + JSON.stringify(cellNums));
+        const caps = [...box.querySelectorAll('td .mkx-cellcap')].map(x => x.textContent);
+        A(JSON.stringify(caps) === JSON.stringify([`${cfg.fig} 1. Flume inlet`, `${cfg.fig} 2. Outlet`]), 'captions in cells: ' + JSON.stringify(caps));
+        const refs = [...box.querySelectorAll('.mk-xref')].map(x => x.textContent);
+        A(refs[0].includes('(2)') && refs[1] === `${cfg.fig} 2` && refs[3] === `${cfg.fig} 3`, 'references: ' + refs.join(' | '));
+        const img = box.querySelector('img[data-label="fig:outlet"]');
+        A(itemForElement(img, decorateModel(build(d.text, cfg)))?.label === 'fig:outlet', 'a picture in a cell is the picture, not the table');
+        A(itemForElement(box.querySelector('img[data-label="fig:inlet"]').closest('td'), decorateModel(build(d.text, cfg)))?.label === 'fig:inlet', 'the caret in a picture cell picks the picture');
+        A(mk.toMarkdown(box.querySelector('table').outerHTML).includes('![Flume inlet](inlet.png){#fig:inlet}'), 'captions never reach the Markdown');
+        try { box.style.left = '0'; box.style.zIndex = '9999'; box.style.background = '#fff'; await app.mk.invoke('smoke-shot', 'xref-table-cells'); } catch {}
+      } finally { box.remove(); }
+      // Caption on a picture in a cell: the row stays one line, | is escaped
+      const next = app.xref.rewriteItem(d.text, { kind: 'fig', line: gate.line, index: 1 }, { label: 'fig:gate', caption: 'Gate | view' });
+      A(next && next.split('\n')[gate.line] === '| B | $$E = mc^2$$ {#eq:energy} | ![Outlet](outlet.png){#fig:outlet} ![Gate \\| view](gate.png){#fig:gate} |', 'caption in a cell: ' + (next && next.split('\n')[gate.line]));
+      A(app.tables.parse(next, 4).rows.length === 2, 'still a table with two rows');
+      // Pandoc exports: numbers inside the cells too
+      const out = exportMarkdown(d.text, d);
+      A(out.includes(`$$q = u h \\qquad (2)$$`) && out.includes(`![${cfg.fig} 2. Outlet](outlet.png){#fig:outlet}`), 'export numbers in cells:\n' + out);
+    });
+    // one-line equations for cells
+    A(cellEquationMarkdown({ tex: 'a|b \\\\\n c % note', display: true, label: 'eq:x' }) === '$$a\\|b \\\\ c$$ {#eq:x}', 'cell equation: ' + cellEquationMarkdown({ tex: 'a|b \\\\\n c % note', display: true, label: 'eq:x' }));
+  });
+
+  app.tests.register('xref: Insert → Equation with the caret in a table cell writes one line that keeps the table', async () => {
+    const E = app.editor; if (!E?.createSimple || !E.fakeDoc) return;
+    const host = E._offscreen(); const ed = E.createSimple(); const d = E.fakeDoc('| Case | Eq |\n| --- | --- |\n| A |  |\n');
+    try {
+      ed.mount(host, d); await sleep(30); E.testTarget = ed;
+      ed.setSelection(d.text.indexOf('|  |') + 2);
+      A(app.tables.inTable(), 'caret in a cell');
+      await app.commands.run('insert.equation', { tex: 'q = u\n h', display: true, label: 'eq:cell', direct: true });
+      await sleep(30);
+      A(d.text.split('\n')[2].includes('$$q = u h$$ {#eq:cell}'), 'one line in the cell: ' + JSON.stringify(d.text));
+      const t = app.tables.parse(d.text, 0); A(t && t.rows.length === 1 && t.header.length === 2, 'the table is intact: ' + JSON.stringify(d.text));
+      A(build(d.text, config()).byLabel.get('eq:cell')?.num === '1', 'numbered');
+    } finally { E.testTarget = null; ed.unmount(); host.remove(); }
   });
 })();

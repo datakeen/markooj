@@ -43,33 +43,39 @@
     ['Alt+=', 'insert.equation', 'Insert'], ['Ctrl+Enter', 'insert.pageBreak', 'Insert'],
     ['Ctrl+Alt+F', ['ref.footnote', 'insert.footnote'], 'Insert'], ['Ctrl+Alt+D', ['ref.footnote', 'insert.footnote'], 'Insert'],
     ['Ctrl+Alt+M', ['review.comment', /^review\.(new)?comment$/i], 'Review'],
-    ['Alt+Shift+D', 'insert.dateTime', 'Insert'],
+    ['Alt+Shift+D', ['insert.date', 'insert.dateTime'], 'Insert'], ['Alt+Shift+T', 'insert.time', 'Insert'],
     // ---- Review and help (commands from other modules: used when they exist) ----
     ['F7', ['review.spelling', /^writing\.(spelling|check|assistant)$/], 'Review'],
     ['Shift+F7', ['writing.thesaurus', 'review.thesaurus', /thesaurus/i], 'Review'],
     ['F1', ['help.manual', 'help.reference', 'help.open', 'help.show', 'app.help', /^help\.(manual|reference|open|show|home|index)$/, 'app.shortcuts'], 'Help'],
     // ---- View and the ribbon ----
     ['Ctrl+F1', 'view.toggleRibbon', 'View'], ['F10', 'view.focusRibbon', 'View'], ['F6', 'view.nextPane', 'View'], ['Shift+F6', 'view.prevPane', 'View'],
+    // Word's window keys (round 5: split-view.js, windows.js)
+    ['Ctrl+Alt+S', 'view.split', 'Window'], ['Ctrl+F6', 'view.nextWindow', 'Window'], ['Ctrl+Shift+F6', 'view.prevWindow', 'Window'],
     // Ctrl+= is Subscript in Word, so zooming moves to Ctrl+Alt+= (Ctrl+mouse wheel and the status bar zoom too)
     ['Ctrl+Alt+=', 'view.zoomIn', 'View'], ['Ctrl+-', 'view.zoomOut', 'View'], ['Ctrl+Alt+-', 'view.zoomOut', 'View'],
   ];
   // Word keys that a module handles with its own listener (a single Shift key cannot be a shortcut): listed, never bound
   const SPECIAL = [['Ctrl+Right Shift', 'para.rtl', 'Paragraph'], ['Ctrl+Left Shift', 'para.ltr', 'Paragraph']];
-  // Word keys Markooj handles differently, for the help and the Options list
+  // Word keys Markooj handles differently, for the help and the Options list (English, translated where they are shown)
   const NOTES = [
-    ['Ctrl+1', 'Single line spacing', 'In Markooj Ctrl+1 to Ctrl+4 switch the editing mode (Word, Inline, Simple, Read). Use Layout → Line spacing.'],
-    ['Ctrl+2', 'Double line spacing', 'Ctrl+2 is Inline mode in Markooj. Use Layout → Line spacing.'],
-    ['Ctrl+Shift+M', 'Decrease indent', 'Ctrl+Shift+M switches the editing mode in Markooj. Use Alt+Shift+Left, or Shift+Tab in a list.'],
-    ['Ctrl+D', 'Font dialog', 'Markdown has one font per document: use Home → Font.'],
-    ['Ctrl+Shift+A', 'All caps', 'Use Change Case (Shift+F3) to make the text UPPERCASE.'],
-    ['Ctrl+Shift+C', 'Copy formatting', 'Ctrl+Shift+C inserts a citation in Markooj. To copy formatting, use Home → Format Painter.'],
-    ['Ctrl+Shift+E', 'Track changes', 'Ctrl+Shift+E opens Export in Markooj. Markdown has no tracked changes; use comments (Ctrl+Alt+M).'],
-    ['Ctrl+Alt+C', 'Copyright sign ©', 'Ctrl+Alt+C inserts a code block in Markooj. Use Insert → Symbol for ©.'],
-    ['Ctrl+Alt+R', 'Registered sign ®', 'Ctrl+Alt+R inserts a cross-reference in Markooj. Use Insert → Symbol for ®.'],
-    ['Ctrl+Alt+P', 'Print Layout view', 'Ctrl+Alt+P opens the Python console in Markooj. Word mode always shows the page.'],
-    ['Ctrl+Shift+P', 'Font size box', 'Ctrl+Shift+P opens the command search in Markooj (like Alt+Q). Use the size box on Home → Font.'],
+    ['Ctrl+1', app.tm('Single line spacing'), app.tm('In Markooj Ctrl+1 to Ctrl+4 switch the editing mode (Word, Inline, Simple, Read). Use Layout → Line spacing.')],
+    ['Ctrl+2', app.tm('Double line spacing'), app.tm('Ctrl+2 is Inline mode in Markooj. Use Layout → Line spacing.')],
+    ['Ctrl+Shift+M', app.tm('Decrease indent'), app.tm('Ctrl+Shift+M switches the editing mode in Markooj. Use Alt+Shift+Left, or Shift+Tab in a list.')],
+    ['Ctrl+D', app.tm('Font dialog'), app.tm('Markdown has one font per document: use Home → Font. In Simple mode Ctrl+D selects the next match for multiple cursors.')],
+    ['Ctrl+Shift+A', app.tm('All caps'), app.tm('Use Change Case (Shift+F3) to make the text UPPERCASE.')],
+    ['Ctrl+Shift+C', app.tm('Copy formatting'), app.tm('Ctrl+Shift+C inserts a citation in Markooj. To copy formatting, use Home → Format Painter.')],
+    ['Ctrl+Shift+E', app.tm('Track changes'), app.tm('Ctrl+Shift+E opens Export in Markooj. Markdown has no tracked changes; use comments (Ctrl+Alt+M).')],
+    ['Ctrl+Alt+C', app.tm('Copyright sign ©'), app.tm('Ctrl+Alt+C inserts a code block in Markooj. Use Insert → Symbol for ©.')],
+    ['Ctrl+Alt+R', app.tm('Registered sign ®'), app.tm('Ctrl+Alt+R inserts a cross-reference in Markooj. Use Insert → Symbol for ®.')],
+    ['Ctrl+Alt+P', app.tm('Print Layout view'), app.tm('Ctrl+Alt+P opens the Python console in Markooj. Word mode always shows the page.')],
+    ['Ctrl+Shift+P', app.tm('Font size box'), app.tm('Ctrl+Shift+P opens the command search in Markooj (like Alt+Q). Use the size box on Home → Font.')],
+    ['Ctrl+Shift+K', app.tm('Small caps'), app.tm('Ctrl+Shift+K switches the keyboard between English and Urdu, Arabic, Persian or Punjabi in Markooj. Markdown has no small caps.')],
   ];
+  // group names stay English in app.keys.list() (they sort the list); the Options card translates them when it draws
   const GROUP_OF = { file: 'File', edit: 'Edit', format: 'Font', para: 'Paragraph', list: 'Paragraph', layout: 'Layout', insert: 'Insert', ref: 'References', xref: 'References', review: 'Review', writing: 'Review', view: 'View', tab: 'Window', app: 'Help', help: 'Help', dev: 'Developer', macro: 'Macros', viewer: 'Viewer', table: 'Table', eq: 'Insert' };
+  const GROUP_NAMES = [app.tm('File'), app.tm('Edit'), app.tm('Font'), app.tm('Paragraph'), app.tm('Layout'), app.tm('Insert'), app.tm('References'), app.tm('Review'), app.tm('View'), app.tm('Window'), app.tm('Navigate'), app.tm('Help'), app.tm('Developer'), app.tm('Macros'), app.tm('Viewer'), app.tm('Table'), app.tm('Other')];
+  void GROUP_NAMES;
 
   // ---------- the apply step ----------
   const ORIG = new WeakMap(), WRITTEN = new WeakMap();
@@ -131,7 +137,7 @@
   let bumped = false;
   function bumpEditorCache() {
     if (bumped) { app.commands.unregister?.('keys.refresh'); bumped = false; }
-    else { app.commands.register('keys.refresh', { label: 'Keyboard map', description: 'Internal: refreshes the keyboard map.', hidden: true, palette: false, run() {} }); bumped = true; }
+    else { app.commands.register('keys.refresh', { label: 'Keyboard map', description: 'Internal: refreshes the keyboard map.', hidden: true, palette: false, run() {} }); bumped = true; } // hidden, never shown: not translated
   }
   let queued = false, ready = false;
   function scheduleApply() {
@@ -150,27 +156,33 @@
   const C = (id, def) => app.commands.register(id, { category: def.category || 'Edit', ...def });
   const activeMd = () => { const d = app.docs.active(); return d && d.kind === 'markdown' && !d.readOnly ? d : null; };
   const editing = () => !!activeMd() && app.mode !== 'read';
-  const why = () => { const d = app.docs.active(); return !d ? 'Open or create a document first.' : d.kind !== 'markdown' ? 'Use Edit as text to make an editable copy. PDF and DjVu files can’t be edited here.' : d.readOnly ? 'This document is read-only.' : app.mode === 'read' ? 'Read mode is for reading. Press Esc to go back to editing.' : ''; };
+  const why = () => { const d = app.docs.active(); return !d ? app.t('Open or create a document first.') : d.kind !== 'markdown' ? app.t('Use Edit as text to make an editable copy. PDF and DjVu files can’t be edited here.') : d.readOnly ? app.t('Use Edit as text to make an editable copy. This document is read-only.') : app.mode === 'read' ? app.t('Read mode is for reading. Press Esc to go back to editing.') : ''; };
 
   // F4: repeat the last formatting or insert command
   const REPEATABLE = /^(format\.|para\.|list\.|insert\.|edit\.case\.|edit\.changeCase$|layout\.|review\.comment$|ref\.footnote$|xref\.(crossref|caption)$|table\.)/;
   const NOT_REPEATABLE = /^(format\.painter|format\.fontFamily|insert\.equation$|edit\.repeat$)/;
   let lastRepeatable = null;
   app.events.on('command:ran', ({ id, args } = {}) => { if (id && REPEATABLE.test(id) && !NOT_REPEATABLE.test(id)) lastRepeatable = { id, args }; });
-  C('edit.repeat', { label: 'Repeat', description: 'Do the last formatting or insert command again, like F4 in Word.', icon: 'redo', isEnabled: editing, why, run: () => {
-    if (!lastRepeatable) { toast('Type or format something first, then press F4 to repeat it.', { kind: 'info', timeout: 2200 }); return false; }
+  C('edit.repeat', { label: app.tm('Repeat'), description: app.tm('Do the last formatting or insert command again, like F4 in Word.'), icon: 'redo', isEnabled: editing, why, run: () => {
+    if (!lastRepeatable) { toast(app.t('Type or format something first, then press F4 to repeat it.'), { kind: 'info', timeout: 2200 }); return false; }
     return app.commands.run(lastRepeatable.id, lastRepeatable.args);
   } });
   // Ctrl+G: Go To (a page in PDF and DjVu files, a heading in documents)
-  C('edit.goTo', { label: 'Go To', description: 'Jump to a heading in the document, or to a page in a PDF or DjVu file.', icon: 'toc', category: 'Navigate', run: () => {
+  C('edit.goTo', { label: app.tm('Go To'), description: app.tm('Jump to a heading in the document, or to a page in a PDF or DjVu file.'), icon: 'toc', category: 'Navigate', run: () => {
     const d = app.docs.active();
     if (d && d.kind !== 'markdown' && app.commands.get('viewer.goToPage')) return app.commands.run('viewer.goToPage');
     return app.commands.run('app.goToHeading');
   } });
   // Ctrl+Q: paragraph formatting off (alignment); the text and its style stay
-  C('format.clearParagraph', { label: 'Clear paragraph formatting', description: 'Remove paragraph formatting such as center or right alignment. The words and the paragraph style stay.', icon: 'al', category: 'Paragraph', isEnabled: editing, why, run: () => app.commands.run(app.commands.get('para.alignLeft') ? 'para.alignLeft' : 'para.align', app.commands.get('para.alignLeft') ? undefined : { value: 'left' }) });
+  C('format.clearParagraph', { label: app.tm('Clear paragraph formatting'), description: app.tm('Remove paragraph formatting such as center or right alignment. The words and the paragraph style stay.'), icon: 'al', category: 'Paragraph', isEnabled: editing, why, run: () => {
+    // back to the paragraph's own side: left for English, right for Urdu or Arabic (Word mode treats that side as "no alignment")
+    let side = 'left';
+    try { const n = document.getSelection()?.anchorNode; const el = n && (n.nodeType === 1 ? n : n.parentElement); if (app.mode === 'word' && el && getComputedStyle(el).direction === 'rtl') side = 'right'; } catch {}
+    const id = 'para.align' + side[0].toUpperCase() + side.slice(1);
+    return app.commands.run(app.commands.get(id) ? id : 'para.align', app.commands.get(id) ? undefined : { value: side });
+  } });
   // Ctrl+5: 1.5 line spacing for the whole document (Markdown has one spacing per document)
-  C('layout.lineSpacing15', { label: 'Line spacing 1.5', description: 'Set 1.5 line spacing for the whole document. Press again for the default spacing.', icon: 'mk-lines', category: 'Paragraph', isEnabled: () => !!activeMd(), why,
+  C('layout.lineSpacing15', { label: app.tm('Line spacing 1.5'), description: app.tm('Set 1.5 line spacing for the whole document. Press again for the default spacing.'), icon: 'mk-lines', category: 'Paragraph', isEnabled: () => !!activeMd(), why,
     isActive: () => String(app.layout?.get?.()?.lineSpacing || '') === '1.5',
     run: () => app.commands.run('layout.lineSpacing', { value: String(app.layout?.get?.()?.lineSpacing || '') === '1.5' ? 'default' : '1.5' }) });
 
@@ -193,7 +205,7 @@
     const h = m ? m[1].length : line ? 0 : headingLevel();
     if (h) {
       const n = Math.max(1, Math.min(6, h + dir));
-      if (n === h) { toast(dir < 0 ? 'This is already Heading 1.' : 'Heading 6 is the smallest heading.', { kind: 'info', timeout: 1400 }); return false; }
+      if (n === h) { toast(dir < 0 ? app.t('This is already Heading 1.') : app.t('Heading 6 is the smallest heading.'), { kind: 'info', timeout: 1400 }); return false; }
       // the editor knows the Markdown offsets (Simple, Inline): rewrite the # marks in place (undo works, the cursor stays)
       const ad = app.editors.active(), at = lineAtCaret();
       if (m && at?.offset && ad?.setSelection && ad?.replaceSelection) {
@@ -207,11 +219,11 @@
       return app.commands.run('format.style', { value: 'h' + n });
     }
     if (/^\s*([-*+]|\d+[.)])\s/.test(line) || (!line && inList())) return app.commands.run(dir < 0 ? 'para.outdent' : 'para.indent');
-    toast('Put the cursor in a heading or a list item first.', { kind: 'info', timeout: 1600 });
+    toast(app.t('Put the cursor in a heading or a list item first.'), { kind: 'info', timeout: 1600 });
     return false;
   }
-  C('para.promote', { label: 'Promote', description: 'Make a heading one level bigger (Heading 2 → Heading 1), or move a list item out one level.', icon: 'outdent', category: 'Paragraph', isEnabled: editing, why, run: () => promote(-1) });
-  C('para.demote', { label: 'Demote', description: 'Make a heading one level smaller (Heading 1 → Heading 2), or move a list item in one level.', icon: 'indent', category: 'Paragraph', isEnabled: editing, why, run: () => promote(1) });
+  C('para.promote', { label: app.tm('Promote'), description: app.tm('Make a heading one level bigger (Heading 2 → Heading 1), or move a list item out one level.'), icon: 'outdent', category: 'Paragraph', isEnabled: editing, why, run: () => promote(-1) });
+  C('para.demote', { label: app.tm('Demote'), description: app.tm('Make a heading one level smaller (Heading 1 → Heading 2), or move a list item in one level.'), icon: 'indent', category: 'Paragraph', isEnabled: editing, why, run: () => promote(1) });
 
   // Alt+Shift+Up / Down: move the paragraph (or list item) above or below its neighbor
   /** Splits Markdown into movable units: blocks separated by blank lines, list items, whole code fences. */
@@ -284,8 +296,8 @@
     else setTimeout(() => { try { ad.setCaretLine?.(r.line); } catch {} }, 60);
     return true;
   }
-  C('para.moveUp', { label: 'Move paragraph up', description: 'Move the paragraph (or list item) with the cursor above the one before it.', icon: 'chevup', category: 'Paragraph', isEnabled: editing, why, run: () => moveParagraph(-1) });
-  C('para.moveDown', { label: 'Move paragraph down', description: 'Move the paragraph (or list item) with the cursor below the one after it.', icon: 'chev', category: 'Paragraph', isEnabled: editing, why, run: () => moveParagraph(1) });
+  C('para.moveUp', { label: app.tm('Move paragraph up'), description: app.tm('Move the paragraph (or list item) with the cursor above the one before it.'), icon: 'chevup', category: 'Paragraph', isEnabled: editing, why, run: () => moveParagraph(-1) });
+  C('para.moveDown', { label: app.tm('Move paragraph down'), description: app.tm('Move the paragraph (or list item) with the cursor below the one after it.'), icon: 'chev', category: 'Paragraph', isEnabled: editing, why, run: () => moveParagraph(1) });
 
   // ---------- app.keys: every shortcut, for the help, the docs and Options ----------
   function groupOf(c) {
@@ -339,38 +351,41 @@
   }
   function renderKeyboard(card) {
     card.classList.add('kb-card');
-    const intro = el('p', { class: 'kb-intro', text: 'Markooj uses Word’s shortcuts wherever Markdown has the same thing. Search by name or by key.' });
-    const search = el('input', { class: 'txt kb-search', type: 'search', placeholder: 'Search shortcuts, like “bold” or “Ctrl+B”', 'aria-label': 'Search keyboard shortcuts' });
+    const intro = el('p', { class: 'kb-intro', text: app.t('Markooj uses Word’s shortcuts wherever Markdown has the same thing. Search by name or by key.') });
+    const search = el('input', { class: 'txt kb-search', type: 'search', placeholder: app.t('Search shortcuts, like “bold” or “Ctrl+B”'), 'aria-label': app.t('Search keyboard shortcuts') });
     const box = el('div', { class: 'kb-list', role: 'list' });
     const count = el('small', { class: 'kb-count' });
     card.append(intro, el('div', { class: 'kb-top' }, search, count), box);
     const rows = list();
+    // NOTES in the interface language; the search finds the translated and the English words
+    const notesShown = NOTES.map(([k, w, t]) => [k, app.t(w), app.t(t), w + ' ' + t]);
     const draw = () => {
       const q = search.value.trim().toLowerCase().replace(/\s+/g, '');
       box.innerHTML = '';
       let group = null, n = 0;
       for (const r of rows) {
-        const hay = (r.title + ' ' + r.group + ' ' + r.id + ' ' + r.keys.concat(r.typing).map(k => k + ' ' + fmtKey(k)).join(' ')).toLowerCase().replace(/\s+/g, '');
+        const groupName = app.t(r.group);
+        const hay = (r.title + ' ' + r.group + ' ' + groupName + ' ' + r.id + ' ' + r.keys.concat(r.typing).map(k => k + ' ' + fmtKey(k)).join(' ')).toLowerCase().replace(/\s+/g, '');
         if (q && !hay.includes(q)) continue;
-        if (r.group !== group) { group = r.group; box.append(el('div', { class: 'kb-group', text: group })); }
-        const keys = el('span', { class: 'kb-keys' }, ...r.keys.map(k => el('kbd', { text: fmtKey(k) })), ...r.typing.map(k => el('kbd', { class: 'typing', text: fmtKey(k), title: 'While you type in the page' })));
+        if (r.group !== group) { group = r.group; box.append(el('div', { class: 'kb-group', text: groupName })); }
+        const keys = el('span', { class: 'kb-keys' }, ...r.keys.map(k => el('kbd', { text: fmtKey(k) })), ...r.typing.map(k => el('kbd', { class: 'typing', text: fmtKey(k), title: app.t('While you type in the page') })));
         box.append(el('div', { class: 'kb-row', role: 'listitem', 'data-id': r.id, title: r.description || '' }, el('span', { class: 'kb-t' }, r.title, r.word ? el('span', { class: 'kb-tag', text: 'Word' }) : null), keys));
         n++;
       }
-      if (!q || 'word'.includes(q) || NOTES.some(([k, w, t]) => (k + w + t).toLowerCase().replace(/\s+/g, '').includes(q))) {
-        const notes = NOTES.filter(([k, w, t]) => !q || (k + ' ' + w + ' ' + t).toLowerCase().replace(/\s+/g, '').includes(q));
+      if (!q || 'word'.includes(q) || notesShown.some(([k, w, t, en]) => (k + w + t + en).toLowerCase().replace(/\s+/g, '').includes(q))) {
+        const notes = notesShown.filter(([k, w, t, en]) => !q || (k + ' ' + w + ' ' + t + ' ' + en).toLowerCase().replace(/\s+/g, '').includes(q));
         if (notes.length) {
-          box.append(el('div', { class: 'kb-group', text: 'Word keys that work differently here' }));
+          box.append(el('div', { class: 'kb-group', text: app.t('Word keys that work differently here') }));
           for (const [k, w, t] of notes) box.append(el('div', { class: 'kb-row note', role: 'listitem' }, el('span', { class: 'kb-t' }, el('b', { text: w }), el('small', { text: t })), el('span', { class: 'kb-keys' }, el('kbd', { text: fmtKey(k) }))));
         }
       }
-      if (!n && q) box.append(el('p', { class: 'kb-empty', text: 'No shortcut matches “' + search.value.trim() + '”.' }));
-      count.textContent = n + (n === 1 ? ' shortcut' : ' shortcuts');
+      if (!n && q) box.append(el('p', { class: 'kb-empty', text: app.t('No shortcut matches “{query}”.', { query: search.value.trim() }) }));
+      count.textContent = app.tn('{count} shortcuts', n);
     };
     search.addEventListener('input', draw);
     draw();
   }
-  app.options?.addSection?.({ id: 'keyboard', label: 'Keyboard', order: 60, render: renderKeyboard });
+  app.options?.addSection?.({ id: 'keyboard', label: app.tm('Keyboard shortcuts'), order: 60, render: renderKeyboard });
 
   // ---------- smoke tests ----------
   const A = app.assert;
