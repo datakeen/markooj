@@ -331,6 +331,8 @@ jobs:
             s=s.replace(/^# Download Markooj$/m,'# Markooj '+v);
             const sec=fs.existsSync('section.md')?fs.readFileSync('section.md','utf8').trim():'';
             if(sec)s=s.replace(/\n## Which file do I need\?/,()=>'\n## What’s new in '+v+'\n\n'+sec.replace(/^### /gm,'#### ')+'\n\n## Which file do I need?');
+            const hist=[...fs.readFileSync('CHANGELOG.md','utf8').matchAll(/^## \[(\d[^\]]*)\] - (\S+)\s*\n\s*\n([^#\n][^\n]*)/gm)].map(m=>'- **'+m[1]+'** ('+m[2]+'): '+m[3].trim()).join('\n');
+            if(hist)s=s.replace(/\n## Which file do I need\?/,()=>'\n## Version history\n\n'+hist+'\n\nEvery change, version by version: [CHANGELOG.md](https://github.com/datakeen/markooj/blob/main/CHANGELOG.md).\n\n## Which file do I need?');
             fs.writeFileSync('dist/README.md',s);"
           head -c 600 dist/README.md
 
