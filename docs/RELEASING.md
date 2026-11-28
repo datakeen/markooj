@@ -76,7 +76,7 @@ The SourceForge project mirrors the GitHub releases on its own, so there is usua
 1. Open the project's **Files** page and check that a folder for the new version has appeared (this can take a few hours).
 2. Click the **i** next to each main file and set the default download for its system: the setup `.exe` for Windows, the Apple-chip `.dmg` for macOS, the `.AppImage` for Linux.
 
-If the mirror is not set up, upload the files by hand: make a folder named after the version, upload the files, and upload `docs/downloads/README.md` into the same folder. SourceForge shows it under the file list.
+Each release carries a `README.md` (built from `docs/downloads/README.md`, with the features and that version's What's new), so the mirror copies it and SourceForge shows it under the file list. If the mirror is not set up, upload the files and that `README.md` by hand into a folder named after the version.
 
 ## Language packs
 

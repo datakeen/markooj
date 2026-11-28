@@ -323,16 +323,26 @@ jobs:
             fi
           } > notes.md
           cat notes.md
+          # README.md for the release folder (SourceForge mirrors the release and shows it under the file list):
+          # docs/downloads/README.md with this version's file names, and "What's new" after the features
+          node -e "
+            const fs=require('fs');const v=process.env.VERSION;let s=fs.readFileSync('docs/downloads/README.md','utf8');
+            s=s.replace(/In the file names below, \x60x\.y\.z\x60 is the version number, for example \x60[^\x60]*\x60\.\s*/,'').split('x.y.z').join(v);
+            s=s.replace(/^# Download Markooj$/m,'# Markooj '+v);
+            const sec=fs.existsSync('section.md')?fs.readFileSync('section.md','utf8').trim():'';
+            if(sec)s=s.replace(/\n## Which file do I need\?/,()=>'\n## What’s new in '+v+'\n\n'+sec.replace(/^### /gm,'#### ')+'\n\n## Which file do I need?');
+            fs.writeFileSync('dist/README.md',s);"
+          head -c 600 dist/README.md
 
       - name: Create or update the GitHub Release
         run: |
           PRE=""
           case "$TAG" in *-*) PRE="--prerelease";; esac
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/Markooj-* dist/markooj-feature-*.zip dist/markooj-features.json --clobber
+            gh release upload "$TAG" dist/Markooj-* dist/markooj-feature-*.zip dist/markooj-features.json dist/README.md --clobber
             gh release edit "$TAG" --title "Markooj $VERSION" --notes-file notes.md --draft=false $PRE
           else
-            gh release create "$TAG" dist/Markooj-* dist/markooj-feature-*.zip dist/markooj-features.json --verify-tag --title "Markooj $VERSION" \
+            gh release create "$TAG" dist/Markooj-* dist/markooj-feature-*.zip dist/markooj-features.json dist/README.md --verify-tag --title "Markooj $VERSION" \
               --notes-file notes.md --generate-notes $PRE
           fi
 

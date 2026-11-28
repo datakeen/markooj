@@ -4,6 +4,20 @@ Markooj is a Markdown editor that works like Microsoft Word. You click and type 
 
 Website: [datakeen.github.io/markooj](https://datakeen.github.io/markooj/)
 
+## Features
+
+- **Writes like Word:** the ribbon, Word's shortcuts and Alt KeyTips, with four ways to work on one file (Word, Inline, Simple and Read).
+- **Equations and cross-references:** a visual equation editor, numbered equations, figures and tables, and references that update themselves.
+- **Citations:** cite from your Zotero, Mendeley or JabRef library (a .bib file), and the bibliography builds itself.
+- **Writing Assistant:** offline spelling, grammar and style checks, each with a Why? that explains it.
+- **Tables like Word:** insert, merge and style tables, and paste them from Word, Excel and Google Sheets.
+- **Right to left:** Urdu, Arabic, Persian and Punjabi (Shahmukhi), with matching fonts, built-in keyboards and aarab tools.
+- **In your language:** the menus and dialogs come in English, Chinese (Simplified), Urdu, Roman Urdu, Punjabi, Japanese, Arabic, Swedish, Spanish, French and Portuguese (Brazil).
+- **Save in the format people ask for:** PDF, Word, web page, EPUB, LaTeX and more.
+- **Split and side by side:** two parts of a document, or two documents, at once, plus rulers and guides.
+- **Macros and add-ins:** Python and JavaScript macros, and an add-in store.
+- **Private:** everything runs on your own computer, and nothing you write leaves it.
+
 ## Which file do I need?
 
 In the file names below, `x.y.z` is the version number, for example `1.1.0`.
